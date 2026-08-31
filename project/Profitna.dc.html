@@ -5,6 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Profitna — Know Your Numbers. Grow Your Business.</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='17' fill='%231a1a1a'/%3E%3Cpolyline points='15,44 27,32 34,39 46,24' fill='none' stroke='%23FAC775' stroke-width='6' stroke-linecap='square'/%3E%3Cpolygon points='50,19 37.5,21 47.5,32.5' fill='%23FAC775'/%3E%3C/svg%3E" />
+<script>
+// Serve the runtime's libraries from this deployment rather than a public CDN,
+// so the app boots without third-party availability.
+window.__resources = {
+  'https://unpkg.com/react@18.3.1/umd/react.production.min.js': './vendor/react.production.min.js',
+  'https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js': './vendor/react-dom.production.min.js',
+  'https://unpkg.com/@babel/standalone@7.29.0/babel.min.js': './vendor/babel.min.js'
+};
+</script>
 <script src="./support.js"></script>
 </head>
 <body>
@@ -14,7 +23,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
 <link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="./vendor/xlsx.full.min.js"></script>
 <style>
   body { margin: 0; background: #F4F3EE; font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 14px; line-height: 1.55; color: #1a1a1a; -webkit-font-smoothing: antialiased; }
   * { box-sizing: border-box; }
@@ -665,44 +674,44 @@
         <div>
           <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px;">
             <input value="{{ search }}" onChange="{{ onSearch }}" placeholder="Search description, party or category" style="flex: 1 1 260px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 11px; font-size: 13px; background: #FFFFFF;" />
-            <select value="{{ txType }}" onChange="{{ onTxType }}" style="border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 10px; font-size: 13px; background: #FFFFFF;">
+            <sc-raw-select value="{{ txType }}" onChange="{{ onTxType }}" style="border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 10px; font-size: 13px; background: #FFFFFF;">
               <option value="all">All types</option>
               <option value="income">{{ incomeWord }} only</option>
               <option value="expense">Expenses only</option>
               <option value="uncoded">Needs a category</option>
-            </select>
+            </sc-raw-select>
             <button onClick="{{ runAI }}" style="border: 1px solid #B8863A; background: #FAEEDA; color: #412402; border-radius: 6px; padding: 8px 13px; font-size: 12.5px; font-weight: 600; cursor: pointer;" style-hover="background: #FAC775;">Suggest categories with AI</button>
             <button onClick="{{ openImport }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 13px; font-size: 12.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Import statement</button>
             <button onClick="{{ exportCsv }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 13px; font-size: 12.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Export CSV</button>
           </div>
 
           <div style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.04), 0 1px 3px rgba(19,19,19,.06); overflow: hidden; overflow-x: auto;">
-            <table style="width: 100%; min-width: 760px; font-size: 14px;">
-              <thead>
-                <tr style="background: #F7F5F0; border-bottom: 1px solid #E5E1D8; position: sticky; top: 0; z-index: 2; box-shadow: 0 1px 0 #E5E1D8;">
-                  <th style="text-align: left; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Date</th>
-                  <th style="text-align: left; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Description</th>
-                  <th style="text-align: left; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">{{ partyWord }}</th>
-                  <th style="text-align: left; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Category</th>
-                  <th style="text-align: left; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">{{ fundWord }}</th>
-                  <th style="text-align: right; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
+            <sc-raw-table style="width: 100%; min-width: 760px; font-size: 14px;">
+              <sc-raw-thead>
+                <sc-raw-tr style="background: #F7F5F0; border-bottom: 1px solid #E5E1D8; position: sticky; top: 0; z-index: 2; box-shadow: 0 1px 0 #E5E1D8;">
+                  <sc-raw-th style="text-align: left; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Date</sc-raw-th>
+                  <sc-raw-th style="text-align: left; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Description</sc-raw-th>
+                  <sc-raw-th style="text-align: left; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">{{ partyWord }}</sc-raw-th>
+                  <sc-raw-th style="text-align: left; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Category</sc-raw-th>
+                  <sc-raw-th style="text-align: left; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">{{ fundWord }}</sc-raw-th>
+                  <sc-raw-th style="text-align: right; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Amount</sc-raw-th>
+                </sc-raw-tr>
+              </sc-raw-thead>
+              <sc-raw-tbody>
                 <sc-for list="{{ txRows }}" as="t" hint-placeholder-count="12">
-                  <tr style="border-bottom: 1px solid #EFECE4;" style-hover="background: #F7F5F0; box-shadow: inset 2px 0 0 #FAC775;">
-                    <td style="padding: 12px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #403D37; white-space: nowrap;">{{ t.date }}</td>
-                    <td style="padding: 12px 16px;">{{ t.description }}</td>
-                    <td style="padding: 12px 16px; color: #403D37;">{{ t.party }}</td>
-                    <td style="padding: 12px 16px;">
+                  <sc-raw-tr style="border-bottom: 1px solid #EFECE4;" style-hover="background: #F7F5F0; box-shadow: inset 2px 0 0 #FAC775;">
+                    <sc-raw-td style="padding: 12px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #403D37; white-space: nowrap;">{{ t.date }}</sc-raw-td>
+                    <sc-raw-td style="padding: 12px 16px;">{{ t.description }}</sc-raw-td>
+                    <sc-raw-td style="padding: 12px 16px; color: #403D37;">{{ t.party }}</sc-raw-td>
+                    <sc-raw-td style="padding: 12px 16px;">
                       <span style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 3px; font-size: 12px; font-weight: 500; background: {{ t.catBg }}; color: {{ t.catFg }}; border: 1px solid {{ t.catBorder }};"><span style="width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: 0 0 6px;"></span>{{ t.category }}</span>
-                    </td>
-                    <td style="padding: 12px 16px; font-size: 12px; color: #403D37;">{{ t.fund }}</td>
-                    <td style="padding: 12px 16px; text-align: right; font-family: 'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; color: {{ t.amountColor }};">{{ t.amount }}</td>
-                  </tr>
+                    </sc-raw-td>
+                    <sc-raw-td style="padding: 12px 16px; font-size: 12px; color: #403D37;">{{ t.fund }}</sc-raw-td>
+                    <sc-raw-td style="padding: 12px 16px; text-align: right; font-family: 'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; color: {{ t.amountColor }};">{{ t.amount }}</sc-raw-td>
+                  </sc-raw-tr>
                 </sc-for>
-              </tbody>
-            </table>
+              </sc-raw-tbody>
+            </sc-raw-table>
           </div>
           <sc-if value="{{ txEmpty }}" hint-placeholder-val="{{ false }}">
             <div style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.04), 0 1px 3px rgba(19,19,19,.06); padding: 48px 24px; text-align: center; margin-top: -1px;">
@@ -744,38 +753,38 @@
           </div>
 
           <div style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.04), 0 1px 3px rgba(19,19,19,.06); overflow: hidden; overflow-x: auto;">
-            <table style="width: 100%; min-width: 800px; font-size: 14px;">
-              <thead>
-                <tr style="background: #F7F5F0; border-bottom: 1px solid #E5E1D8; position: sticky; top: 0; z-index: 2; box-shadow: 0 1px 0 #E5E1D8;">
-                  <th style="text-align: left; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">No.</th>
-                  <th style="text-align: left; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">{{ docParty }}</th>
-                  <th style="text-align: left; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Issued</th>
-                  <th style="text-align: left; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Due</th>
-                  <th style="text-align: right; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Total</th>
-                  <th style="text-align: right; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Balance</th>
-                  <th style="text-align: left; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Status</th>
-                  <th style="padding: 12px 16px;"></th>
-                </tr>
-              </thead>
-              <tbody>
+            <sc-raw-table style="width: 100%; min-width: 800px; font-size: 14px;">
+              <sc-raw-thead>
+                <sc-raw-tr style="background: #F7F5F0; border-bottom: 1px solid #E5E1D8; position: sticky; top: 0; z-index: 2; box-shadow: 0 1px 0 #E5E1D8;">
+                  <sc-raw-th style="text-align: left; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">No.</sc-raw-th>
+                  <sc-raw-th style="text-align: left; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">{{ docParty }}</sc-raw-th>
+                  <sc-raw-th style="text-align: left; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Issued</sc-raw-th>
+                  <sc-raw-th style="text-align: left; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Due</sc-raw-th>
+                  <sc-raw-th style="text-align: right; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Total</sc-raw-th>
+                  <sc-raw-th style="text-align: right; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Balance</sc-raw-th>
+                  <sc-raw-th style="text-align: left; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Status</sc-raw-th>
+                  <sc-raw-th style="padding: 12px 16px;"></sc-raw-th>
+                </sc-raw-tr>
+              </sc-raw-thead>
+              <sc-raw-tbody>
                 <sc-for list="{{ docRows }}" as="d" hint-placeholder-count="8">
-                  <tr style="border-bottom: 1px solid #EFECE4;" style-hover="background: #F7F5F0; box-shadow: inset 2px 0 0 #FAC775;">
-                    <td style="padding: 12px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 12px;">{{ d.number }}</td>
-                    <td style="padding: 12px 16px; font-weight: 500;">{{ d.party }}</td>
-                    <td style="padding: 12px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #403D37;">{{ d.issue }}</td>
-                    <td style="padding: 12px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #403D37;">{{ d.due }}</td>
-                    <td style="padding: 12px 16px; text-align: right; font-family: 'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums;">{{ d.total }}</td>
-                    <td style="padding: 12px 16px; text-align: right; font-family: 'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; font-weight: 500;">{{ d.balance }}</td>
-                    <td style="padding: 12px 16px;">
+                  <sc-raw-tr style="border-bottom: 1px solid #EFECE4;" style-hover="background: #F7F5F0; box-shadow: inset 2px 0 0 #FAC775;">
+                    <sc-raw-td style="padding: 12px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 12px;">{{ d.number }}</sc-raw-td>
+                    <sc-raw-td style="padding: 12px 16px; font-weight: 500;">{{ d.party }}</sc-raw-td>
+                    <sc-raw-td style="padding: 12px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #403D37;">{{ d.issue }}</sc-raw-td>
+                    <sc-raw-td style="padding: 12px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #403D37;">{{ d.due }}</sc-raw-td>
+                    <sc-raw-td style="padding: 12px 16px; text-align: right; font-family: 'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums;">{{ d.total }}</sc-raw-td>
+                    <sc-raw-td style="padding: 12px 16px; text-align: right; font-family: 'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; font-weight: 500;">{{ d.balance }}</sc-raw-td>
+                    <sc-raw-td style="padding: 12px 16px;">
                       <span style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 3px; font-size: 11.5px; font-weight: 600; letter-spacing: 0.03em; background: {{ d.statusBg }}; color: {{ d.statusFg }};"><span style="width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: 0 0 6px;"></span>{{ d.status }}</span>
-                    </td>
-                    <td style="padding: 12px 16px; text-align: right; white-space: nowrap;">
+                    </sc-raw-td>
+                    <sc-raw-td style="padding: 12px 16px; text-align: right; white-space: nowrap;">
                       <button onClick="{{ d.view }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 4px 10px; font-size: 11.5px; cursor: pointer;" style-hover="background: #1a1a1a; color: #FFFFFF;">Open</button>
-                    </td>
-                  </tr>
+                    </sc-raw-td>
+                  </sc-raw-tr>
                 </sc-for>
-              </tbody>
-            </table>
+              </sc-raw-tbody>
+            </sc-raw-table>
           </div>
         </div>
       </sc-if>
@@ -816,42 +825,42 @@
             </div>
           </sc-if>
           <div style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.04), 0 1px 3px rgba(19,19,19,.06); overflow: hidden; overflow-x: auto;">
-            <table style="width: 100%; min-width: 880px; font-size: 14px;">
-              <thead>
-                <tr style="background: #F7F5F0; border-bottom: 1px solid #E5E1D8; position: sticky; top: 0; z-index: 2; box-shadow: 0 1px 0 #E5E1D8;">
-                  <th style="text-align: left; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Item</th>
-                  <th style="text-align: left; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Supplier</th>
-                  <th style="text-align: right; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Unit cost</th>
-                  <th style="text-align: right; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Purchased</th>
-                  <th style="text-align: right; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Sold</th>
-                  <th style="text-align: right; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Remaining</th>
-                  <th style="text-align: right; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Stock value</th>
-                  <th style="padding: 12px 16px;"></th>
-                </tr>
-              </thead>
-              <tbody>
+            <sc-raw-table style="width: 100%; min-width: 880px; font-size: 14px;">
+              <sc-raw-thead>
+                <sc-raw-tr style="background: #F7F5F0; border-bottom: 1px solid #E5E1D8; position: sticky; top: 0; z-index: 2; box-shadow: 0 1px 0 #E5E1D8;">
+                  <sc-raw-th style="text-align: left; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Item</sc-raw-th>
+                  <sc-raw-th style="text-align: left; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Supplier</sc-raw-th>
+                  <sc-raw-th style="text-align: right; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Unit cost</sc-raw-th>
+                  <sc-raw-th style="text-align: right; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Purchased</sc-raw-th>
+                  <sc-raw-th style="text-align: right; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Sold</sc-raw-th>
+                  <sc-raw-th style="text-align: right; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Remaining</sc-raw-th>
+                  <sc-raw-th style="text-align: right; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Stock value</sc-raw-th>
+                  <sc-raw-th style="padding: 12px 16px;"></sc-raw-th>
+                </sc-raw-tr>
+              </sc-raw-thead>
+              <sc-raw-tbody>
                 <sc-for list="{{ invRows }}" as="i" hint-placeholder-count="6">
-                  <tr style="border-bottom: 1px solid #EFECE4;" style-hover="background: #F7F5F0; box-shadow: inset 2px 0 0 #FAC775;">
-                    <td style="padding: 12px 16px;">
+                  <sc-raw-tr style="border-bottom: 1px solid #EFECE4;" style-hover="background: #F7F5F0; box-shadow: inset 2px 0 0 #FAC775;">
+                    <sc-raw-td style="padding: 12px 16px;">
                       <div style="font-weight: 600;">{{ i.name }}</div>
                       <div style="font-size: 12.5px; color: #5C5850; font-family: 'IBM Plex Mono', monospace;">{{ i.sku }}</div>
-                    </td>
-                    <td style="padding: 12px 16px; color: #403D37;">{{ i.supplier }}</td>
-                    <td style="padding: 12px 16px; text-align: right; font-family: 'IBM Plex Mono', monospace;">{{ i.cost }}</td>
-                    <td style="padding: 12px 16px; text-align: right; font-family: 'IBM Plex Mono', monospace;">{{ i.purchased }}</td>
-                    <td style="padding: 12px 16px; text-align: right; font-family: 'IBM Plex Mono', monospace;">{{ i.sold }}</td>
-                    <td style="padding: 12px 16px; text-align: right; font-family: 'IBM Plex Mono', monospace; font-weight: 600; color: {{ i.remColor }};">{{ i.remaining }}</td>
-                    <td style="padding: 12px 16px; text-align: right; font-family: 'IBM Plex Mono', monospace;">{{ i.value }}</td>
-                    <td style="padding: 12px 16px; text-align: right; white-space: nowrap;">
+                    </sc-raw-td>
+                    <sc-raw-td style="padding: 12px 16px; color: #403D37;">{{ i.supplier }}</sc-raw-td>
+                    <sc-raw-td style="padding: 12px 16px; text-align: right; font-family: 'IBM Plex Mono', monospace;">{{ i.cost }}</sc-raw-td>
+                    <sc-raw-td style="padding: 12px 16px; text-align: right; font-family: 'IBM Plex Mono', monospace;">{{ i.purchased }}</sc-raw-td>
+                    <sc-raw-td style="padding: 12px 16px; text-align: right; font-family: 'IBM Plex Mono', monospace;">{{ i.sold }}</sc-raw-td>
+                    <sc-raw-td style="padding: 12px 16px; text-align: right; font-family: 'IBM Plex Mono', monospace; font-weight: 600; color: {{ i.remColor }};">{{ i.remaining }}</sc-raw-td>
+                    <sc-raw-td style="padding: 12px 16px; text-align: right; font-family: 'IBM Plex Mono', monospace;">{{ i.value }}</sc-raw-td>
+                    <sc-raw-td style="padding: 12px 16px; text-align: right; white-space: nowrap;">
                       <span style="display: inline-flex; gap: 6px;">
                         <button onClick="{{ i.buy }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 4px 9px; font-size: 11.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Receive</button>
                         <button onClick="{{ i.sell }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 4px 9px; font-size: 11.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Sell</button>
                       </span>
-                    </td>
-                  </tr>
+                    </sc-raw-td>
+                  </sc-raw-tr>
                 </sc-for>
-              </tbody>
-            </table>
+              </sc-raw-tbody>
+            </sc-raw-table>
           </div>
         </div>
       </sc-if>
@@ -870,35 +879,35 @@
 
           <div style="display: flex; gap: 8px; margin: 14px 0; flex-wrap: wrap;">
             <button onClick="{{ openImport }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 14px; font-size: 12.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Import statement — CSV, Excel or Google Sheets</button>
-            <button onClick="{{ importBank }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 14px; font-size: 12.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Load demo statement</button>
+            <button onClick="{{ refreshBank }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 14px; font-size: 12.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Refresh bank lines</button>
             <button onClick="{{ autoMatch }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); transition: transform .16s cubic-bezier(.2,.6,.3,1), box-shadow .16s; padding: 8px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer;" style-hover="background: #FAC775; color: #1a1a1a;">Run AI auto-match</button>
           </div>
 
           <div style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.04), 0 1px 3px rgba(19,19,19,.06); overflow: hidden; overflow-x: auto;">
-            <table style="width: 100%; min-width: 860px; font-size: 14px;">
-              <thead>
-                <tr style="background: #F7F5F0; border-bottom: 1px solid #E5E1D8; position: sticky; top: 0; z-index: 2; box-shadow: 0 1px 0 #E5E1D8;">
-                  <th style="text-align: left; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Bank date</th>
-                  <th style="text-align: left; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Bank narration</th>
-                  <th style="text-align: right; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Amount</th>
-                  <th style="text-align: left; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Matched ledger entry</th>
-                  <th style="padding: 12px 16px;"></th>
-                </tr>
-              </thead>
-              <tbody>
+            <sc-raw-table style="width: 100%; min-width: 860px; font-size: 14px;">
+              <sc-raw-thead>
+                <sc-raw-tr style="background: #F7F5F0; border-bottom: 1px solid #E5E1D8; position: sticky; top: 0; z-index: 2; box-shadow: 0 1px 0 #E5E1D8;">
+                  <sc-raw-th style="text-align: left; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Bank date</sc-raw-th>
+                  <sc-raw-th style="text-align: left; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Bank narration</sc-raw-th>
+                  <sc-raw-th style="text-align: right; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Amount</sc-raw-th>
+                  <sc-raw-th style="text-align: left; padding: 12px 16px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Matched ledger entry</sc-raw-th>
+                  <sc-raw-th style="padding: 12px 16px;"></sc-raw-th>
+                </sc-raw-tr>
+              </sc-raw-thead>
+              <sc-raw-tbody>
                 <sc-for list="{{ bankRows }}" as="b" hint-placeholder-count="8">
-                  <tr style="border-bottom: 1px solid #EFECE4; background: {{ b.rowBg }};">
-                    <td style="padding: 12px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #403D37; white-space: nowrap;">{{ b.date }}</td>
-                    <td style="padding: 12px 16px;">{{ b.narration }}</td>
-                    <td style="padding: 12px 16px; text-align: right; font-family: 'IBM Plex Mono', monospace; color: {{ b.amountColor }};">{{ b.amount }}</td>
-                    <td style="padding: 12px 16px; font-size: 12.5px; color: {{ b.matchColor }};">{{ b.match }}</td>
-                    <td style="padding: 12px 16px; text-align: right; white-space: nowrap;">
+                  <sc-raw-tr style="border-bottom: 1px solid #EFECE4; background: {{ b.rowBg }};">
+                    <sc-raw-td style="padding: 12px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #403D37; white-space: nowrap;">{{ b.date }}</sc-raw-td>
+                    <sc-raw-td style="padding: 12px 16px;">{{ b.narration }}</sc-raw-td>
+                    <sc-raw-td style="padding: 12px 16px; text-align: right; font-family: 'IBM Plex Mono', monospace; color: {{ b.amountColor }};">{{ b.amount }}</sc-raw-td>
+                    <sc-raw-td style="padding: 12px 16px; font-size: 12.5px; color: {{ b.matchColor }};">{{ b.match }}</sc-raw-td>
+                    <sc-raw-td style="padding: 12px 16px; text-align: right; white-space: nowrap;">
                       <button onClick="{{ b.action }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 4px 10px; font-size: 11.5px; cursor: pointer;" style-hover="background: #1a1a1a; color: #FFFFFF;">{{ b.actionLabel }}</button>
-                    </td>
-                  </tr>
+                    </sc-raw-td>
+                  </sc-raw-tr>
                 </sc-for>
-              </tbody>
-            </table>
+              </sc-raw-tbody>
+            </sc-raw-table>
           </div>
           <div style="margin-top: 12px; background: {{ recVerify.bg }}; border: 1px solid {{ recVerify.border }}; border-radius: 6px; padding: 16px; font-size: 13px;">
             <strong style="font-weight: 600;">{{ recVerify.title }}</strong> — {{ recVerify.text }}
@@ -932,16 +941,16 @@
             <sc-for list="{{ report.sections }}" as="s" hint-placeholder-count="3">
               <div style="margin-top: 22px;">
                 <div style="font-size: 10.5px; letter-spacing: 0.16em; text-transform: uppercase; color: #5C5850; font-weight: 600; border-bottom: 1px solid #EFECE4; padding-bottom: 5px;">{{ s.heading }}</div>
-                <table style="width: 100%; font-size: 14px; margin-top: 6px;">
-                  <tbody>
+                <sc-raw-table style="width: 100%; font-size: 14px; margin-top: 6px;">
+                  <sc-raw-tbody>
                     <sc-for list="{{ s.lines }}" as="l" hint-placeholder-count="5">
-                      <tr style="border-bottom: 1px solid {{ l.rule }};">
-                        <td style="padding: 6px 0 6px {{ l.indent }}px; font-weight: {{ l.weight }};">{{ l.label }}</td>
-                        <td style="padding: 6px 0; text-align: right; font-family: 'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; font-weight: {{ l.weight }}; color: {{ l.color }};">{{ l.value }}</td>
-                      </tr>
+                      <sc-raw-tr style="border-bottom: 1px solid {{ l.rule }};">
+                        <sc-raw-td style="padding: 6px 0 6px {{ l.indent }}px; font-weight: {{ l.weight }};">{{ l.label }}</sc-raw-td>
+                        <sc-raw-td style="padding: 6px 0; text-align: right; font-family: 'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; font-weight: {{ l.weight }}; color: {{ l.color }};">{{ l.value }}</sc-raw-td>
+                      </sc-raw-tr>
                     </sc-for>
-                  </tbody>
-                </table>
+                  </sc-raw-tbody>
+                </sc-raw-table>
               </div>
             </sc-for>
 
@@ -1191,36 +1200,36 @@
             </div>
 
             <div style="margin-top: 14px; border: 1px solid #E5E1D8; border-radius: 6px; background: #FFFFFF; max-height: 340px; overflow: auto;">
-              <table style="width: 100%; min-width: 720px; font-size: 12.5px;">
-                <thead>
-                  <tr style="background: #F7F5F0; border-bottom: 1px solid #E5E1D8; position: sticky; top: 0;">
-                    <th style="text-align: left; padding: 9px 12px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Date</th>
-                    <th style="text-align: left; padding: 9px 12px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Narration from bank</th>
-                    <th style="text-align: right; padding: 9px 12px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Amount</th>
-                    <th style="text-align: left; padding: 9px 12px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Category mapped by AI</th>
-                    <th style="text-align: left; padding: 9px 12px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Confidence</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <sc-raw-table style="width: 100%; min-width: 720px; font-size: 12.5px;">
+                <sc-raw-thead>
+                  <sc-raw-tr style="background: #F7F5F0; border-bottom: 1px solid #E5E1D8; position: sticky; top: 0;">
+                    <sc-raw-th style="text-align: left; padding: 9px 12px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Date</sc-raw-th>
+                    <sc-raw-th style="text-align: left; padding: 9px 12px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Narration from bank</sc-raw-th>
+                    <sc-raw-th style="text-align: right; padding: 9px 12px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Amount</sc-raw-th>
+                    <sc-raw-th style="text-align: left; padding: 9px 12px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Category mapped by AI</sc-raw-th>
+                    <sc-raw-th style="text-align: left; padding: 9px 12px; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600; white-space: nowrap;">Confidence</sc-raw-th>
+                  </sc-raw-tr>
+                </sc-raw-thead>
+                <sc-raw-tbody>
                   <sc-for list="{{ imp.rows }}" as="r" hint-placeholder-count="8">
-                    <tr style="border-bottom: 1px solid #F0EDE6;">
-                      <td style="padding: 7px 12px; font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: #403D37; white-space: nowrap;">{{ r.date }}</td>
-                      <td style="padding: 7px 12px;">{{ r.narration }}</td>
-                      <td style="padding: 7px 12px; text-align: right; font-family: 'IBM Plex Mono', monospace; color: {{ r.amountColor }}; white-space: nowrap;">{{ r.amount }}</td>
-                      <td style="padding: 7px 12px;">
-                        <select value="{{ r.category }}" onChange="{{ r.onCat }}" style="width: 100%; min-width: 170px; border: 1px solid {{ r.selBorder }}; border-radius: 6px; padding: 5px 7px; font-size: 12px; background: {{ r.selBg }};">
+                    <sc-raw-tr style="border-bottom: 1px solid #F0EDE6;">
+                      <sc-raw-td style="padding: 7px 12px; font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: #403D37; white-space: nowrap;">{{ r.date }}</sc-raw-td>
+                      <sc-raw-td style="padding: 7px 12px;">{{ r.narration }}</sc-raw-td>
+                      <sc-raw-td style="padding: 7px 12px; text-align: right; font-family: 'IBM Plex Mono', monospace; color: {{ r.amountColor }}; white-space: nowrap;">{{ r.amount }}</sc-raw-td>
+                      <sc-raw-td style="padding: 7px 12px;">
+                        <sc-raw-select value="{{ r.category }}" onChange="{{ r.onCat }}" style="width: 100%; min-width: 170px; border: 1px solid {{ r.selBorder }}; border-radius: 6px; padding: 5px 7px; font-size: 12px; background: {{ r.selBg }};">
                           <sc-for list="{{ r.options }}" as="o" hint-placeholder-count="6">
                             <option value="{{ o }}">{{ o }}</option>
                           </sc-for>
-                        </select>
-                      </td>
-                      <td style="padding: 7px 12px; white-space: nowrap;">
+                        </sc-raw-select>
+                      </sc-raw-td>
+                      <sc-raw-td style="padding: 7px 12px; white-space: nowrap;">
                         <span style="display: inline-block; padding: 2px 8px; border-radius: 2px; font-size: 11px; font-weight: 600; background: {{ r.confBg }}; color: {{ r.confFg }};">{{ r.confidence }}</span>
-                      </td>
-                    </tr>
+                      </sc-raw-td>
+                    </sc-raw-tr>
                   </sc-for>
-                </tbody>
-              </table>
+                </sc-raw-tbody>
+              </sc-raw-table>
             </div>
 
             <div style="font-size: 12px; color: #5C5850; margin-top: 10px; line-height: 1.6;">{{ imp.reviewNote }}</div>
@@ -1250,11 +1259,11 @@
             <label style="display: block; margin-bottom: 13px;">
               <span style="display: block; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #5C5850; margin-bottom: 4px;">{{ f.label }}</span>
               <sc-if value="{{ f.isSelect }}" hint-placeholder-val="{{ false }}">
-                <select value="{{ f.value }}" onChange="{{ f.onChange }}" style="width: 100%; border: 1px solid #C9C3B7; border-radius: 6px; padding: 9px 10px; font-size: 13px; background: #FFFFFF;">
+                <sc-raw-select value="{{ f.value }}" onChange="{{ f.onChange }}" style="width: 100%; border: 1px solid #C9C3B7; border-radius: 6px; padding: 9px 10px; font-size: 13px; background: #FFFFFF;">
                   <sc-for list="{{ f.options }}" as="o" hint-placeholder-count="4">
                     <option value="{{ o }}">{{ o }}</option>
                   </sc-for>
-                </select>
+                </sc-raw-select>
               </sc-if>
               <sc-if value="{{ f.isInput }}" hint-placeholder-val="{{ true }}">
                 <input value="{{ f.value }}" onChange="{{ f.onChange }}" placeholder="{{ f.placeholder }}" style="width: 100%; border: 1px solid #C9C3B7; border-radius: 6px; padding: 9px 10px; font-size: 13px; background: #FFFFFF;" />
@@ -1299,7 +1308,7 @@
 
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props="{}">
-const TODAY = new Date(2026, 7, 21);
+const TODAY = new Date();
 
 const SME_INCOME = ['Product Sales', 'Service Fees', 'Consulting', 'Subscription Revenue', 'Other Income'];
 const SME_EXPENSE = [
@@ -1361,7 +1370,26 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 const NEW_CAT = '\u002B Create a new category\u2026';
 const NEW_PARTY = '\u002B Create a new record\u2026';
 
-function rng(seed) { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
+const API = {
+  async call(method, path, body) {
+    const res = await fetch('/api' + path, {
+      method: method,
+      credentials: 'same-origin',
+      headers: body ? { 'Content-Type': 'application/json' } : undefined,
+      body: body ? JSON.stringify(body) : undefined
+    });
+    const text = await res.text();
+    const data = text ? JSON.parse(text) : {};
+    if (!res.ok) throw new Error(data.error || 'That did not go through. Try again.');
+    return data;
+  },
+  get(path) { return API.call('GET', path); },
+  post(path, body) { return API.call('POST', path, body); },
+  patch(path, body) { return API.call('PATCH', path, body); },
+  del(path) { return API.call('DELETE', path); }
+};
+
+const EMPTY_BOOK = () => ({ clients: [], vendors: [], tx: [], inv: [], bills: [], inventory: [], bank: [], imported: false, cats: [], income: [] });
 
 class Component extends DCLogic {
   constructor(props) {
@@ -1373,10 +1401,69 @@ class Component extends DCLogic {
       search: '', txType: 'all', reportTab: 'pl', modal: null, form: {}, toast: null, aiQ: '', aiKey: null,
       newIncome: '', newExpense: '', newExpensePct: '100',
       imp: { open: false, step: 'source', source: 'csv', paste: '', url: '', fileName: '', rows: [] },
-      sme: this.seedSME(), church: this.seedChurch(),
-      org: { name: 'Mideops Ventures', type: 'Limited Company', state: 'Lagos', vatRate: '7.5', openingCash: '4200000', contributions: '6000000', fixedAssets: '8500000' },
-      chOrg: { name: 'Grace Chapel International', type: 'Registered Trustees', state: 'Ogun', vatRate: '0', openingCash: '2750000', contributions: '0', fixedAssets: '31000000' }
+      booted: false, googleReady: false,
+      sme: EMPTY_BOOK(), church: EMPTY_BOOK(),
+      org: { name: '', type: 'Limited Company', state: '', vatRate: '7.5', openingCash: '0', contributions: '0', fixedAssets: '0' },
+      chOrg: { name: '', type: 'Registered Trustees', state: '', vatRate: '0', openingCash: '0', contributions: '0', fixedAssets: '0' }
     };
+  }
+
+  componentDidMount() {
+    API.get('/auth/config')
+      .then((c) => this.setState({ googleReady: Boolean(c.google), googleClientId: c.googleClientId }))
+      .catch(() => {});
+    API.get('/auth/me')
+      .then((r) => this.applySession(r.session))
+      .catch(() => this.setState({ booted: true }));
+  }
+
+  // Everything the signed-in account can see comes from the server; the two
+  // book slots stay, but only the one this account keeps is ever filled.
+  applySession(session) {
+    this.setState({ session, account: session, mode: session.book, screen: 'dashboard' });
+    return this.loadBook(session);
+  }
+
+  loadBook(session) {
+    return API.get('/orgs/' + session.orgId + '/data')
+      .then((d) => this.setState({
+        [session.book === 'church' ? 'church' : 'sme']: Object.assign(EMPTY_BOOK(), d.book),
+        [session.book === 'church' ? 'chOrg' : 'org']: d.org,
+        role: d.role === 'admin' ? 'Admin' : d.role === 'viewer' ? 'Viewer' : 'Accountant',
+        booted: true
+      }))
+      .catch((err) => { this.setState({ booted: true }); this.flash(err.message); });
+  }
+
+  orgPath(path) { return '/orgs/' + this.state.session.orgId + (path || ''); }
+
+  // Google Identity Services, loaded only when this deployment has a client id.
+  googleCredential() {
+    if (!this._gis) {
+      this._gis = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://accounts.google.com/gsi/client';
+        s.async = true;
+        s.onload = () => resolve(window.google.accounts.id);
+        s.onerror = () => reject(new Error('Could not reach Google sign-in.'));
+        document.head.appendChild(s);
+      });
+    }
+    return this._gis.then((gid) => new Promise((resolve, reject) => {
+      gid.initialize({
+        client_id: this.state.googleClientId,
+        callback: (r) => r.credential ? resolve(r.credential) : reject(new Error('Google did not return a sign-in.'))
+      });
+      gid.prompt((n) => {
+        if (n.isNotDisplayed() || n.isSkippedMoment()) reject(new Error('Google sign-in was dismissed. Use your email and password instead.'));
+      });
+    }));
+  }
+
+  // Every write goes to the server first, so what the screens show is what the
+  // ledger actually holds.
+  save(promise, onOk) {
+    return promise.then(onOk).catch((err) => this.flash(err.message));
   }
 
   greeting() { const h = TODAY.getHours(); return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'; }
@@ -1479,182 +1566,6 @@ class Component extends DCLogic {
         const k = /owe|owes|owing|debtor/.test(q) ? 'owes' : /overdue|late|chas/.test(q) ? 'overdue' : /revenue|made|sales|income|profit fall/.test(q) ? 'revenue' : /expense|spend|cost/.test(q) ? 'expenses' : /cash|forecast|runway/.test(q) ? 'cash' : /product|stock|inventor|margin/.test(q) ? 'products' : null;
         if (k) this.setState({ aiKey: k }); else this.flash('Try one of the suggested questions — this build answers six of them.'); } };
   }
-
-  // ---------------- seeds ----------------
-  seedSME() {
-    const r = rng(20260821);
-    const clients = [
-      ['Prime Foods Ltd', 'accounts@primefoods.ng', '0803 441 9920'],
-      ['Bella Fashion House', 'finance@bellafashion.com', '0802 118 7734'],
-      ['Delta Fresh Mart', 'accounts@deltafresh.ng', '0706 552 3318'],
-      ['Warri Tech Solutions', 'ap@warritech.ng', '0809 220 4471'],
-      ['Lagos Home Supplies', 'billing@lagoshome.com.ng', '0812 663 9005'],
-      ['Chinedu Okafor', 'chinedu.okafor@gmail.com', '0705 889 2214']
-    ].map((c, i) => ({ id: 'c' + i, name: c[0], email: c[1], phone: c[2] }));
-    const vendors = [
-      ['Ikeja Electric Plc', 'support@ikejaelectric.com', '0700 022 2222'],
-      ['Spectranet Ltd', 'care@spectranet.com.ng', '0700 773 2872'],
-      ['Rosewood Properties', 'lease@rosewoodprop.ng', '0803 900 1122'],
-      ['Adekunle & Co (Chartered Accountants)', 'audit@adekunleco.ng', '0806 771 4400'],
-      ['Lagos Wholesale Depot', 'orders@lwdepot.ng', '0813 220 9911'],
-      ['Leadway Assurance', 'policy@leadway.com', '01 280 0700']
-    ].map((v, i) => ({ id: 'v' + i, name: v[0], email: v[1], phone: v[2] }));
-
-    const descIncome = [
-      ['Product Sales', 'Bulk order — dry goods'], ['Product Sales', 'Counter sales, week ending'],
-      ['Service Fees', 'Installation and setup'], ['Consulting', 'Operations review retainer'],
-      ['Subscription Revenue', 'Annual support plan'], ['Other Income', 'Equipment hire']
-    ];
-    const descExpense = [
-      ['Rent - Business Premises', 'Quarterly shop rent', 'Rosewood Properties'],
-      ['Salaries & Wages', 'Monthly staff payroll', 'Payroll'],
-      ['Inventory Purchases', 'Restock — wholesale purchase', 'Lagos Wholesale Depot'],
-      ['Utilities', 'Electricity bill', 'Ikeja Electric Plc'],
-      ['Transport & Fuel', 'Delivery fuel and logistics', 'Fuel station'],
-      ['Professional Fees', 'Statutory audit fee', 'Adekunle & Co (Chartered Accountants)'],
-      ['Marketing & Advertising', 'Meta ads campaign', 'Meta Platforms'],
-      ['Internet & Telephone', 'Office internet subscription', 'Spectranet Ltd'],
-      ['Repairs & Maintenance', 'Generator servicing', 'Mikano Service'],
-      ['Insurance', 'Goods-in-transit cover', 'Leadway Assurance'],
-      ['Bank Charges', 'Account maintenance and stamp duty', 'GTBank'],
-      ['Entertainment', 'Client lunch meeting', 'Terra Kulture'],
-      ['Staff Training', 'Inventory software training', 'Sidebrief Academy']
-    ];
-
-    const tx = []; let n = 0;
-    for (let m = 0; m <= 7; m++) {
-      const ic = 5 + Math.floor(r() * 3);
-      for (let i = 0; i < ic; i++) {
-        const d = descIncome[Math.floor(r() * descIncome.length)];
-        const cl = clients[Math.floor(r() * clients.length)];
-        tx.push({ id: 't' + (n++), date: iso(new Date(2026, m, 1 + Math.floor(r() * 27))), type: 'income', category: d[0], party: cl.name, description: d[1], amount: Math.round((250000 + r() * 2600000) / 1000) * 1000, method: r() > 0.4 ? 'Bank transfer' : 'Cash' });
-      }
-      const ec = 7 + Math.floor(r() * 4);
-      for (let i = 0; i < ec; i++) {
-        const d = descExpense[Math.floor(r() * descExpense.length)];
-        tx.push({ id: 't' + (n++), date: iso(new Date(2026, m, 1 + Math.floor(r() * 27))), type: 'expense', category: d[0], party: d[2], description: d[1], amount: Math.round((35000 + r() * 780000) / 1000) * 1000, method: r() > 0.3 ? 'Bank transfer' : 'Cash' });
-      }
-    }
-    tx.push({ id: 't' + (n++), date: '2026-08-18', type: 'expense', category: '', party: 'Spectranet Ltd', description: 'Spectranet monthly internet renewal', amount: 46500, method: 'Bank transfer' });
-    tx.push({ id: 't' + (n++), date: '2026-08-19', type: 'expense', category: '', party: 'Bolt Nigeria', description: 'Bolt rides — client site visits', amount: 28400, method: 'Card' });
-    tx.push({ id: 't' + (n++), date: '2026-08-20', type: 'expense', category: '', party: 'Ikeja Electric Plc', description: 'Ikeja Electric prepaid token', amount: 155000, method: 'Bank transfer' });
-    tx.sort((a, b) => b.date.localeCompare(a.date));
-
-    const inv = [];
-    const invSeed = [[0, '2026-06-02', '2026-07-02', 3850000, 3850000], [1, '2026-06-21', '2026-07-21', 1420000, 600000],
-      [2, '2026-07-04', '2026-08-03', 2260000, 0], [3, '2026-07-18', '2026-08-17', 5100000, 5100000],
-      [4, '2026-07-29', '2026-08-28', 940000, 0], [5, '2026-08-05', '2026-09-04', 3320000, 1200000],
-      [0, '2026-08-12', '2026-09-11', 1780000, 0], [2, '2026-08-17', '2026-09-16', 620000, 0]];
-    invSeed.forEach((s, i) => inv.push({ id: 'i' + i, number: 'INV-' + (1041 + i), partyId: clients[s[0]].id, party: clients[s[0]].name, issue: s[1], due: s[2], total: s[3], paid: s[4], base: 'sent' }));
-
-    const bills = [];
-    const billSeed = [[4, '2026-06-10', '2026-07-10', 2180000, 2180000], [2, '2026-07-01', '2026-07-31', 1500000, 1500000],
-      [3, '2026-07-15', '2026-08-14', 850000, 0], [0, '2026-08-02', '2026-08-25', 410000, 0],
-      [5, '2026-08-08', '2026-09-07', 268000, 0], [4, '2026-08-14', '2026-09-13', 1930000, 500000],
-      [1, '2026-08-18', '2026-09-17', 139500, 0]];
-    billSeed.forEach((s, i) => bills.push({ id: 'b' + i, number: 'BILL-' + (2087 + i), partyId: vendors[s[0]].id, party: vendors[s[0]].name, issue: s[1], due: s[2], total: s[3], paid: s[4], base: 'sent' }));
-
-    const inventory = [
-      ['Solar Inverter 3.5kVA', 'SLR-035', 'Lagos Wholesale Depot', 385000, 520000, 60, 47, 8],
-      ['Deep Cycle Battery 220Ah', 'BAT-220', 'Lagos Wholesale Depot', 195000, 268000, 120, 96, 20],
-      ['Monocrystalline Panel 400W', 'PNL-400', 'Sunlink Imports', 132000, 189000, 200, 158, 30],
-      ['Charge Controller 60A', 'CTL-060', 'Sunlink Imports', 54000, 82000, 90, 88, 15],
-      ['Installation Cable (100m roll)', 'CBL-100', 'Kadco Engineering', 41000, 62000, 75, 41, 12],
-      ['Mounting Rail Kit', 'MNT-KIT', 'Kadco Engineering', 28500, 44000, 140, 62, 25]
-    ].map((x, i) => ({ id: 'p' + i, name: x[0], sku: x[1], supplier: x[2], cost: x[3], price: x[4], purchased: x[5], sold: x[6], reorder: x[7] }));
-
-    return { clients, vendors, tx, inv, bills, inventory, bank: this.seedBank(), imported: false, cats: SME_EXPENSE.map((c) => ({ name: c[0], pct: c[1] })), income: SME_INCOME };
-  }
-
-  seedChurch() {
-    const r = rng(771026);
-    const clients = [
-      ['Deacon Emeka Obi', 'emeka.obi@mail.com', '0803 220 1145'],
-      ['Mrs Folake Adeniyi', 'folake.a@mail.com', '0805 771 9932'],
-      ['Bro. Samuel Danjuma', 'sdanjuma@mail.com', '0812 004 5567'],
-      ['Sis. Grace Uzoma', 'grace.u@mail.com', '0706 118 2290'],
-      ['Chief Bayo Ogunlesi', 'bayo.o@mail.com', '0802 993 4410'],
-      ['Youth Fellowship Group', 'youth@gracechapel.ng', '0809 442 7781']
-    ].map((c, i) => ({ id: 'c' + i, name: c[0], email: c[1], phone: c[2] }));
-    const vendors = [
-      ['Eko Electricity Distribution', 'care@ekedp.com', '0700 023 4567'],
-      ['Harvest Print & Media', 'jobs@harvestprint.ng', '0803 552 1109'],
-      ['Sound Depot Nigeria', 'sales@sounddepot.ng', '0806 220 7745'],
-      ['Ogun Water Corporation', 'billing@ogunwater.gov.ng', '039 220 114'],
-      ['Bethel Bookshop', 'orders@bethelbooks.ng', '0813 665 2200'],
-      ['Citiserve Facility Care', 'ops@citiserve.ng', '0807 331 8890']
-    ].map((v, i) => ({ id: 'v' + i, name: v[0], email: v[1], phone: v[2] }));
-
-    const giving = [['Tithes', 'General Fund', 'Weekly tithe collection'], ['Sunday Offering', 'General Fund', 'Sunday service offering'],
-      ['Special Offering', 'General Fund', 'Thanksgiving service offering'], ['Building Fund Giving', 'Building Fund', 'Auditorium project pledge redeemed'],
-      ['Missions Giving', 'Missions Fund', 'Missions Sunday collection'], ['Donations & Grants', 'General Fund', 'Corporate donation received']];
-    const spend = [['Pastoral Salaries', 'General Fund', 'Monthly pastoral stipends', 'Payroll'],
-      ['Benevolence & Welfare', 'Benevolence Fund', 'Member welfare support', 'Welfare committee'],
-      ['Missions Support', 'Missions Fund', 'Remittance to field missionary', 'Missions board'],
-      ['Building Maintenance', 'Building Fund', 'Auditorium roofing works', 'Citiserve Facility Care'],
-      ['Utilities', 'General Fund', 'Electricity bill', 'Eko Electricity Distribution'],
-      ['Church Programmes', 'General Fund', 'Youth convention logistics', 'Harvest Print & Media'],
-      ['Media & Sound', 'General Fund', 'Sound console repair', 'Sound Depot Nigeria'],
-      ['Transport', 'General Fund', 'Bus fuel for outreach', 'Fuel station'],
-      ['Administrative', 'General Fund', 'Office stationery and printing', 'Bethel Bookshop']];
-
-    const tx = []; let n = 0;
-    for (let m = 0; m <= 7; m++) {
-      for (let i = 0; i < 6; i++) {
-        const g = giving[Math.floor(r() * giving.length)];
-        const c = clients[Math.floor(r() * clients.length)];
-        tx.push({ id: 'g' + (n++), date: iso(new Date(2026, m, 1 + Math.floor(r() * 27))), type: 'income', category: g[0], fund: g[1], party: c.name, description: g[2], amount: Math.round((120000 + r() * 1400000) / 1000) * 1000, method: r() > 0.5 ? 'Bank transfer' : 'Cash' });
-      }
-      for (let i = 0; i < 6; i++) {
-        const s = spend[Math.floor(r() * spend.length)];
-        tx.push({ id: 'g' + (n++), date: iso(new Date(2026, m, 1 + Math.floor(r() * 27))), type: 'expense', category: s[0], fund: s[1], party: s[3], description: s[2], amount: Math.round((45000 + r() * 620000) / 1000) * 1000, method: 'Bank transfer' });
-      }
-    }
-    tx.push({ id: 'g' + (n++), date: '2026-08-19', type: 'income', category: '', fund: 'Building Fund', party: 'Chief Bayo Ogunlesi', description: 'Transfer marked "building project pledge"', amount: 2000000, method: 'Bank transfer' });
-    tx.push({ id: 'g' + (n++), date: '2026-08-20', type: 'expense', category: '', fund: 'General Fund', party: 'Eko Electricity Distribution', description: 'EKEDC electricity prepayment', amount: 310000, method: 'Bank transfer' });
-    tx.sort((a, b) => b.date.localeCompare(a.date));
-
-    const pledgeSeed = [[4, '2026-05-10', '2026-08-10', 5000000, 3000000], [0, '2026-06-14', '2026-09-14', 1200000, 400000],
-      [1, '2026-07-05', '2026-10-05', 800000, 800000], [5, '2026-07-19', '2026-09-19', 450000, 0],
-      [2, '2026-08-02', '2026-11-02', 600000, 150000], [3, '2026-08-16', '2026-10-16', 300000, 0]];
-    const inv = pledgeSeed.map((s, i) => ({ id: 'i' + i, number: 'PLG-' + (312 + i), partyId: clients[s[0]].id, party: clients[s[0]].name, issue: s[1], due: s[2], total: s[3], paid: s[4], base: 'sent' }));
-
-    const billSeed = [[0, '2026-07-02', '2026-08-01', 620000, 620000], [2, '2026-07-22', '2026-08-21', 1150000, 0],
-      [5, '2026-08-05', '2026-09-04', 480000, 200000], [1, '2026-08-11', '2026-09-10', 265000, 0],
-      [3, '2026-08-15', '2026-09-14', 92000, 0]];
-    const bills = billSeed.map((s, i) => ({ id: 'b' + i, number: 'BILL-' + (441 + i), partyId: vendors[s[0]].id, party: vendors[s[0]].name, issue: s[1], due: s[2], total: s[3], paid: s[4], base: 'sent' }));
-
-    return { clients, vendors, tx, inv, bills, inventory: [], bank: this.seedChurchBank(), imported: false, cats: CH_EXPENSE.map((c) => ({ name: c[0], pct: c[1] })), income: CH_INCOME };
-  }
-
-  seedBank() {
-    return [
-      { id: 'bk1', date: '2026-08-20', narration: 'POS/IKEJA ELECTRIC PREPAID TOKEN', amount: -155000, matched: null },
-      { id: 'bk2', date: '2026-08-19', narration: 'CARD/BOLT NG RIDE HAILING', amount: -28400, matched: null },
-      { id: 'bk3', date: '2026-08-18', narration: 'TRF/SPECTRANET LTD/INTERNET', amount: -46500, matched: null },
-      { id: 'bk4', date: '2026-08-17', narration: 'TRF FRM SAPPHIRE HOTELS ABUJA', amount: 5100000, matched: null },
-      { id: 'bk5', date: '2026-08-16', narration: 'COMMISSION ON TURNOVER + VAT', amount: -3750, matched: null },
-      { id: 'bk6', date: '2026-08-14', narration: 'TRF/LAGOS WHOLESALE DEPOT INV 2093', amount: -500000, matched: null },
-      { id: 'bk7', date: '2026-08-12', narration: 'TRF FRM HALOGEN RETAIL STORES', amount: 600000, matched: null },
-      { id: 'bk8', date: '2026-08-09', narration: 'ATM WDL LEKKI BRANCH', amount: -120000, matched: null },
-      { id: 'bk9', date: '2026-08-06', narration: 'TRF/META PLATFORMS ADS', amount: -274000, matched: null },
-      { id: 'bk10', date: '2026-08-04', narration: 'TRF FRM BLUECREST LOGISTICS LTD', amount: 1200000, matched: null }
-    ];
-  }
-
-  seedChurchBank() {
-    return [
-      { id: 'cb1', date: '2026-08-20', narration: 'TRF/EKEDC ELECTRICITY PREPAYMENT', amount: -310000, matched: null },
-      { id: 'cb2', date: '2026-08-19', narration: 'TRF FRM CHIEF BAYO OGUNLESI BUILDING PROJECT', amount: 2000000, matched: null },
-      { id: 'cb3', date: '2026-08-16', narration: 'CASH DEP/SUNDAY OFFERING 16 AUG', amount: 640000, matched: null },
-      { id: 'cb4', date: '2026-08-14', narration: 'TRF/CITISERVE FACILITY CARE ROOFING', amount: -480000, matched: null },
-      { id: 'cb5', date: '2026-08-12', narration: 'COMMISSION ON TURNOVER + VAT', amount: -2100, matched: null },
-      { id: 'cb6', date: '2026-08-09', narration: 'TRF FRM DEACON EMEKA OBI TITHE', amount: 450000, matched: null },
-      { id: 'cb7', date: '2026-08-06', narration: 'TRF/HARVEST PRINT MEDIA PROGRAMME FLYERS', amount: -145000, matched: null },
-      { id: 'cb8', date: '2026-08-03', narration: 'TRF/MISSIONS REMITTANCE FIELD SUPPORT', amount: -600000, matched: null }
-    ];
-  }
-
   // ---------------- helpers ----------------
   d() { return this.state.mode === 'sme' ? this.state.sme : this.state.church; }
   o() { return this.state.mode === 'sme' ? this.state.org : this.state.chOrg; }
@@ -1666,10 +1577,10 @@ class Component extends DCLogic {
 
   range() {
     const y = TODAY.getFullYear(), m = TODAY.getMonth();
-    if (this.state.preset === 'month') return { s: iso(new Date(y, m, 1)), e: iso(TODAY), label: MONTHS[m] + ' 2026' };
-    if (this.state.preset === 'quarter') { const q = Math.floor(m / 3) * 3; return { s: iso(new Date(y, q, 1)), e: iso(TODAY), label: 'Q' + (Math.floor(m / 3) + 1) + ' 2026' }; }
+    if (this.state.preset === 'month') return { s: iso(new Date(y, m, 1)), e: iso(TODAY), label: MONTHS[m] + ' ' + y };
+    if (this.state.preset === 'quarter') { const q = Math.floor(m / 3) * 3; return { s: iso(new Date(y, q, 1)), e: iso(TODAY), label: 'Q' + (Math.floor(m / 3) + 1) + ' ' + y }; }
     if (this.state.preset === 'all') return { s: '2000-01-01', e: '2999-01-01', label: 'All time' };
-    return { s: iso(new Date(y, 0, 1)), e: iso(TODAY), label: 'Year to date 2026' };
+    return { s: iso(new Date(y, 0, 1)), e: iso(TODAY), label: 'Year to date ' + y };
   }
   inRange(t, r) { return t.date >= r.s && t.date <= r.e; }
 
@@ -1732,57 +1643,60 @@ class Component extends DCLogic {
   }
   addCategory(type, name, pct) {
     const d = this.d(), clean = String(name || '').trim();
-    if (!clean) { this.flash('Give the account a name first.'); return null; }
+    if (!clean) { this.flash('Give the account a name first.'); return Promise.resolve(null); }
     if (type === 'income') {
-      if (d.income.some((c) => c.toLowerCase() === clean.toLowerCase())) { this.flash('That account already exists.'); return clean; }
-      this.setD({ income: d.income.concat([clean]) });
-    } else {
-      if (d.cats.some((c) => c.name.toLowerCase() === clean.toLowerCase())) { this.flash('That account already exists.'); return clean; }
-      const p = Math.max(0, Math.min(100, Number(String(pct).replace(/[^0-9]/g, '')) || 0));
-      this.setD({ cats: d.cats.concat([{ name: clean, pct: p }]) });
+      if (d.income.some((c) => c.toLowerCase() === clean.toLowerCase())) { this.flash('That account already exists.'); return Promise.resolve(clean); }
+      return this.save(API.post(this.orgPath('/income-categories'), { name: clean }), (r) => {
+        this.setD({ income: d.income.concat([r.name]) });
+        return r.name;
+      });
     }
-    return clean;
+    if (d.cats.some((c) => c.name.toLowerCase() === clean.toLowerCase())) { this.flash('That account already exists.'); return Promise.resolve(clean); }
+    const p = Math.max(0, Math.min(100, Number(String(pct).replace(/[^0-9]/g, '')) || 0));
+    return this.save(API.post(this.orgPath('/expense-categories'), { name: clean, pct: p }), (r) => {
+      this.setD({ cats: d.cats.concat([{ name: r.name, pct: r.pct }]) });
+      return r.name;
+    });
   }
   saveTx = () => {
-    const f = this.state.form, d = this.d();
+    const f = this.state.form;
     if (!f.description || !f.amount) { this.flash('Add a description and amount first.'); return; }
-    let category = f.category;
-    if (category === NEW_CAT) {
-      const made = this.addCategory(f.type, f.newCat, f.newCatPct);
-      if (!made) return;
-      category = made;
-    }
-    const t = { id: 'n' + Date.now(), date: f.date, type: f.type, category: category, party: f.party, description: f.description, amount: Number(String(f.amount).replace(/[^0-9.]/g, '')) || 0, method: f.method };
-    if (this.state.mode === 'church') t.fund = f.fund;
-    const tx = [t].concat(d.tx).sort((a, b) => b.date.localeCompare(a.date));
-    this.setD({ tx });
-    this.setState({ modal: null });
-    this.flash('Transaction recorded — dashboard and reports updated.');
+    const post = (category) => {
+      const body = { date: f.date, type: f.type, category: category, party: f.party, description: f.description, amount: f.amount, method: f.method };
+      if (this.state.mode === 'church') body.fund = f.fund;
+      return this.save(API.post(this.orgPath('/transactions'), body), (r) => {
+        const d = this.d();
+        this.setD({ tx: [r.tx].concat(d.tx).sort((a, b) => b.date.localeCompare(a.date)) });
+        this.setState({ modal: null });
+        this.flash('Transaction recorded — dashboard and reports updated.');
+      });
+    };
+    if (f.category !== NEW_CAT) return post(f.category);
+    this.addCategory(f.type, f.newCat, f.newCatPct).then((made) => { if (made) post(made); });
   };
   runAI = () => {
-    const d = this.d();
-    let count = 0;
-    const tx = d.tx.map((t) => {
-      if (t.category) return t;
-      const s = this.suggest(t);
-      if (s) { count++; return Object.assign({}, t, { category: s, aiCoded: true }); }
-      return t;
+    this.save(API.post(this.orgPath('/transactions/categorize')), (r) => {
+      const d = this.d(), coded = {};
+      r.updated.forEach((t) => { coded[t.id] = t; });
+      this.setD({ tx: d.tx.map((t) => coded[t.id] ? Object.assign({}, coded[t.id], { aiCoded: true }) : t) });
+      this.flash(r.count
+        ? r.count + ' transaction' + (r.count === 1 ? '' : 's') + ' categorised. Corrections are remembered.'
+        : 'Everything already has a category.');
     });
-    this.setD({ tx });
-    this.flash(count ? count + ' transaction' + (count === 1 ? '' : 's') + ' categorised. Corrections are remembered.' : 'Everything already has a category.');
   };
   autoMatch = () => {
-    const d = this.d();
-    let matched = 0;
-    const bank = d.bank.map((b) => {
-      if (b.matched) return b;
-      const want = Math.abs(b.amount);
-      const hit = d.tx.find((t) => Math.abs(t.amount - want) < 1 && Math.abs(new Date(t.date) - new Date(b.date)) <= 3 * 864e5 && ((b.amount < 0) === (t.type === 'expense')));
-      if (hit) { matched++; return Object.assign({}, b, { matched: hit.id, matchLabel: hit.description + ' · ' + fmtDate(hit.date) }); }
-      return b;
+    this.save(API.post(this.orgPath('/bank/auto-match')), (r) => {
+      const d = this.d(), hits = {};
+      r.matched.forEach((line) => { hits[line.id] = line.matched; });
+      this.setD({
+        bank: d.bank.map((b) => {
+          if (!hits[b.id]) return b;
+          const t = d.tx.find((x) => x.id === hits[b.id]);
+          return Object.assign({}, b, { matched: hits[b.id], matchLabel: t ? t.description + ' · ' + fmtDate(t.date) : '' });
+        })
+      });
+      this.flash(r.count + ' of ' + r.total + ' bank lines matched automatically.');
     });
-    this.setD({ bank });
-    this.flash(matched + ' of ' + bank.length + ' bank lines matched automatically.');
   };
   // ---------------- statement import ----------------
   openImport = () => this.setState({ imp: { open: true, step: 'source', source: 'csv', paste: '', url: '', fileName: '', rows: [] } });
@@ -1922,58 +1836,78 @@ class Component extends DCLogic {
     const rows = (this.state.imp && this.state.imp.rows) || [];
     const d = this.d(), church = this.state.mode === 'church';
     const fundFor = (cat) => /building/i.test(cat) ? 'Building Fund' : /mission/i.test(cat) ? 'Missions Fund' : /benevolen|welfare/i.test(cat) ? 'Benevolence Fund' : 'General Fund';
-    const stamp = Date.now();
-    const newTx = rows.map((r, i) => {
+    const payload = rows.map((r) => {
       const party = r.narration
         .replace(/^(TRF FRM|TRF TO|TRF|TRANSFER FROM|TRANSFER TO|POS|CARD|ATM|NIP|USSD)[\/\s:-]+/i, '')
         .replace(/\b(INV|REF|A\/C)\s*[\w-]*$/i, '')
         .trim().slice(0, 40);
-      const t = { id: 'im' + stamp + i, date: r.date, type: r.type, category: r.category, party: party && party.toUpperCase() !== r.narration.toUpperCase() ? party : '', description: r.narration, amount: Math.abs(r.amount), method: 'Bank transfer', imported: true, aiCoded: r.confident };
-      if (church) t.fund = fundFor(r.category);
-      return t;
+      const row = {
+        date: r.date, type: r.type, category: r.category, amount: Math.abs(r.amount),
+        party: party && party.toUpperCase() !== r.narration.toUpperCase() ? party : '',
+        description: r.narration, narration: r.narration
+      };
+      if (church) row.fund = fundFor(r.category);
+      return row;
     });
-    const bankLines = rows.map((r, i) => ({ id: 'ib' + stamp + i, date: r.date, narration: r.narration, amount: r.amount, matched: 'im' + stamp + i, matchLabel: r.narration + ' · ' + fmtDate(r.date) }));
-    this.setD({ tx: newTx.concat(d.tx).sort((a, b) => b.date.localeCompare(a.date)), bank: bankLines.concat(d.bank), imported: true });
-    this.setState({ imp: { open: false, step: 'source', source: 'csv', paste: '', url: '', fileName: '', rows: [] }, screen: 'transactions', txType: 'all' });
-    this.flash(rows.length + ' transactions imported and reconciled against the statement.');
+
+    this.save(API.post(this.orgPath('/bank/import'), { rows: payload }), (r) => {
+      const byId = {};
+      r.bank.forEach((line) => { byId[line.matched] = line; });
+      this.setD({
+        tx: r.tx.map((t, i) => Object.assign({}, t, { imported: true, aiCoded: rows[i] && rows[i].confident }))
+          .concat(d.tx).sort((a, b) => b.date.localeCompare(a.date)),
+        bank: r.bank.map((line) => Object.assign({}, line, { matchLabel: line.narration + ' · ' + fmtDate(line.date) }))
+          .concat(d.bank),
+        imported: true
+      });
+      this.setState({ imp: { open: false, step: 'source', source: 'csv', paste: '', url: '', fileName: '', rows: [] }, screen: 'transactions', txType: 'all' });
+      this.flash(r.tx.length + ' transactions imported and reconciled against the statement.');
+    });
   };
 
-  importBank = () => {
-    this.setD({ imported: true });
-    this.flash(this.state.mode === 'church'
-      ? 'Demo statement loaded — 8 lines from Zenith Bank ****2208.'
-      : 'Demo statement loaded — 10 lines from GTBank ****4471.');
+  // Pulls the statement afresh — new lines arrive here once a bank feed syncs.
+  refreshBank = () => {
+    this.save(API.get(this.orgPath('/data')), (d) => {
+      this.setD({ bank: d.book.bank, imported: true });
+      this.flash(d.book.bank.length + ' statement line' + (d.book.bank.length === 1 ? '' : 's') + ' on file.');
+    });
   };
 
   openDocModal = () => {
     const d = this.d(), isBill = this.state.screen === 'bills';
-    this.setState({ modal: 'doc', form: { party: (isBill ? d.vendors : d.clients)[0].name, total: '', issue: iso(TODAY), due: iso(new Date(2026, 8, 20)), desc: '' } });
+    const contacts = isBill ? d.vendors : d.clients;
+    const due = new Date(TODAY); due.setDate(due.getDate() + 30);
+    this.setState({ modal: 'doc', form: { party: contacts.length ? contacts[0].name : NEW_PARTY, total: '', issue: iso(TODAY), due: iso(due), desc: '' } });
   };
   saveDoc = () => {
-    const d = this.d(), isBill = this.state.screen === 'bills', f = this.state.form;
-    const total = Number(String(f.total).replace(/[^0-9.]/g, '')) || 0;
-    if (!total) { this.flash('Enter an amount.'); return; }
-    let party = f.party, created = null;
-    if (party === NEW_PARTY) {
+    const isBill = this.state.screen === 'bills', f = this.state.form, church = this.state.mode === 'church';
+    if (!Number(String(f.total).replace(/[^0-9.]/g, ''))) { this.flash('Enter an amount.'); return; }
+
+    const body = { total: f.total, issue: f.issue, due: f.due };
+    if (f.party === NEW_PARTY) {
       const name = String(f.newParty || '').trim();
       if (!name) { this.flash(isBill ? 'Give the vendor a name.' : 'Give the record a name.'); return; }
-      const key = isBill ? 'vendors' : 'clients';
-      const existing = d[key].find((x) => x.name.toLowerCase() === name.toLowerCase());
-      if (existing) { party = existing.name; }
-      else {
-        created = { id: (isBill ? 'v' : 'c') + Date.now(), name, email: String(f.newEmail || '').trim(), phone: String(f.newPhone || '').trim() };
-        party = name;
-      }
+      body.party = name;
+      body.createContact = true;
+      body.email = String(f.newEmail || '').trim();
+      body.phone = String(f.newPhone || '').trim();
+    } else {
+      body.party = f.party;
     }
-    const list = isBill ? d.bills : d.inv;
-    const doc = { id: 'x' + Date.now(), number: (isBill ? 'BILL-' : this.state.mode === 'church' ? 'PLG-' : 'INV-') + (2000 + list.length), party, issue: f.issue, due: f.due, total, paid: 0, base: 'sent' };
-    const patch = isBill ? { bills: [doc].concat(d.bills) } : { inv: [doc].concat(d.inv) };
-    if (created) patch[isBill ? 'vendors' : 'clients'] = d[isBill ? 'vendors' : 'clients'].concat([created]);
-    this.setD(patch);
-    this.setState({ modal: null });
-    this.flash(created
-      ? (isBill ? 'Vendor added and bill recorded.' : (this.state.mode === 'church' ? 'Member added and pledge recorded.' : 'Client added and invoice sent.'))
-      : (isBill ? 'Bill recorded in accounts payable.' : 'Document created and marked as sent.'));
+
+    this.save(API.post(this.orgPath(isBill ? '/bills' : '/invoices'), body), (r) => {
+      const d = this.d();
+      const patch = isBill ? { bills: [r.doc].concat(d.bills) } : { inv: [r.doc].concat(d.inv) };
+      if (r.contact) {
+        const key = isBill ? 'vendors' : 'clients';
+        patch[key] = d[key].concat([r.contact]);
+      }
+      this.setD(patch);
+      this.setState({ modal: null });
+      this.flash(r.contact
+        ? (isBill ? 'Vendor added and bill recorded.' : (church ? 'Member added and pledge recorded.' : 'Client added and invoice sent.'))
+        : (isBill ? 'Bill recorded in accounts payable.' : 'Document created and marked as sent.'));
+    });
   };
   viewDoc(doc, isBill) {
     return () => this.setState({ modal: 'view', form: { doc, isBill, amount: String(Math.max(0, this.balance(doc))) } });
@@ -1982,26 +1916,27 @@ class Component extends DCLogic {
     const { doc, isBill } = this.state.form;
     const amt = Number(String(this.state.form.amount).replace(/[^0-9.]/g, '')) || 0;
     if (!amt) { this.flash('Enter a payment amount.'); return; }
-    const d = this.d();
-    const key = isBill ? 'bills' : 'inv';
-    const list = d[key].map((x) => x.id === doc.id ? Object.assign({}, x, { paid: x.paid + amt }) : x);
-    const t = { id: 'p' + Date.now(), date: iso(TODAY), type: isBill ? 'expense' : 'income', category: isBill ? 'Inventory Purchases' : (this.state.mode === 'church' ? 'Donations & Grants' : 'Product Sales'), party: doc.party, description: 'Payment against ' + doc.number, amount: amt, method: 'Bank transfer' };
-    if (this.state.mode === 'church') t.fund = 'General Fund';
-    this.setD({ [key]: list, tx: [t].concat(d.tx).sort((a, b) => b.date.localeCompare(a.date)) });
-    this.setState({ modal: null });
-    this.flash('Payment of ' + money(amt) + ' applied to ' + doc.number + '.');
+
+    const path = this.orgPath((isBill ? '/bills/' : '/invoices/') + doc.id + '/payments');
+    this.save(API.post(path, { amount: amt }), (r) => {
+      const d = this.d(), key = isBill ? 'bills' : 'inv';
+      this.setD({
+        [key]: d[key].map((x) => x.id === doc.id ? r.doc : x),
+        tx: [r.tx].concat(d.tx).sort((a, b) => b.date.localeCompare(a.date))
+      });
+      this.setState({ modal: null });
+      this.flash('Payment of ' + money(amt) + ' applied to ' + doc.number + '.');
+    });
   };
   moveStock(item, dir) {
-    return () => {
+    return () => this.save(API.post(this.orgPath('/inventory/' + item.id + '/move'), { dir }), (r) => {
       const d = this.d();
-      const qty = dir === 'buy' ? 10 : 5;
-      const inventory = d.inventory.map((x) => x.id === item.id ? Object.assign({}, x, dir === 'buy' ? { purchased: x.purchased + qty } : { sold: Math.min(x.purchased, x.sold + qty) }) : x);
-      const t = dir === 'buy'
-        ? { id: 's' + Date.now(), date: iso(TODAY), type: 'expense', category: 'Inventory Purchases', party: item.supplier, description: 'Received ' + qty + ' × ' + item.name, amount: qty * item.cost, method: 'Bank transfer' }
-        : { id: 's' + Date.now(), date: iso(TODAY), type: 'income', category: 'Product Sales', party: 'Counter sale', description: 'Sold ' + qty + ' × ' + item.name, amount: qty * item.price, method: 'Cash' };
-      this.setD({ inventory, tx: [t].concat(d.tx).sort((a, b) => b.date.localeCompare(a.date)) });
+      this.setD({
+        inventory: d.inventory.map((x) => x.id === item.id ? r.item : x),
+        tx: [r.tx].concat(d.tx).sort((a, b) => b.date.localeCompare(a.date))
+      });
       this.flash(dir === 'buy' ? 'Stock received and expense posted.' : 'Sale recorded and income posted.');
-    };
+    });
   }
   viewContact(c, isVendor) {
     return () => {
@@ -2169,30 +2104,50 @@ class Component extends DCLogic {
       if (expEnd < TODAY) return this.setAuth({ err: 'That card has expired. Use a card valid past ' + longDate(shift(14)) + '.' });
       if (digits(A.cardCvc).length < 3) return this.setAuth({ err: 'Enter the 3-digit CVV from the back of the card.' });
       if (!A.agreed) return this.setAuth({ err: 'Please authorise the charge to continue.' });
-      const acct = { name: A.name.trim(), email: A.email.trim(), provider: A.provider || null, book: A.book, cycle: A.cycle, users: A.users, trialStart: iso(TODAY), card: { brand: brandOf(num), last4: num.slice(-4), exp: A.cardExp } };
-      const orgKey = A.book === 'church' ? 'chOrg' : 'org';
-      this.setState((s) => ({
-        account: acct, session: acct, mode: A.book, screen: 'dashboard', reportTab: 'pl', search: '',
-        [orgKey]: { ...s[orgKey], name: A.org.trim() || s[orgKey].name },
-        auth: { ...s.auth, pw: '', err: '', cardNum: '', cardCvc: '' },
-        toast: 'Trial started — free until ' + longDate(shift(14)) + '.'
-      }));
+
+      // The card number and CVV stay in the browser: only the brand, last four
+      // digits and expiry — what the app displays back — are ever sent.
+      API.post('/auth/signup', {
+        name: A.name.trim(), org: A.org.trim(), email: A.email.trim(),
+        password: A.provider === 'google' ? undefined : A.pw,
+        googleCredential: A.googleCredential,
+        book: A.book, cycle: A.cycle, users: A.users,
+        card: { brand: brandOf(num), last4: num.slice(-4), exp: A.cardExp }
+      })
+        .then((r) => {
+          this.setState((s) => ({ auth: { ...s.auth, pw: '', err: '', cardNum: '', cardCvc: '', googleCredential: null } }));
+          return this.applySession(r.session);
+        })
+        .then(() => this.setState({ reportTab: 'pl', search: '', toast: 'Trial started — free until ' + longDate(shift(14)) + '.' }))
+        .catch((err) => this.setAuth({ err: err.message }));
     };
 
     const google = () => {
-      const acct = st.account;
-      if (A.view === 'login') {
-        const g = acct || { name: 'Tosin Balogun', email: 'tosin@mideops.ng', book: 'sme', cycle: 'monthly', users: 1, trialStart: iso(shift(-2)) };
-        return this.setState({ session: g, mode: g.book, screen: 'dashboard', auth: { ...A, pw: '', err: '' } });
-      }
-      this.setAuth({ name: A.name || 'Tosin Balogun', email: 'tosin@mideops.ng', pw: 'google-oauth', provider: 'google', step: A.org.trim() ? 2 : 1, err: '' });
+      if (!st.googleReady) return this.setAuth({ err: 'Google sign-in is not configured on this server.' });
+      this.googleCredential()
+        .then((credential) => {
+          if (A.view === 'login') {
+            return API.post('/auth/google', { credential })
+              .then((r) => { this.setAuth({ pw: '', err: '' }); return this.applySession(r.session); });
+          }
+          // On signup the credential is carried through the remaining steps and
+          // verified server-side when the account is created.
+          const claims = JSON.parse(atob(credential.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+          this.setAuth({
+            name: A.name || claims.name || '', email: claims.email, pw: '',
+            provider: 'google', googleCredential: credential,
+            step: A.org.trim() ? 2 : 1, err: ''
+          });
+        })
+        .catch((err) => this.setAuth({ err: err.message }));
     };
 
     const login = () => {
       if (!/.+@.+\..+/.test(A.email)) return this.setAuth({ err: 'Enter a valid email address.' });
       if (!A.pw) return this.setAuth({ err: 'Enter your password.' });
-      const acct = st.account || { name: 'Tosin Balogun', email: A.email.trim(), book: 'sme', cycle: 'monthly', users: 1, trialStart: iso(shift(-2)) };
-      this.setState({ session: acct, mode: acct.book, screen: 'dashboard', auth: { ...A, pw: '', err: '' } });
+      API.post('/auth/login', { email: A.email.trim(), password: A.pw })
+        .then((r) => { this.setAuth({ pw: '', err: '' }); return this.applySession(r.session); })
+        .catch((err) => this.setAuth({ err: err.message }));
     };
 
     const nm = ses ? ses.name || 'Account owner' : '';
@@ -2205,10 +2160,13 @@ class Component extends DCLogic {
     }
 
     return {
-      showAuth: !ses, authed: !!ses,
+      showAuth: !ses && st.booted, authed: !!ses,
       userName: nm, userInitials: initials, trialPill: pill,
       goBilling: () => this.setState({ screen: 'settings' }),
-      signOut: () => this.setState({ session: null, auth: { view: 'login', step: 1, name: '', org: '', email: '', pw: '', book: null, cycle: 'monthly', users: 1, agreed: false, err: '', cardName: '', cardNum: '', cardExp: '', cardCvc: '' } }),
+      signOut: () => API.post('/auth/signout').catch(() => {}).then(() => this.setState({
+        session: null, account: null, sme: EMPTY_BOOK(), church: EMPTY_BOOK(),
+        auth: { view: 'login', step: 1, name: '', org: '', email: '', pw: '', book: null, cycle: 'monthly', users: 1, agreed: false, err: '', cardName: '', cardNum: '', cardExp: '', cardCvc: '' }
+      })),
       au: {
         isLogin: A.view === 'login', isSignup: A.view === 'signup',
         loginBg: A.view === 'login' ? '#1a1a1a' : '#FFFFFF', loginFg: A.view === 'login' ? '#FFFFFF' : '#403D37',
@@ -2252,7 +2210,10 @@ class Component extends DCLogic {
     const start = new Date(ses.trialStart + 'T00:00:00');
     const left = 14 - Math.round((TODAY - start) / 86400000);
     const nextD = new Date(start); nextD.setDate(nextD.getDate() + 14);
-    const setSes = (patch) => this.setState((s) => ({ session: { ...s.session, ...patch }, account: { ...s.account, ...patch } }));
+    const setSes = (patch) => this.save(API.patch(this.orgPath('/subscription'), patch), (r) => {
+      const applied = { cycle: r.subscription.cycle, users: r.subscription.users };
+      this.setState((s) => ({ session: { ...s.session, ...applied }, account: { ...s.account, ...applied } }));
+    });
     return {
       status: left > 0 ? 'Free trial · ' + left + ' days remaining' : 'Active',
       help: left > 0
@@ -2263,8 +2224,8 @@ class Component extends DCLogic {
         bg: ses.cycle === c[0] ? '#1a1a1a' : '#FFFFFF', fg: ses.cycle === c[0] ? '#FFFFFF' : '#403D37'
       })),
       users: String(users),
-      inc: () => this.setState((s) => ({ session: { ...s.session, users: Math.min(25, s.session.users + 1) }, account: { ...s.account, users: Math.min(25, s.session.users + 1) } })),
-      dec: () => this.setState((s) => ({ session: { ...s.session, users: Math.max(1, s.session.users - 1) }, account: { ...s.account, users: Math.max(1, s.session.users - 1) } })),
+      inc: () => setSes({ users: Math.min(25, users + 1) }),
+      dec: () => setSes({ users: Math.max(1, users - 1) }),
       card: ses.card ? '\u2022\u2022\u2022\u2022 ' + ses.card.last4 : 'No card on file',
       cardSub: ses.card ? ses.card.brand + ' \u00b7 expires ' + ses.card.exp : 'Add one before the trial ends',
       nextDate: longDate(nextD),
@@ -2272,7 +2233,8 @@ class Component extends DCLogic {
       amount: money(amount),
       breakdown: users === 1 ? money(rate) + ' × 1 user' : money(rate) + ' × ' + users + ' users',
       booksNote: (ses.book === 'church' ? 'Church & non-profit books' : 'SME, business & company books') + ' — fixed at signup.',
-      cancel: () => this.setState({ toast: 'Cancellation requested. Access continues to ' + longDate(nextD) + '.' })
+      cancel: () => this.save(API.post(this.orgPath('/subscription/cancel')), () =>
+        this.setState({ toast: 'Cancellation requested. Access continues to ' + longDate(nextD) + '.' }))
     };
   }
 
@@ -2505,7 +2467,8 @@ class Component extends DCLogic {
       rowBg: b.matched ? '#FFFFFF' : '#FDF9F2',
       actionLabel: b.matched ? 'Unmatch' : 'Create entry',
       action: b.matched
-        ? () => this.setD({ bank: this.d().bank.map((x) => x.id === b.id ? Object.assign({}, x, { matched: null }) : x) })
+        ? () => this.save(API.post(this.orgPath('/bank/' + b.id + '/match'), { transactionId: null }), () =>
+            this.setD({ bank: this.d().bank.map((x) => x.id === b.id ? Object.assign({}, x, { matched: null }) : x) }))
         : () => this.openTxModal({ date: b.date, type: b.amount < 0 ? 'expense' : 'income', party: b.narration.split('/').pop().trim(), description: b.narration, amount: String(Math.abs(b.amount)) })
     }));
     const unmatched = bankList.filter((b) => !b.matched).length;
@@ -2597,9 +2560,16 @@ class Component extends DCLogic {
     }
 
     // settings
+    // Typing updates the field immediately and saves once the user pauses, so
+    // a keystroke never costs a round trip.
     const setField = (key) => (e) => {
       const v = e.target.value, k = st.mode === 'sme' ? 'org' : 'chOrg';
-      this.setState((s) => ({ [k]: Object.assign({}, s[k], { [key]: v }) }));
+      this.setState((s) => ({ [k]: Object.assign({}, s[k], { [key]: v }) }), () => {
+        clearTimeout(this._orgSave);
+        this._orgSave = setTimeout(() => {
+          this.save(API.patch(this.orgPath(), this.o()), () => {});
+        }, 700);
+      });
     };
     const settingsFields = [
       { label: 'Organisation name', value: o.name, onChange: setField('name') },
@@ -2616,8 +2586,12 @@ class Component extends DCLogic {
       name: c.name, pct: String(c.pct),
       onChange: (e) => {
         const v = e.target.value.replace(/[^0-9]/g, '');
-        const cats = d.cats.map((x, j) => j === i ? Object.assign({}, x, { pct: v === '' ? 0 : Math.min(100, Number(v)) }) : x);
-        this.setD({ cats });
+        const pct = v === '' ? 0 : Math.min(100, Number(v));
+        this.setD({ cats: d.cats.map((x, j) => j === i ? Object.assign({}, x, { pct }) : x) });
+        clearTimeout(this._pctSave);
+        this._pctSave = setTimeout(() => {
+          this.save(API.patch(this.orgPath('/expense-categories/' + encodeURIComponent(c.name)), { pct }), () => {});
+        }, 700);
       }
     }));
 
@@ -2730,7 +2704,7 @@ class Component extends DCLogic {
       openDoc: this.openDocModal,
       sendReminders: () => this.flash(isBill ? 'Payment run scheduled for the ' + docs.filter((x) => this.balance(x) > 0).length + ' open bills.' : 'Reminders queued for ' + docs.filter((x) => this.balance(x) > 0 && x.due < iso(TODAY)).length + ' overdue documents.'),
       contactPanes, invRows, lowStock,
-      bankRows, recTiles, recVerify, importBank: this.importBank, autoMatch: this.autoMatch,
+      bankRows, recTiles, recVerify, refreshBank: this.refreshBank, autoMatch: this.autoMatch,
       openImport: this.openImport, imp: this.impVals(church, d),
       reportTabs, report,
       settingsFields, roles, catRows,
@@ -2741,16 +2715,18 @@ class Component extends DCLogic {
         name,
         remove: () => {
           if (d.tx.some((t) => t.category === name)) { this.flash('“' + name + '” is used by existing transactions — recode them first.'); return; }
-          this.setD({ income: d.income.filter((x, j) => j !== i) });
-          this.flash('Account removed.');
+          this.save(API.del(this.orgPath('/income-categories/' + encodeURIComponent(name))), () => {
+            this.setD({ income: d.income.filter((x, j) => j !== i) });
+            this.flash('Account removed.');
+          });
         }
       })),
       newIncome: st.newIncome, newExpense: st.newExpense, newExpensePct: st.newExpensePct,
       onNewIncome: (e) => this.setState({ newIncome: e.target.value }),
       onNewExpense: (e) => this.setState({ newExpense: e.target.value }),
       onNewExpensePct: (e) => this.setState({ newExpensePct: e.target.value.replace(/[^0-9]/g, '') }),
-      addIncomeCat: () => { if (this.addCategory('income', st.newIncome)) this.setState({ newIncome: '' }); },
-      addExpenseCat: () => { if (this.addCategory('expense', st.newExpense, st.newExpensePct)) this.setState({ newExpense: '', newExpensePct: '100' }); },
+      addIncomeCat: () => this.addCategory('income', st.newIncome).then((made) => { if (made) this.setState({ newIncome: '' }); }),
+      addExpenseCat: () => this.addCategory('expense', st.newExpense, st.newExpensePct).then((made) => { if (made) this.setState({ newExpense: '', newExpensePct: '100' }); }),
       ...this.authVals(),
       openTx: () => this.openTxModal(),
       runAI: this.runAI,
