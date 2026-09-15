@@ -7,6 +7,26 @@ and Caddy, which gets the HTTPS certificate for you and renews it.
 Everything below assumes the domain `profitna.com`. Substitute your own if it
 differs, in both the DNS records and `SITE_DOMAIN`.
 
+## The short version
+
+On a VPS that already has the DNS records from step 2 pointing at it:
+
+```bash
+git clone -b backend-for-profitna git@github.com:tosynogunniyi-ux/claude.git /opt/profitna
+cd /opt/profitna
+bash deploy/bootstrap.sh profitna.com
+```
+
+`deploy/bootstrap.sh` installs Docker if it is missing, refuses to start while
+something else holds ports 80/443, checks the domain actually resolves to this
+server before Caddy asks for a certificate, generates the database password and
+session secret into `.env`, then builds and starts everything and waits for the
+app to report healthy. It is safe to re-run — it never overwrites an existing
+`.env` and never touches the database volume.
+
+The rest of this document is the same thing step by step, which is what you
+want when something needs diagnosing.
+
 ---
 
 ## 1. Create the VPS
