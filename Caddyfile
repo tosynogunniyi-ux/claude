@@ -1,0 +1,12 @@
+# Caddy terminates TLS and issues the certificate from Let's Encrypt on first
+# boot — nothing to renew by hand. It only needs ports 80 and 443 reachable and
+# the domain already pointing at this server.
+
+{$SITE_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:4000
+}
+
+www.{$SITE_DOMAIN} {
+	redir https://{$SITE_DOMAIN}{uri} permanent
+}
