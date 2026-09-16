@@ -1,13 +1,79 @@
-# Deploying Profitna to a Hostinger VPS
+# Deploying Profitna
 
-Profitna is a Node server plus a Postgres database, so it needs a VPS — shared
-hosting won't run it. This puts three containers on one box: Postgres, the app,
-and Caddy, which gets the HTTPS certificate for you and renews it.
+Profitna is a Node server plus a Postgres database, so it cannot be uploaded to
+shared hosting the way a static site can. Two supported ways to run it:
 
-Everything below assumes the domain `profitna.com`. Substitute your own if it
-differs, in both the DNS records and `SITE_DOMAIN`.
+- **[Render](#render)** — connect the repository, it builds and runs both
+  pieces for you. No server to maintain. This is the path to take unless you
+  want your own box.
+- **[A VPS](#a-vps)** — Postgres, the app and Caddy as three containers on one
+  machine you own and maintain.
 
-## The short version
+Everything below assumes the domain `profitna.com`. Substitute your own.
+
+---
+
+<a id="render"></a>
+
+## Render
+
+`render.yaml` in this repository defines the whole thing: a web service built
+from the `Dockerfile`, and a managed Postgres wired into it. The app serves
+both the API and the interface, so one service is all it needs.
+
+### 1. Create the services
+
+In Render: **New → Blueprint**, connect this repository, and select the
+`backend-for-profitna` branch. It reads `render.yaml` and creates the web
+service and the database. `JWT_SECRET` is generated for you; `DATABASE_URL` is
+wired from the database automatically.
+
+Check the plans it proposes before approving — pricing and free-tier terms
+change, and a free instance that sleeps when idle will make the first visit of
+the day slow. Migrations run on every deploy, before the app accepts traffic.
+
+Watch the first deploy's logs: you want the migration output, then
+`Profitna server listening`, then a healthy status against `/api/health`.
+
+### 2. Point the domain at it
+
+In the Render service → **Settings → Custom Domains**, add `profitna.com` and
+`www.profitna.com`. Render shows the exact DNS records to create.
+
+Then in hPanel → **Domains → profitna.com → DNS Zone**, delete the existing
+parking records — the `A`/`AAAA` entries on `@` and the `www` CNAME pointing at
+`hstgr.net` — and add what Render gave you (typically an `ALIAS`/`ANAME` or `A`
+for the apex, and a `CNAME` for `www`). Delete the `AAAA` records unless Render
+gave you an IPv6 target: browsers prefer IPv6, and a stale AAAA makes a working
+site look down.
+
+Certificates are issued automatically once DNS resolves, usually within
+minutes.
+
+### 3. First account
+
+Open `https://profitna.com` and create the account — it becomes the admin of
+its organisation. The books start **empty** by design; `SEED_DEMO_DATA` is
+deliberately not set, so you get the designed empty states rather than
+somebody else's sample data. To demo with populated books instead, add
+`SEED_DEMO_DATA=true` in the Render dashboard, redeploy, and create a *new*
+account — then remove it before real customers sign up.
+
+### Afterwards
+
+Pushing to `backend-for-profitna` redeploys. Render backs the database up on
+paid plans; confirm what your plan actually retains rather than assuming.
+
+---
+
+<a id="a-vps"></a>
+
+## A VPS
+
+Three containers on one machine: Postgres, the app, and Caddy, which gets the
+HTTPS certificate and renews it.
+
+### The short version
 
 On a VPS that already has the DNS records from step 2 pointing at it:
 
@@ -29,7 +95,7 @@ want when something needs diagnosing.
 
 ---
 
-## 1. Create the VPS
+### 1. Create the VPS
 
 In hPanel → **VPS** → create an instance. The smallest plan (1 vCPU / 4 GB) is
 comfortable for this. Choose the **Ubuntu 24.04 with Docker** template so Docker
@@ -42,7 +108,7 @@ If you pick a plain Ubuntu template instead, install Docker first:
 curl -fsSL https://get.docker.com | sh
 ```
 
-## 2. Point the domain at it
+### 2. Point the domain at it
 
 `profitna.com` currently resolves to Hostinger's parking infrastructure
 (`orbit.dns-parking.com` / `horizon.dns-parking.com`, with `www` pointing at
@@ -76,7 +142,7 @@ Propagation is usually minutes at TTL 300. **Do not start Caddy until this
 resolves** — Let's Encrypt validates over the live domain, and repeated
 failures hit a rate limit that locks you out for an hour.
 
-## 3. Open the firewall
+### 3. Open the firewall
 
 Ports 80 and 443 must reach the box: check hPanel → VPS → **Firewall**, and on
 the server itself:
@@ -85,7 +151,7 @@ the server itself:
 ufw allow 22,80,443/tcp && ufw --force enable
 ```
 
-## 4. Get the code onto the server
+### 4. Get the code onto the server
 
 The repository is private, so give the VPS its own read-only deploy key:
 
@@ -103,7 +169,7 @@ git clone -b backend-for-profitna git@github.com:tosynogunniyi-ux/claude.git /op
 cd /opt/profitna
 ```
 
-## 5. Configure secrets
+### 5. Configure secrets
 
 ```bash
 cp .env.deploy.example .env
@@ -121,7 +187,7 @@ JWT_SECRET=          # openssl rand -hex 48
 `.env` is gitignored. Keep it off your laptop and out of screenshots; changing
 `JWT_SECRET` later signs every user out.
 
-## 6. Start it
+### 6. Start it
 
 ```bash
 docker compose up -d --build
@@ -142,7 +208,7 @@ curl -sI https://profitna.com/      # 200, after the certificate is issued
 First HTTPS request can take a few seconds while Caddy gets the certificate.
 `docker compose logs caddy` shows the issuance and any DNS problem plainly.
 
-## 7. First account
+### 7. First account
 
 Open `https://profitna.com`, create the account, and it becomes the admin of
 its organisation. The books start **empty** — `SEED_DEMO_DATA` is deliberately
@@ -196,8 +262,15 @@ gunzip -c profitna-2026-09-15.sql.gz | docker compose exec -T db psql -U profitn
 
 ## A caveat worth stating plainly
 
-This deploys the build that has been tested end to end locally, but the Docker
-image itself has not been built and run anywhere yet — there was no Docker
-daemon available in the session that wrote these files. Expect to shake out a
-small issue or two on the first `docker compose up --build`; the logs will say
-which, and it is the kind of thing that is quick to fix once you can see it.
+The application has been tested end to end — signup, the ledger, invoices and
+payments, inventory, statement import, reports, and tenant isolation — but the
+**Docker image has never been built or run anywhere**. The session that wrote
+these files could not reach Docker Hub to pull a base image. Both paths above
+build that same `Dockerfile`, so expect to shake out a small issue or two on
+the first build, in Render's deploy log or in `docker compose logs`. It is the
+kind of problem that is quick to fix once the log says what it is.
+
+One known difference between the two: Render's Postgres may require TLS on the
+connection. If the first deploy fails with an SSL or `pg_hba.conf` error, add
+`PGSSL=require` to the service's environment and redeploy — `server/src/db.js`
+reads it.

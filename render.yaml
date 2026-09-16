@@ -1,0 +1,52 @@
+# Render blueprint: one web service (which serves the API and the app itself)
+# and one managed Postgres. Render terminates TLS, so Caddy and
+# docker-compose.yml are not used here — they remain for a VPS deploy.
+#
+# In Render: New -> Blueprint -> connect this repository and pick the
+# backend-for-profitna branch. Everything below is created for you.
+
+services:
+  - type: web
+    name: profitna
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    # Migrations run to completion before the server accepts traffic, on
+    # every deploy.
+    dockerCommand: sh -c "node src/migrate.js && node src/index.js"
+    healthCheckPath: /api/health
+    plan: starter
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: profitna-db
+          property: connectionString
+      # Generated once by Render and kept thereafter. Changing it signs
+      # every user out.
+      - key: JWT_SECRET
+        generateValue: true
+      # Optional integrations. Each feature stays off until its key is set
+      # in the Render dashboard — see server/README.md.
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: PAYSTACK_SECRET_KEY
+        sync: false
+      - key: PAYSTACK_PUBLIC_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ANTHROPIC_MODEL
+        value: claude-opus-5
+      - key: MONO_SECRET_KEY
+        sync: false
+      - key: MONO_WEBHOOK_SECRET
+        sync: false
+      # Deliberately absent: SEED_DEMO_DATA. Real accounts start empty.
+
+databases:
+  - name: profitna-db
+    databaseName: profitna
+    user: profitna
+    plan: basic-256mb
