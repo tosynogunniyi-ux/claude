@@ -73,6 +73,27 @@ paid plans; confirm what your plan actually retains rather than assuming.
 Three containers on one machine: Postgres, the app, and Caddy, which gets the
 HTTPS certificate and renews it.
 
+### If the server runs CloudPanel, Plesk or nginx already
+
+A control panel owns ports 80/443 and issues certificates itself, so Caddy
+cannot run alongside it. Use the proxied compose file instead — Postgres and
+the app only, with the app bound to `127.0.0.1:4000` where nothing outside the
+machine can reach it:
+
+```bash
+bash deploy/bootstrap.sh profitna.com --proxied
+```
+
+Then, in the panel, add a site for `profitna.com` as a **reverse proxy to
+`http://127.0.0.1:4000`** and issue its Let's Encrypt certificate there. In
+CloudPanel that is **+ Add Site → Create a Reverse Proxy**, then the site's
+**SSL/TLS** tab.
+
+Two things to know if the panel installed MySQL: Profitna does not use it — it
+runs its own Postgres in a container — and the panel's database backups will
+not include Profitna's data. Use the `pg_dump` command at the end of this
+document for that.
+
 ### The short version
 
 On a VPS that already has the DNS records from step 2 pointing at it:

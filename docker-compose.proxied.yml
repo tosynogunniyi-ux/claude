@@ -1,0 +1,53 @@
+# Profitna behind a reverse proxy that already owns ports 80/443 — CloudPanel,
+# Plesk, or your own nginx. No Caddy here: the panel terminates TLS and holds
+# the certificate.
+#
+#   docker compose -f docker-compose.proxied.yml up -d --build
+#
+# Then point a site in the panel at http://127.0.0.1:4000.
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: profitna
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: profitna
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U profitna -d profitna"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    # Postgres stays off the network entirely; only the app container sees it.
+    # Note this is a different database from the panel's MySQL, which Profitna
+    # does not use.
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    # Bound to loopback, so the app is reachable only by the proxy on this
+    # machine and never directly from the internet.
+    ports:
+      - "127.0.0.1:4000:4000"
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgres://profitna:${POSTGRES_PASSWORD}@db:5432/profitna
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      PAYSTACK_SECRET_KEY: ${PAYSTACK_SECRET_KEY:-}
+      PAYSTACK_PUBLIC_KEY: ${PAYSTACK_PUBLIC_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-opus-5}
+      MONO_SECRET_KEY: ${MONO_SECRET_KEY:-}
+      MONO_WEBHOOK_SECRET: ${MONO_WEBHOOK_SECRET:-}
+    command: sh -c "node src/migrate.js && node src/index.js"
+
+volumes:
+  db-data:
