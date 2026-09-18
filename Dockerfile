@@ -1,5 +1,5 @@
-# Build context is the repository root: the server serves the app's two files
-# from ../../project, so both directories have to be in the image.
+# Build context is the repository root: the server serves the front end from
+# ../../web, so both directories have to be in the image.
 FROM node:22-alpine
 
 ENV NODE_ENV=production
@@ -10,8 +10,8 @@ COPY server/package.json server/package-lock.json ./server/
 RUN cd server && npm ci --omit=dev
 
 COPY server ./server
-COPY project/Profitna.dc.html project/support.js ./project/
-COPY project/vendor ./project/vendor
+COPY web/Profitna.dc.html web/support.js ./web/
+COPY web/vendor ./web/vendor
 
 # Runs unprivileged; node:alpine ships a "node" user for exactly this.
 RUN chown -R node:node /app

@@ -1,6 +1,6 @@
 # Profitna — server
 
-The backend behind `project/Profitna.dc.html`. The prototype's screens are
+The backend behind `web/Profitna.dc.html`. The prototype's screens are
 unchanged; what used to be sample data held in the browser now lives in
 Postgres behind an authenticated, organisation-scoped API, and the same
 Express process serves the app itself.
@@ -45,7 +45,7 @@ what it can honestly do:
 - `src/auth.js` — bcrypt + JWT in an httpOnly cookie. `requireOrg()` resolves
   `:orgId` against the caller's memberships and is the single place tenant
   scoping is decided; an organisation you do not belong to is a 404.
-- `src/sql/001_init.sql` — the schema, extended from `project/uploads/schema.sql`
+- `src/sql/001_init.sql` — the schema, extended from `docs/design/uploads/schema.sql`
   for church funds, per-book categories, statement lines and subscriptions.
 - `src/routes/org.js` — `GET /orgs/:id/data` returns a whole book in one call,
   in the exact shape the UI already held in state. Also settings, chart of
@@ -76,7 +76,7 @@ The app is one Node process plus Postgres, so Render, Railway and Fly all fit.
 Set the env vars, run `npm run migrate` on release, and serve behind HTTPS —
 `NODE_ENV=production` marks the session cookie `secure`.
 
-The front end loads React and the spreadsheet reader from `project/vendor/`
+The front end loads React and the spreadsheet reader from `web/vendor/`
 rather than a public CDN, so the app boots without third-party availability.
 Google Fonts is still fetched over the network and falls back to system fonts
 if it is unavailable.
