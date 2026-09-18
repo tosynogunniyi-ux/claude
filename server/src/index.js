@@ -33,9 +33,8 @@ app.use('/api/orgs/:orgId', requireAuth, orgScoped);
 
 // The prototype is served from here, so the API is same-origin and the session
 // cookie needs no cross-site relaxation.
-// Only the two files the app is made of: the rest of project/ holds working
-// material (spec, schema, spreadsheets) that must not be publicly served.
-const WEB_ROOT = path.join(__dirname, '..', '..', 'project');
+// Only the files the app is actually made of are served.
+const WEB_ROOT = path.join(__dirname, '..', '..', 'web');
 app.get('/', (req, res) => res.sendFile(path.join(WEB_ROOT, 'Profitna.dc.html')));
 app.get('/support.js', (req, res) => res.sendFile(path.join(WEB_ROOT, 'support.js')));
 app.use('/vendor', express.static(path.join(WEB_ROOT, 'vendor'), { maxAge: '1y', index: false }));

@@ -24,7 +24,7 @@ both the API and the interface, so one service is all it needs.
 ### 1. Create the services
 
 In Render: **New → Blueprint**, connect this repository, and select the
-`backend-for-profitna` branch. It reads `render.yaml` and creates the web
+`main` branch. It reads `render.yaml` and creates the web
 service and the database. `JWT_SECRET` is generated for you; `DATABASE_URL` is
 wired from the database automatically.
 
@@ -61,7 +61,7 @@ account — then remove it before real customers sign up.
 
 ### Afterwards
 
-Pushing to `backend-for-profitna` redeploys. Render backs the database up on
+Pushing to `main` redeploys. Render backs the database up on
 paid plans; confirm what your plan actually retains rather than assuming.
 
 ---
@@ -99,7 +99,7 @@ document for that.
 On a VPS that already has the DNS records from step 2 pointing at it:
 
 ```bash
-git clone -b backend-for-profitna git@github.com:tosynogunniyi-ux/claude.git /opt/profitna
+git clone git@github.com:tosynogunniyi-ux/claude.git /opt/profitna
 cd /opt/profitna
 bash deploy/bootstrap.sh profitna.com
 ```
@@ -186,14 +186,14 @@ Copy that key into GitHub → the repo → **Settings → Deploy keys → Add de
 key** (read access is enough), then:
 
 ```bash
-git clone -b backend-for-profitna git@github.com:tosynogunniyi-ux/claude.git /opt/profitna
+git clone git@github.com:tosynogunniyi-ux/claude.git /opt/profitna
 cd /opt/profitna
 ```
 
 ### 5. Configure secrets
 
 ```bash
-cp .env.deploy.example .env
+cp deploy/.env.example .env
 nano .env
 ```
 
