@@ -88,6 +88,7 @@ window.__resources = {
         <div style="background: #FFFFFF; border: 1px solid #E5E1D8; border-top: 3px solid #FAC775; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.04), 0 1px 3px rgba(19,19,19,.06); padding: 32px; margin-top: 14px;">
           <h1 style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 23px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.015em;">Welcome back</h1>
           <div style="font-size: 13px; color: #403D37; margin-bottom: 20px;">Sign in to continue to your books.</div>
+          <sc-if value="{{ au.googleReady }}" hint-placeholder-val="{{ false }}">
           <button onClick="{{ au.google }}" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 12px; font-size: 14px; font-weight: 600; color: #1a1a1a; cursor: pointer; box-shadow: 0 1px 2px rgba(19,19,19,.05); transition: background .14s, box-shadow .14s;" style-hover="background: #F7F5F0; box-shadow: 0 2px 4px rgba(19,19,19,.06);">
             <svg width="17" height="17" viewBox="0 0 48 48" style="flex: 0 0 17px;">
               <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.6 30.2 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.8 6.1C12.3 13.2 17.7 9.5 24 9.5z"></path>
@@ -102,6 +103,7 @@ window.__resources = {
             <span style="font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: #5C5850;">or</span>
             <span style="flex: 1; height: 1px; background: #E5E1D8;"></span>
           </div>
+          </sc-if>
           <div style="display: flex; flex-direction: column; gap: 14px;">
             <label style="display: block;">
               <span style="display: block; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: #5C5850; margin-bottom: 5px;">Email address</span>
@@ -136,6 +138,7 @@ window.__resources = {
             <div>
               <h1 style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 23px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.015em;">Create your account</h1>
               <div style="font-size: 13px; color: #403D37; margin-bottom: 20px;">14 days free, full access. Card details come at the last step.</div>    
+              <sc-if value="{{ au.googleReady }}" hint-placeholder-val="{{ false }}">
               <button onClick="{{ au.google }}" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 12px; font-size: 14px; font-weight: 600; color: #1a1a1a; cursor: pointer; box-shadow: 0 1px 2px rgba(19,19,19,.05); transition: background .14s, box-shadow .14s;" style-hover="background: #F7F5F0; box-shadow: 0 2px 4px rgba(19,19,19,.06);">
                 <svg width="17" height="17" viewBox="0 0 48 48" style="flex: 0 0 17px;">
                   <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.6 30.2 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.8 6.1C12.3 13.2 17.7 9.5 24 9.5z"></path>
@@ -150,6 +153,7 @@ window.__resources = {
                 <span style="font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: #5C5850;">or</span>
                 <span style="flex: 1; height: 1px; background: #E5E1D8;"></span>
               </div>
+              </sc-if>
               <div style="display: flex; flex-direction: column; gap: 14px;">
                 <label style="display: block;">
                   <span style="display: block; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: #5C5850; margin-bottom: 5px;">Full name</span>
@@ -2189,6 +2193,9 @@ class Component extends DCLogic {
         toggleAgree: () => this.setState((s) => ({ auth: { ...s.auth, agreed: !s.auth.agreed, err: '' } })),
         inc: () => this.setState((s) => ({ auth: { ...s.auth, users: Math.min(25, s.auth.users + 1) } })),
         dec: () => this.setState((s) => ({ auth: { ...s.auth, users: Math.max(1, s.auth.users - 1) } })),
+        // Hides the Google buttons on a deployment without GOOGLE_CLIENT_ID,
+        // rather than offering a control that cannot complete.
+        googleReady: st.googleReady,
         isGoogle: A.provider === 'google',
         noProvider: A.provider !== 'google',
         dropGoogle: (e) => { if (e && e.preventDefault) e.preventDefault(); this.setAuth({ provider: null, pw: '' }); },
