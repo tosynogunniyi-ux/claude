@@ -26,4 +26,9 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||4000)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 WORKDIR /app/server
-CMD ["node", "src/index.js"]
+
+# Migrations run before the server starts, as part of the image's own default
+# command. A host that cannot express a custom start command — or an operator
+# who forgets to set one — still gets a schema that matches the code, and the
+# server refuses to start if they fail.
+CMD ["sh", "-c", "node src/migrate.js && node src/index.js"]
