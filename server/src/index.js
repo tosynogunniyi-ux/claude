@@ -47,8 +47,21 @@ app.use((err, req, res, next) => {
 });
 
 if (require.main === module) {
+  // Fail at boot rather than at the first sign-in attempt: a missing secret is
+  // a deployment mistake, and it is far cheaper to find in the startup log.
+  for (const required of ['DATABASE_URL', 'JWT_SECRET']) {
+    if (!process.env[required]) {
+      console.error(required + ' is not set — refusing to start. See server/README.md.');
+      process.exit(1);
+    }
+  }
+
   const port = Number(process.env.PORT) || 4000;
-  app.listen(port, () => console.log('Profitna server listening on http://localhost:' + port));
+  // Binds all interfaces so a reverse proxy in another container can reach it.
+  app.listen(port, '0.0.0.0', () => {
+    console.log('Profitna server listening on port ' + port);
+    console.log('If your proxy targets a different port, set PORT to match it.');
+  });
 }
 
 module.exports = app;
