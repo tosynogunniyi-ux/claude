@@ -282,6 +282,13 @@ window.__resources = {
                 <div style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 21px; font-weight: 700; font-variant-numeric: tabular-nums;">{{ au.total }}</div>
               </div>
 
+              <sc-if value="{{ au.paystackReady }}" hint-placeholder-val="{{ false }}">
+                <div style="background: #FAEEDA; border: 1px solid #EBD9A8; border-radius: 6px; padding: 14px 16px; font-size: 12.5px; line-height: 1.55; color: #412402;">
+                  Your card is entered on Paystack's secure page, not here — Profitna never sees the number.
+                  <div style="margin-top: 8px;">{{ au.paystackNote }}</div>
+                </div>
+              </sc-if>
+              <sc-if value="{{ au.manualCard }}" hint-placeholder-val="{{ false }}">
               <div style="display: flex; flex-direction: column; gap: 14px;">
                 <label style="display: block;">
                   <span style="display: block; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: #5C5850; margin-bottom: 5px;">Name on card</span>
@@ -305,6 +312,7 @@ window.__resources = {
                   </label>
                 </div>
               </div>
+              </sc-if>
 
               <label style="display: flex; gap: 9px; align-items: flex-start; margin-top: 16px; cursor: pointer;">
                 <input type="checkbox" checked="{{ au.agreed }}" onChange="{{ au.toggleAgree }}" style="margin-top: 2px; width: 15px; height: 15px; accent-color: #1a1a1a;" />
@@ -324,7 +332,7 @@ window.__resources = {
 
               <div style="display: flex; gap: 10px; margin-top: 16px;">
                 <button onClick="{{ au.back }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 12px 16px; font-size: 13px; font-weight: 500; cursor: pointer;" style-hover="background: #F4F3EE;">Back</button>
-                <button onClick="{{ au.finish }}" style="flex: 1; border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); transition: transform .16s cubic-bezier(.2,.6,.3,1), box-shadow .16s; padding: 12px; font-size: 14px; font-weight: 600; cursor: pointer;" style-hover="background: #FAC775; color: #1a1a1a;">Start 14-day free trial</button>
+                <button onClick="{{ au.finish }}" style="flex: 1; border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); transition: transform .16s cubic-bezier(.2,.6,.3,1), box-shadow .16s; padding: 12px; font-size: 14px; font-weight: 600; cursor: pointer;" style-hover="background: #FAC775; color: #1a1a1a;">{{ au.finishLabel }}</button>
               </div>
             </div>
           </sc-if>
@@ -1414,7 +1422,11 @@ class Component extends DCLogic {
 
   componentDidMount() {
     API.get('/auth/config')
-      .then((c) => this.setState({ googleReady: Boolean(c.google), googleClientId: c.googleClientId }))
+      .then((c) => this.setState({
+        googleReady: Boolean(c.google), googleClientId: c.googleClientId,
+        paystackReady: Boolean(c.paystack && c.paystackPublicKey),
+        paystackKey: c.paystackPublicKey, paystackAmount: c.paystackAmount
+      }))
       .catch(() => {});
     API.get('/auth/me')
       .then((r) => this.applySession(r.session))
@@ -1461,6 +1473,48 @@ class Component extends DCLogic {
       gid.prompt((n) => {
         if (n.isNotDisplayed() || n.isSkippedMoment()) reject(new Error('Google sign-in was dismissed. Use your email and password instead.'));
       });
+    }));
+  }
+
+  // Paystack Inline. The card is typed into Paystack's own window, so the
+  // number and CVV never enter this page or reach our server; what comes back
+  // is a transaction reference the server verifies before trusting anything.
+  paystackAuthorise(email) {
+    if (!this._paystack) {
+      this._paystack = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://js.paystack.co/v2/inline.js';
+        s.async = true;
+        s.onload = () => resolve(window.PaystackPop);
+        s.onerror = () => reject(new Error('Could not reach Paystack. Check your connection and try again.'));
+        document.head.appendChild(s);
+      });
+    }
+
+    const amountKobo = Math.round((this.state.paystackAmount || 50) * 100);
+    const reference = 'profitna-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+
+    return this._paystack.then((Pop) => new Promise((resolve, reject) => {
+      const done = (r) => (r && (r.reference || r.trxref)) ? resolve(r.reference || r.trxref)
+        : reject(new Error('Paystack did not confirm the card. Nothing has been charged.'));
+      const cancelled = () => reject(new Error('Card authorisation was cancelled.'));
+
+      // v2 exposes a constructor; v1 exposed PaystackPop.setup. Both are in the
+      // wild depending on which script a deployment ends up with.
+      if (typeof Pop === 'function') {
+        new Pop().newTransaction({
+          key: this.state.paystackKey, email, amount: amountKobo, currency: 'NGN', reference,
+          onSuccess: done, onCancel: cancelled,
+          onError: (e) => reject(new Error((e && e.message) || 'Paystack could not process that card.'))
+        });
+      } else if (Pop && Pop.setup) {
+        Pop.setup({
+          key: this.state.paystackKey, email, amount: amountKobo, currency: 'NGN', ref: reference,
+          callback: done, onClose: cancelled
+        }).openIframe();
+      } else {
+        reject(new Error('Paystack loaded but did not expose a checkout.'));
+      }
     }));
   }
 
@@ -2097,7 +2151,38 @@ class Component extends DCLogic {
     };
     const brandOf = (num) => num[0] === '4' ? 'Visa' : /^5[1-5]/.test(num) ? 'Mastercard' : /^(50|5[6-9]|6)/.test(num) ? 'Verve / Maestro' : num.length >= 2 ? 'Card' : '';
 
+    const createAccount = (extra) => {
+      // The card number and CVV never leave the browser on either path: with
+      // Paystack they are typed into Paystack's window, and without it only
+      // the brand, last four digits and expiry — what the app displays back —
+      // are sent.
+      return API.post('/auth/signup', Object.assign({
+        name: A.name.trim(), org: A.org.trim(), email: A.email.trim(),
+        password: A.provider === 'google' ? undefined : A.pw,
+        googleCredential: A.googleCredential,
+        book: A.book, cycle: A.cycle, users: A.users
+      }, extra))
+        .then((r) => {
+          this.setState((s) => ({ auth: { ...s.auth, pw: '', err: '', cardNum: '', cardCvc: '', googleCredential: null } }));
+          return this.applySession(r.session);
+        })
+        .then(() => this.setState({ reportTab: 'pl', search: '', toast: 'Trial started — free until ' + longDate(shift(14)) + '.' }))
+        .catch((err) => this.setAuth({ err: err.message }));
+    };
+
     const finish = () => {
+      const email = A.email.trim();
+      if (!A.agreed) return this.setAuth({ err: 'Please authorise the charge to continue.' });
+
+      if (st.paystackReady) {
+        this.setAuth({ err: '' });
+        return this.paystackAuthorise(email)
+          .then((reference) => createAccount({ paymentReference: reference }))
+          .catch((err) => this.setAuth({ err: err.message }));
+      }
+
+      // No payment processor configured: validate here and record the card for
+      // display only, which is what the server will store.
       const num = digits(A.cardNum);
       if (!A.cardName.trim()) return this.setAuth({ err: 'Enter the name printed on the card.' });
       if (!luhn(num)) return this.setAuth({ err: 'That card number does not look valid. Check the digits and try again.' });
@@ -2107,23 +2192,8 @@ class Component extends DCLogic {
       const expEnd = new Date(2000 + yy, mm, 0);
       if (expEnd < TODAY) return this.setAuth({ err: 'That card has expired. Use a card valid past ' + longDate(shift(14)) + '.' });
       if (digits(A.cardCvc).length < 3) return this.setAuth({ err: 'Enter the 3-digit CVV from the back of the card.' });
-      if (!A.agreed) return this.setAuth({ err: 'Please authorise the charge to continue.' });
 
-      // The card number and CVV stay in the browser: only the brand, last four
-      // digits and expiry — what the app displays back — are ever sent.
-      API.post('/auth/signup', {
-        name: A.name.trim(), org: A.org.trim(), email: A.email.trim(),
-        password: A.provider === 'google' ? undefined : A.pw,
-        googleCredential: A.googleCredential,
-        book: A.book, cycle: A.cycle, users: A.users,
-        card: { brand: brandOf(num), last4: num.slice(-4), exp: A.cardExp }
-      })
-        .then((r) => {
-          this.setState((s) => ({ auth: { ...s.auth, pw: '', err: '', cardNum: '', cardCvc: '', googleCredential: null } }));
-          return this.applySession(r.session);
-        })
-        .then(() => this.setState({ reportTab: 'pl', search: '', toast: 'Trial started — free until ' + longDate(shift(14)) + '.' }))
-        .catch((err) => this.setAuth({ err: err.message }));
+      createAccount({ card: { brand: brandOf(num), last4: num.slice(-4), exp: A.cardExp } });
     };
 
     const google = () => {
@@ -2196,6 +2266,12 @@ class Component extends DCLogic {
         // Hides the Google buttons on a deployment without GOOGLE_CLIENT_ID,
         // rather than offering a control that cannot complete.
         googleReady: st.googleReady,
+        // With a processor configured the card is collected by Paystack, so
+        // this page shows an explanation instead of card fields.
+        paystackReady: Boolean(st.paystackReady),
+        manualCard: !st.paystackReady,
+        paystackNote: 'Paystack charges ' + money(st.paystackAmount || 50) + ' now to verify the card. Nothing else is charged until your trial ends on ' + longDate(shift(14)) + '.',
+        finishLabel: st.paystackReady ? 'Authorise card with Paystack' : 'Start 14-day free trial',
         isGoogle: A.provider === 'google',
         noProvider: A.provider !== 'google',
         dropGoogle: (e) => { if (e && e.preventDefault) e.preventDefault(); this.setAuth({ provider: null, pw: '' }); },

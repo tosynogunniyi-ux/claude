@@ -33,7 +33,7 @@ what it can honestly do:
 |---|---|
 | `DATABASE_URL`, `JWT_SECRET` | Required. The server refuses to sign sessions without a secret. |
 | `GOOGLE_CLIENT_ID` | The Google buttons report that sign-in is not configured. |
-| `PAYSTACK_SECRET_KEY` | Cards are recorded for display only; nothing is charged at trial end. |
+| `PAYSTACK_SECRET_KEY` + `PAYSTACK_PUBLIC_KEY` | Signup falls back to its own card form and records the card for display only; nothing is charged. |
 | `ANTHROPIC_API_KEY` | Category suggestions fall back to the keyword matcher, which still codes most Nigerian bank narrations. |
 | `MONO_SECRET_KEY` | Bank feeds are unavailable; the CSV / Excel / Sheets import path is unaffected. |
 
@@ -62,13 +62,23 @@ deleting a contact never rewrites history.
 
 ## Payment card handling
 
-The card number and CVV never reach this server. The signup form validates
-them in the browser and sends only the brand, last four digits and expiry —
-what the UI displays back. With `PAYSTACK_SECRET_KEY` set, the browser charges
-through Paystack's SDK first and passes the transaction reference here, which
-is verified server-side; the reusable authorisation code it returns is what
-`chargeDue()` charges when a trial ends or a term renews. Wire that to a
-scheduler when you go live.
+The card number and CVV never reach this server, on either path.
+
+With Paystack configured, signup hides its own card fields and opens Paystack
+Inline: the customer types the card into Paystack's window, a small
+verification amount (`PAYSTACK_VERIFY_AMOUNT`, default ₦50) authorises it, and
+the browser sends back only a transaction reference. The server verifies that
+reference against Paystack, and takes the brand, last four and expiry from the
+verification rather than trusting the client. A signup that arrives without a
+reference is refused while a processor is configured, so the card form cannot
+be used to bypass payment.
+
+Without Paystack, the form validates locally and sends only the brand, last
+four and expiry — what the UI displays back.
+
+The reusable authorisation code is what `chargeDue()` charges when a trial
+ends or a term renews. Wire that to a scheduler when you go live, and point
+the Paystack webhook at `/api/webhooks/paystack`.
 
 ## Deploying
 

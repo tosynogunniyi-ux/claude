@@ -140,24 +140,30 @@ router.post('/signup', async (req, res, next) => {
       if (password.length < 8) return bad(res, 'Choose a password of at least 8 characters.');
     }
 
-    // Card details are captured by the payment processor, never by this
-    // server: the client sends back only what the UI displays.
-    const card = body.card
-      ? {
-          brand: String(body.card.brand || '').slice(0, 32),
-          last4: String(body.card.last4 || '').replace(/\D/g, '').slice(-4),
-          exp: String(body.card.exp || '').slice(0, 7)
-        }
-      : null;
-    if (card && card.last4.length !== 4) return bad(res, 'Add a payment card before starting the trial.');
-    if (!card) return bad(res, 'Add a payment card before starting the trial.');
-
-    // With Paystack configured the client charges through their SDK first and
-    // passes the reference here for server-side verification.
+    // With Paystack configured the browser authorises the card through their
+    // checkout first; the reference is verified here, and the card details we
+    // display come from that verification rather than from the client.
     let payment = null;
+    let card = null;
+
     if (body.paymentReference) {
       payment = await paystack.verify(body.paymentReference, email);
       if (!payment) return bad(res, 'We could not verify that card with the payment processor.');
+      card = payment.card;
+      if (!card) return bad(res, 'Paystack verified the payment but returned no card to save.');
+    } else {
+      if (paystack.configured()) {
+        return bad(res, 'Authorise your card with Paystack to start the trial.');
+      }
+      // No processor: the client sends only what the UI displays back.
+      card = body.card
+        ? {
+            brand: String(body.card.brand || '').slice(0, 32),
+            last4: String(body.card.last4 || '').replace(/\D/g, '').slice(-4),
+            exp: String(body.card.exp || '').slice(0, 7)
+          }
+        : null;
+      if (!card || card.last4.length !== 4) return bad(res, 'Add a payment card before starting the trial.');
     }
 
     const userId = await createAccount({ name, orgName, email, password, googleSub, book, cycle, seats, card, payment });
@@ -231,7 +237,10 @@ router.get('/config', (req, res) => {
     google: google.configured(),
     googleClientId: process.env.GOOGLE_CLIENT_ID || null,
     paystack: paystack.configured(),
-    paystackPublicKey: process.env.PAYSTACK_PUBLIC_KEY || null
+    paystackPublicKey: process.env.PAYSTACK_PUBLIC_KEY || null,
+    // What the browser charges to authorise a reusable card. Small on purpose:
+    // the trial is free, and this only exists to obtain the authorisation.
+    paystackAmount: Number(process.env.PAYSTACK_VERIFY_AMOUNT) || 50
   });
 });
 
