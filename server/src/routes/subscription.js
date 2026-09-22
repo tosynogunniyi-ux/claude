@@ -50,6 +50,97 @@ router.patch('/subscription', requireOrg('admin'), async (req, res, next) => {
   }
 });
 
+// The other end of the card-free trial: the customer pays here, once the
+// trial has run out, and the books open again. The browser has already paid
+// through Paystack's own window, so all that arrives is a reference — the
+// amount, the card and the reusable authorisation all come from verifying it,
+// never from the client.
+async function activate(organizationId, { reference, email, userId }) {
+  const sub = await one('SELECT * FROM subscriptions WHERE organization_id = $1', [organizationId]);
+  if (!sub) return { ok: false, status: 404, error: 'No subscription on this organisation.' };
+  if (sub.status === 'suspended') {
+    return { ok: false, status: 403, error: 'This account is suspended. Contact support@profitna.com.' };
+  }
+  if (!paystack.configured()) {
+    return { ok: false, status: 501, error: 'Payments are not configured on this server.' };
+  }
+  if (!reference) return { ok: false, status: 400, error: 'Complete the payment before activating.' };
+
+  const payment = await paystack.verify(reference, email);
+  if (!payment) {
+    return { ok: false, status: 400, error: 'We could not verify that payment with Paystack. Nothing has been charged twice.' };
+  }
+
+  const expected = amountFor(sub.cycle, sub.seats);
+  if (Number(payment.amount) < expected) {
+    return {
+      ok: false,
+      status: 400,
+      error: 'That payment was ' + Math.round(payment.amount) + ' naira, and this plan costs ' + expected + '.'
+    };
+  }
+
+  await query(
+    `UPDATE subscriptions
+        SET provider = 'paystack',
+            provider_customer_id = COALESCE($2, provider_customer_id),
+            provider_authorization_code = COALESCE($3, provider_authorization_code),
+            card_brand = COALESCE($4, card_brand),
+            card_last4 = COALESCE($5, card_last4),
+            card_exp   = COALESCE($6, card_exp),
+            charge_attempts = 0, next_charge_attempt_at = NULL, last_charge_error = NULL
+      WHERE organization_id = $1`,
+    [
+      organizationId,
+      payment.customerId,
+      payment.authorizationCode,
+      payment.card ? payment.card.brand : null,
+      payment.card ? payment.card.last4 : null,
+      payment.card ? payment.card.exp : null
+    ]
+  );
+
+  await recordPayment({
+    organizationId,
+    reference: payment.reference,
+    purpose: 'subscription',
+    amount: payment.amount,
+    currency: payment.currency,
+    status: 'success',
+    channel: payment.channel,
+    cardBrand: payment.card ? payment.card.brand : null,
+    cardLast4: payment.card ? payment.card.last4 : null,
+    paidAt: payment.paidAt
+  });
+
+  // Sets status active and starts the term today, which is what reopens the
+  // books — access is read from the period end, not from a flag.
+  await rollPeriod(organizationId, sub.cycle);
+  await audit(organizationId, userId || null, 'subscription.activated', 'subscription', sub.id, {
+    amount: payment.amount,
+    cycle: sub.cycle,
+    seats: sub.seats
+  });
+
+  return { ok: true };
+}
+
+router.post('/subscription/activate', requireOrg('admin'), async (req, res, next) => {
+  try {
+    const result = await activate(req.orgId, {
+      reference: String((req.body || {}).paymentReference || ''),
+      email: req.user.email,
+      userId: req.user.id
+    });
+    if (!result.ok) return res.status(result.status || 400).json({ error: result.error });
+
+    const updated = await one('SELECT * FROM subscriptions WHERE organization_id = $1', [req.orgId]);
+    res.json({ subscription: view(updated) });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post('/subscription/cancel', requireOrg('admin'), async (req, res, next) => {
   try {
     const updated = await one(
@@ -230,4 +321,4 @@ async function paystackWebhook(req, res, next) {
   }
 }
 
-module.exports = { router, chargeDue, paystackWebhook, PER_USER_MONTHLY, PER_USER_ANNUAL };
+module.exports = { router, chargeDue, activate, paystackWebhook, PER_USER_MONTHLY, PER_USER_ANNUAL };

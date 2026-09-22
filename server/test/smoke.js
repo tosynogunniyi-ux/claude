@@ -45,8 +45,7 @@ async function signup(call, email, book, org) {
     password: 'smoke-test-pass-1',
     book,
     cycle: 'monthly',
-    users: 1,
-    card: { brand: 'Visa', last4: '4081', exp: '09/29' }
+    users: 1
   });
 }
 
@@ -145,6 +144,23 @@ async function signup(call, email, book, org) {
   check('imported lines come back reconciled', imported.body.bank.every((l) => Boolean(l.matched)));
   const match = await sme('POST', '/api/orgs/' + orgA + '/bank/auto-match');
   check('auto-match runs', match.status === 200);
+
+  console.log('\nthe card-free trial');
+  const trial = a.body.session;
+  check('signup asks for no card', trial.card === null, JSON.stringify(trial.card));
+  check('and starts a trial', trial.subStatus === 'trialing' && trial.access === 'trial', trial.access);
+  check('with 14 days on it', trial.daysLeft === 14, String(trial.daysLeft));
+  check('and a date it ends', /^\d{4}-\d{2}-\d{2}$/.test(trial.trialEndsOn || ''), trial.trialEndsOn);
+  check('the books open during it', (await sme('GET', '/api/orgs/' + orgA + '/data')).status === 200);
+
+  const withCard = await client()('POST', '/api/auth/signup', {
+    name: 'Card Sender', org: 'Card Sender Ltd ' + stamp, email: 'smoke-card-' + stamp + '@mideops.ng',
+    password: 'smoke-test-pass-1', book: 'sme', cycle: 'monthly', users: 1,
+    card: { brand: 'Visa', last4: '4081', exp: '09/29' }, paymentReference: 'made-up'
+  });
+  check('a client that sends card details anyway is not billed for it',
+    withCard.status === 201 && withCard.body.session.card === null,
+    'status ' + withCard.status + ' ' + JSON.stringify(withCard.body.card));
 
   console.log('\nsubscription');
   const subs = await sme('PATCH', '/api/orgs/' + orgA + '/subscription', { cycle: 'annual', users: 3 });

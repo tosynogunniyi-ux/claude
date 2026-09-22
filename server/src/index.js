@@ -4,6 +4,7 @@ const express = require('express');
 const cookieParser = require('cookie-parser');
 
 const { requireAuth } = require('./auth');
+const { requireSubscription } = require('./access');
 const { gate } = require('./admin-auth');
 const authRoutes = require('./routes/auth');
 const adminRoutes = require('./routes/admin');
@@ -32,10 +33,15 @@ app.use('/api/auth', authRoutes.router);
 app.use('/api/admin', gate, adminRoutes.router);
 
 const orgScoped = express.Router({ mergeParams: true });
+// Subscription routes come first and sit in front of the gate: an account
+// locked out for not having paid still has to be able to pay.
+orgScoped.use(subscriptionRoutes.router);
+// Past the end of the trial — or of a paid term — the books answer 402 with
+// what the paywall needs. Nothing is deleted; it opens again on payment.
+orgScoped.use(requireSubscription);
 orgScoped.use(orgRoutes.router);
 orgScoped.use(ledgerRoutes.router);
 orgScoped.use(bankRoutes.router);
-orgScoped.use(subscriptionRoutes.router);
 app.use('/api/orgs/:orgId', requireAuth, orgScoped);
 
 // The prototype is served from here, so the API is same-origin and the session

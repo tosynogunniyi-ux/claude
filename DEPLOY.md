@@ -52,8 +52,9 @@ minutes.
 
 ### 3. First account
 
-Open `https://profitna.com` and create the account — it becomes the admin of
-its organisation. The books start **empty** by design; `SEED_DEMO_DATA` is
+Open `https://profitna.com` and create the account — no card is asked for — and
+it becomes the admin of its organisation on a 14-day trial. The books start
+**empty** by design; `SEED_DEMO_DATA` is
 deliberately not set, so you get the designed empty states rather than
 somebody else's sample data. To demo with populated books instead, add
 `SEED_DEMO_DATA=true` in the Render dashboard, redeploy, and create a *new*
@@ -231,8 +232,9 @@ First HTTPS request can take a few seconds while Caddy gets the certificate.
 
 ### 7. First account
 
-Open `https://profitna.com`, create the account, and it becomes the admin of
-its organisation. The books start **empty** — `SEED_DEMO_DATA` is deliberately
+Open `https://profitna.com`, create the account — no card is asked for — and
+it becomes the admin of its organisation on a 14-day trial. The books start
+**empty** — `SEED_DEMO_DATA` is deliberately
 not set in production, so you get the designed empty states rather than
 somebody else's sample data.
 
@@ -267,9 +269,15 @@ console — the working directory is already `/app/server`.
 
 ### 9. Billing
 
-Nothing else to switch on: the server ends trials and renews terms by itself,
-checking every hour. It stays idle until `PAYSTACK_SECRET_KEY` is set, so it
-charges nothing until you have a live key.
+Signing up never asks for a card. When a trial runs out, the customer is shown
+a payment screen inside the app and pays there; nothing of theirs is deleted
+while they decide. After that first payment the server renews the term by
+itself, checking every hour.
+
+Both halves need `PAYSTACK_SECRET_KEY` and `PAYSTACK_PUBLIC_KEY`. Without
+them, trials still run, but an expired account cannot be paid for and the
+payment screen says so plainly rather than offering a button that cannot
+work.
 
 Two things to do once that key is in place:
 

@@ -21,6 +21,10 @@ tenant isolation. `npm run smoke:admin` does the same for the Control
 Center, including that a tenant session cannot reach it and a Control
 Center session cannot reach a tenant's books.
 
+`npm run test:billing` runs in process and drives a trial to its end: the
+charge, the period roll, a decline, the retry backoff, and paying at the
+paywall — with only the payment processor stubbed.
+
 Set `SEED_DEMO_DATA=true` to have each new account open onto the populated
 books the design was built against — eight months of Nigerian sample data,
 invoices, bills, stock and a bank statement. Leave it unset in production so
@@ -35,7 +39,7 @@ what it can honestly do:
 |---|---|
 | `DATABASE_URL`, `JWT_SECRET` | Required. The server refuses to sign sessions without a secret. |
 | `GOOGLE_CLIENT_ID` | The Google buttons report that sign-in is not configured. |
-| `PAYSTACK_SECRET_KEY` + `PAYSTACK_PUBLIC_KEY` | Signup falls back to its own card form and records the card for display only; nothing is charged. |
+| `PAYSTACK_SECRET_KEY` + `PAYSTACK_PUBLIC_KEY` | Trials still run, but an expired account cannot be paid for from the app; the paywall says so instead of offering a dead button. |
 | `ANTHROPIC_API_KEY` | Category suggestions fall back to the keyword matcher, which still codes most Nigerian bank narrations. |
 | `MONO_SECRET_KEY` | Bank feeds are unavailable; the CSV / Excel / Sheets import path is unaffected. |
 | `ADMIN_PATH` | The owner's console is served at `/admin`. |
@@ -63,6 +67,8 @@ what it can honestly do:
 - `src/admin-auth.js`, `src/routes/admin.js`, `web/admin.html` — the Control
   Center, described below.
 - `src/billing.js` — the timer that ends trials and renews terms.
+- `src/access.js` — who may open the books, and until when. One middleware,
+  mounted in front of the book and never in front of the subscription routes.
 
 Two rules the schema enforces by design, carried over from the build spec:
 document status is **derived** from payments and due date rather than stored,
@@ -123,31 +129,49 @@ than a defence.
   account ends the sessions it already has open — a signed token cannot be
   revoked, so it has to be checked against something that can.
 - Every sign-in writes `last_login_at` and increments `login_count`.
-- Successful and failed charges are written to `payments`, from signup, from
-  `chargeDue()` and from the Paystack webhook, keyed on the provider reference
-  so a retried webhook does not duplicate a line.
+- Successful and failed charges are written to `payments`, from activation,
+  from `chargeDue()` and from the Paystack webhook, keyed on the provider
+  reference so a retried webhook does not duplicate a line.
 - `expired` is **derived** from the period end and today's date, never stored —
   the same rule invoices follow. `suspended` is stored, because it is an act
   rather than a consequence.
 
-## Payment card handling
+## Signing up, the trial, and the paywall
 
-The card number and CVV never reach this server, on either path.
+    sign up  →  no card  →  14-day trial  →  trial ends  →  pay  →  active
 
-With Paystack configured, signup hides its own card fields and opens Paystack
-Inline: the customer types the card into Paystack's window, a small
-verification amount (`PAYSTACK_VERIFY_AMOUNT`, default ₦50) authorises it, and
-the browser sends back only a transaction reference. The server verifies that
-reference against Paystack, and takes the brand, last four and expiry from the
-verification rather than trusting the client. A signup that arrives without a
-reference is refused while a processor is configured, so the card form cannot
-be used to bypass payment.
+**Signing up asks for nothing to pay with.** `/auth/signup` takes a name, an
+organisation, an email, a password and a plan choice, and creates a
+subscription that is `trialing` from today with no card, no processor and no
+charge. Anything card-shaped in the request body is ignored rather than
+trusted, so an old client cannot reintroduce the card step by sending one.
 
-Without Paystack, the form validates locally and sends only the brand, last
-four and expiry — what the UI displays back.
+**During the trial** the account is fully usable. `sessionFor()` returns the
+derived facts the interface draws from — `access`, `daysLeft`, `trialEndsOn`,
+`periodEnd`, `amount` — so the banner, the chrome and the paywall are counting
+the same days.
 
-The reusable authorisation code is what the biller charges when a trial ends
-or a term renews. Point the Paystack webhook at `/api/webhooks/paystack`.
+**When the trial runs out** `requireSubscription` (`src/access.js`) answers
+**402** for the books, and only for the books: it is mounted after the
+subscription routes, because an account that cannot pay its way in still has
+to be able to pay. The body carries the reason and the amount, which is what
+the payment screen renders itself from. Nothing is deleted, disabled or
+archived — the rows sit where they were.
+
+**Paying** goes through `POST /orgs/:id/subscription/activate`. The browser
+pays in Paystack's own window and sends back a reference; the server verifies
+it, refuses a payment smaller than the plan costs, and takes the amount, the
+card and the reusable authorisation from that verification rather than from
+the client. The term then starts today, which is what reopens the books —
+access is read from the period end, never from a flag.
+
+**Afterwards** the stored authorisation is what `chargeDue()` charges at each
+renewal. Point the Paystack webhook at `/api/webhooks/paystack`.
+
+The card number and CVV never reach this server on any path.
+
+`locked` is derived, like document status and subscription expiry: a stored
+flag would be correct only until the next midnight nothing ran through.
 
 ## Automatic billing
 
@@ -165,7 +189,8 @@ several passes instead of firing hundreds of charges at once.
 `COALESCE(current_period_end, trial_start + 14) <= today` — that is still
 `trialing`, `active` or `past_due` and has an authorisation code. Cancelled
 and suspended subscriptions are never charged, and neither is one with no card
-on file.
+on file — which, since signup no longer collects one, is every account that
+has not yet paid at the paywall. Those are locked out rather than billed.
 
 **When it succeeds**, `chargeDue()` writes a `payments` row, moves the
 subscription to `active`, and rolls `current_period_start` / `_end` forward a

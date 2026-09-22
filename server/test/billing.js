@@ -11,6 +11,8 @@ require('dotenv').config();
 const { pool, one, query } = require('../src/db');
 const paystack = require('../src/integrations/paystack');
 const billing = require('../src/billing');
+const subscription = require('../src/routes/subscription');
+const access = require('../src/access');
 const { PER_USER_MONTHLY } = require('../src/pricing');
 
 let passed = 0;
@@ -168,13 +170,85 @@ function subscriptionFor(orgId) {
   check('the subscription is active again', settledAgain.status === 'active', settledAgain.status);
   check('and the failure is forgotten', settledAgain.charge_attempts === 0 && !settledAgain.last_charge_error);
 
+  console.log('\npaying at the end of the trial');
+
+  // A fresh account, exactly as signup leaves it: trial over, no card, no
+  // authorisation code — nothing the biller can charge.
+  const unpaid = await makeSubscription(stamp + 2, 20);
+  await query(
+    'UPDATE subscriptions SET provider_authorization_code = NULL, card_brand = NULL, card_last4 = NULL WHERE organization_id = $1',
+    [unpaid.orgId]
+  );
+
+  const before = await subscriptionFor(unpaid.orgId);
+  check('it starts locked out', access.accessFor(before).state === 'locked', access.accessFor(before).state);
+  check('for the right reason', access.accessFor(before).reason === 'trial_ended', access.accessFor(before).reason);
+  check(
+    'and the scheduler leaves it alone — there is nothing to charge',
+    !(await billing.due(500)).some((r) => r.organizationId === unpaid.orgId),
+    'it was queued for a charge with no card'
+  );
+
+  const price = PER_USER_MONTHLY * 2;
+  const verified = (amount) => async (reference) => ({
+    provider: 'paystack', customerId: 'CUS_test', authorizationCode: 'AUTH_paid_' + stamp,
+    reference, amount, currency: 'NGN', channel: 'card', paidAt: new Date().toISOString(),
+    card: { brand: 'Visa', last4: '4081', exp: '09/29' }
+  });
+
+  paystack.verify = async () => null;
+  const unverified = await subscription.activate(unpaid.orgId, { reference: 'made-up', email: 'x@example.ng' });
+  check('a reference Paystack does not recognise is refused', unverified.ok === false, JSON.stringify(unverified));
+
+  // The amount is read from Paystack, never from the browser, so paying less
+  // than the plan costs cannot open the books.
+  paystack.verify = verified(price - 1000);
+  const short = await subscription.activate(unpaid.orgId, { reference: 'ref-short', email: 'x@example.ng' });
+  check('a payment short of the plan price is refused', short.ok === false, JSON.stringify(short));
+  check('and the books stay shut',
+    access.accessFor(await subscriptionFor(unpaid.orgId)).state === 'locked');
+
+  paystack.verify = verified(price);
+  const paid = await subscription.activate(unpaid.orgId, {
+    reference: 'ref-' + stamp,
+    email: 'billing-test-' + (stamp + 2) + '@example.ng'
+  });
+  check('a verified payment activates the subscription', paid.ok === true, JSON.stringify(paid));
+
+  const after = await subscriptionFor(unpaid.orgId);
+  check('the books open again', access.accessFor(after).state === 'active', access.accessFor(after).state);
+  check('the term starts today', after.current_period_start === new Date().toISOString().slice(0, 10));
+  check('the card is now on file', after.card_last4 === '4081', String(after.card_last4));
+  check('with a reusable authorisation for the next renewal',
+    after.provider_authorization_code === 'AUTH_paid_' + stamp, after.provider_authorization_code);
+
+  const activationPayment = await one(
+    "SELECT * FROM payments WHERE organization_id = $1 AND status = 'success' ORDER BY created_at DESC LIMIT 1",
+    [unpaid.orgId]
+  );
+  check('the payment is in the history', Boolean(activationPayment) && Number(activationPayment.amount) === price,
+    activationPayment && String(activationPayment.amount));
+
+  const activationEntry = await one(
+    "SELECT * FROM audit_log WHERE organization_id = $1 AND action = 'subscription.activated'",
+    [unpaid.orgId]
+  );
+  check('and in the activity log', Boolean(activationEntry));
+
+  const renewable = await billing.due(500);
+  check(
+    'the renewal is now the scheduler’s job, not today’s',
+    !renewable.some((r) => r.organizationId === unpaid.orgId),
+    'it is due again immediately'
+  );
+
   console.log('\nthe run log');
   const last = await billing.lastRun();
   check('every pass is recorded', Boolean(last) && Boolean(last.finishedAt));
   check('with what it charged', Number(last.amount) === PER_USER_MONTHLY * 2, String(last.amount));
 
   // ----------------------------------------------------------------- tidy up
-  for (const id of [over.orgId, running.orgId]) {
+  for (const id of [over.orgId, running.orgId, unpaid.orgId]) {
     await query('DELETE FROM organizations WHERE id = $1', [id]);
   }
   await query('DELETE FROM users WHERE email LIKE $1', ['billing-test-%@example.ng']);

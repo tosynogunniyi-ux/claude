@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const { one, tx } = require('../db');
 const { issue, clear, requireAuth, recordLogin, SUSPENDED_MESSAGE } = require('../auth');
+const { accessFor } = require('../access');
 const { seedChartOfAccounts } = require('../defaults');
 const { seedDemoBooks } = require('../demo');
 const paystack = require('../integrations/paystack');
@@ -18,9 +19,10 @@ function bad(res, message) {
 }
 
 // The session object the UI keeps in state: same shape the prototype built
-// locally at signup, plus the ids it now needs to talk to the API.
+// locally at signup, plus the ids it now needs to talk to the API and the
+// derived trial facts the banner and the paywall are drawn from.
 async function sessionFor(userId) {
-  return one(
+  const row = await one(
     `SELECT u.id            AS "userId",
             u.full_name     AS name,
             u.email,
@@ -34,6 +36,8 @@ async function sessionFor(userId) {
             s.seats         AS users,
             s.trial_start   AS "trialStart",
             s.status        AS "subStatus",
+            s.current_period_end,
+            s.card_last4,
             CASE WHEN s.card_last4 IS NULL THEN NULL
                  ELSE json_build_object('brand', s.card_brand, 'last4', s.card_last4, 'exp', s.card_exp)
             END AS card
@@ -46,9 +50,38 @@ async function sessionFor(userId) {
       LIMIT 1`,
     [userId]
   );
+  if (!row) return null;
+
+  // Whether the books open, how long is left and what it costs are all read
+  // from the dates rather than stored, so the answer cannot go stale.
+  const access = accessFor(
+    row.cycle
+      ? {
+          cycle: row.cycle,
+          seats: row.users,
+          trial_start: row.trialStart,
+          current_period_end: row.current_period_end,
+          status: row.subStatus,
+          card_last4: row.card_last4
+        }
+      : null
+  );
+
+  delete row.current_period_end;
+  delete row.card_last4;
+
+  return Object.assign(row, {
+    access: access.state,
+    accessReason: access.reason,
+    onTrial: access.onTrial,
+    daysLeft: access.daysLeft,
+    trialEndsOn: access.trialEndsOn,
+    periodEnd: access.periodEnd,
+    amount: access.amount
+  });
 }
 
-async function createAccount({ name, orgName, email, password, googleSub, book, cycle, seats, card, payment }) {
+async function createAccount({ name, orgName, email, password, googleSub, book, cycle, seats }) {
   const passwordHash = password ? await bcrypt.hash(password, 12) : null;
 
   return tx(async (client) => {
@@ -82,48 +115,16 @@ async function createAccount({ name, orgName, email, password, googleSub, book, 
       [user.id, org.id]
     );
 
+    // No card, no processor, no charge. trial_start defaults to today and the
+    // status to 'trialing', which is the whole of what a new account owes us.
     await client.query(
-      `INSERT INTO subscriptions
-         (organization_id, cycle, seats, card_brand, card_last4, card_exp, provider,
-          provider_customer_id, provider_authorization_code)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-      [
-        org.id, cycle, seats,
-        card ? card.brand : null,
-        card ? card.last4 : null,
-        card ? card.exp : null,
-        payment ? payment.provider : null,
-        payment ? payment.customerId : null,
-        payment ? payment.authorizationCode : null
-      ]
+      'INSERT INTO subscriptions (organization_id, cycle, seats) VALUES ($1, $2, $3)',
+      [org.id, cycle, seats]
     );
 
     await seedChartOfAccounts(client, org.id, book);
     if (process.env.SEED_DEMO_DATA === 'true') {
       await seedDemoBooks(client, org.id, book);
-    }
-
-    // The authorisation charge belongs in the billing history from the start,
-    // so the owner's console shows what the customer was actually charged
-    // rather than inferring it from a card being on file.
-    if (payment && payment.reference) {
-      await client.query(
-        `INSERT INTO payments (organization_id, provider, provider_reference, purpose,
-                               amount, currency, status, channel, card_brand, card_last4, paid_at)
-         VALUES ($1, $2, $3, 'card_authorisation', $4, $5, 'success', $6, $7, $8, $9)
-         ON CONFLICT (provider, provider_reference) DO NOTHING`,
-        [
-          org.id,
-          payment.provider || 'paystack',
-          payment.reference,
-          payment.amount || 0,
-          payment.currency || 'NGN',
-          payment.channel || null,
-          card ? card.brand : null,
-          card ? card.last4 : null,
-          payment.paidAt || null
-        ]
-      );
     }
 
     await client.query(
@@ -164,33 +165,14 @@ router.post('/signup', async (req, res, next) => {
       if (password.length < 8) return bad(res, 'Choose a password of at least 8 characters.');
     }
 
-    // With Paystack configured the browser authorises the card through their
-    // checkout first; the reference is verified here, and the card details we
-    // display come from that verification rather than from the client.
-    let payment = null;
-    let card = null;
-
-    if (body.paymentReference) {
-      payment = await paystack.verify(body.paymentReference, email);
-      if (!payment) return bad(res, 'We could not verify that card with the payment processor.');
-      card = payment.card;
-      if (!card) return bad(res, 'Paystack verified the payment but returned no card to save.');
-    } else {
-      if (paystack.configured()) {
-        return bad(res, 'Authorise your card with Paystack to start the trial.');
-      }
-      // No processor: the client sends only what the UI displays back.
-      card = body.card
-        ? {
-            brand: String(body.card.brand || '').slice(0, 32),
-            last4: String(body.card.last4 || '').replace(/\D/g, '').slice(-4),
-            exp: String(body.card.exp || '').slice(0, 7)
-          }
-        : null;
-      if (!card || card.last4.length !== 4) return bad(res, 'Add a payment card before starting the trial.');
-    }
-
-    const userId = await createAccount({ name, orgName, email, password, googleSub, book, cycle, seats, card, payment });
+    // Signing up costs nothing and asks for nothing to pay with. The account
+    // opens on a 14-day trial with no card on file; payment is collected at
+    // the end of it, through /subscription/activate. Anything card-shaped in
+    // the body is ignored rather than trusted.
+    const userId = await createAccount({
+      name, orgName, email, password, googleSub, book, cycle, seats,
+      card: null, payment: null
+    });
     await recordLogin(req, userId);
     issue(req, res, { id: userId, email });
     res.status(201).json({ session: await sessionFor(userId) });
@@ -272,10 +254,7 @@ router.get('/config', (req, res) => {
     google: google.configured(),
     googleClientId: process.env.GOOGLE_CLIENT_ID || null,
     paystack: paystack.configured(),
-    paystackPublicKey: process.env.PAYSTACK_PUBLIC_KEY || null,
-    // What the browser charges to authorise a reusable card. Small on purpose:
-    // the trial is free, and this only exists to obtain the authorisation.
-    paystackAmount: Number(process.env.PAYSTACK_VERIFY_AMOUNT) || 50
+    paystackPublicKey: process.env.PAYSTACK_PUBLIC_KEY || null
   });
 });
 

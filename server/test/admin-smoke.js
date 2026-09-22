@@ -120,16 +120,17 @@ async function makeOwner(email, password) {
   console.log('\na tenant to look at');
 
   const tenantEmail = 'smoke-tenant-' + stamp + '@mideops.ng';
+  const tenantOrg = 'Mideops Ventures ' + stamp;
   const signup = await tenant('POST', '/api/auth/signup', {
     name: 'Tosin Balogun',
-    org: 'Mideops Ventures ' + stamp,
+    org: tenantOrg,
     email: tenantEmail,
     password: 'smoke-test-pass-1',
     book: 'sme',
     cycle: 'monthly',
-    users: 3,
-    card: { brand: 'Visa', last4: '4081', exp: '09/29' }
+    users: 3
   });
+  check('signup takes no card', signup.body.session && signup.body.session.card === null);
   check('a tenant account is created', signup.status === 201, 'status ' + signup.status);
   const orgId = signup.body.session && signup.body.session.orgId;
 
@@ -211,10 +212,10 @@ async function makeOwner(email, password) {
   // ----------------------------------------------------------- subscriptions
   console.log('\nsubscriptions');
 
-  const subs = await admin('GET', '/api/admin/subscriptions?status=trial');
-  check('trials list', subs.status === 200 && subs.body.subscriptions.length >= 1);
+  const subs = await admin('GET', '/api/admin/subscriptions?status=trial&q=' + encodeURIComponent(tenantOrg));
+  check('trials list', subs.status === 200 && subs.body.subscriptions.length >= 1, 'status ' + subs.status);
   const sub = subs.body.subscriptions.find((s) => s.orgId === orgId);
-  check('the tenant is among them', Boolean(sub));
+  check('the tenant is among them', Boolean(sub), JSON.stringify(subs.body.total));
 
   const expired = await admin('PATCH', '/api/admin/subscriptions/' + sub.id, {
     periodEnd: '2020-01-01'
@@ -244,6 +245,61 @@ async function makeOwner(email, password) {
 
   const badDate = await admin('PATCH', '/api/admin/subscriptions/' + sub.id, { periodEnd: 'tomorrow' });
   check('a malformed period end is refused', badDate.status === 400, 'status ' + badDate.status);
+
+  // ---------------------------------------------------------------- paywall
+  console.log('\nthe paywall');
+
+  // Something of the customer's own, to prove it survives being locked out.
+  const entry = await tenant('POST', '/api/orgs/' + orgId + '/transactions', {
+    type: 'income', date: '2026-03-04', amount: 125000, category: 'Sales',
+    party: 'Paywall Test Ltd', description: 'written before the trial ended', method: 'Bank transfer'
+  });
+  check('the customer can write while the trial runs', entry.status === 201, 'status ' + entry.status);
+
+  await pool.query(
+    "UPDATE subscriptions SET status = 'trialing', current_period_end = CURRENT_DATE - 1 WHERE id = $1",
+    [sub.id]
+  );
+
+  const locked = await tenant('GET', '/api/orgs/' + orgId + '/data');
+  check('an expired trial closes the books', locked.status === 402, 'status ' + locked.status);
+  check('with a reason the screen can render', locked.body.paywall && locked.body.paywall.reason === 'trial_ended',
+    JSON.stringify(locked.body.paywall));
+  check('and the amount to pay', locked.body.paywall && locked.body.paywall.amount > 0,
+    JSON.stringify(locked.body.paywall && locked.body.paywall.amount));
+
+  const lockedWrite = await tenant('POST', '/api/orgs/' + orgId + '/transactions', {
+    type: 'income', date: '2026-03-05', amount: 1, category: 'Sales', party: 'x'
+  });
+  check('writing is closed too', lockedWrite.status === 402, 'status ' + lockedWrite.status);
+
+  const stillPayable = await tenant('GET', '/api/orgs/' + orgId + '/subscription');
+  check('but the subscription is still reachable', stillPayable.status === 200, 'status ' + stillPayable.status);
+
+  const noProcessor = await tenant('POST', '/api/orgs/' + orgId + '/subscription/activate', {
+    paymentReference: 'anything'
+  });
+  check('activating without a processor says so plainly',
+    noProcessor.status === (process.env.PAYSTACK_SECRET_KEY ? 400 : 501), 'status ' + noProcessor.status);
+
+  const lockedSession = await tenant('GET', '/api/auth/me');
+  check('the session reports the lock', lockedSession.body.session.access === 'locked',
+    lockedSession.body.session.access);
+
+  // Paying is what reopens them. Here the Control Center stands in for the
+  // charge; test/billing.js covers the real activate() path.
+  await admin('PATCH', '/api/admin/subscriptions/' + sub.id, {
+    status: 'active',
+    periodEnd: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10)
+  });
+
+  const reopened = await tenant('GET', '/api/orgs/' + orgId + '/data');
+  check('paying opens them again', reopened.status === 200, 'status ' + reopened.status);
+  check(
+    'and nothing written before was lost',
+    reopened.body.book.tx.some((t) => t.description === 'written before the trial ended'),
+    'the transaction is gone'
+  );
 
   // ------------------------------------------------------- automatic billing
   console.log('\nautomatic billing');

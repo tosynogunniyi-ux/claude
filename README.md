@@ -68,6 +68,21 @@ confirms one organisation cannot read another's books. `npm run smoke:admin`
 does the same for the Control Center, and `npm run test:billing` drives a
 trial through to a charge, a decline, a retry and a recovery.
 
+## Signing up
+
+    sign up  →  no card  →  14-day trial  →  trial ends  →  pay  →  active
+
+Creating an account asks for a name, an organisation, an email, a password and
+a plan — and nothing to pay with. No debit card, no ATM card, no credit card.
+The account opens straight onto a 14-day trial, and the app shows how many
+days are left.
+
+When the trial runs out the books close behind a payment screen rather than
+disappearing: **nothing is deleted**. The organisation, the ledger, the
+invoices and every figure entered stay exactly where they were, and come back
+the moment payment goes through. A failed payment leaves the customer on that
+screen, free to try again.
+
 ## The Control Center
 
 The platform owner's console — every registered account, what each is paying,
@@ -99,7 +114,7 @@ something honest rather than pretending:
 | Unset | Effect |
 |---|---|
 | `GOOGLE_CLIENT_ID` | Google sign-in reports it is not configured |
-| `PAYSTACK_SECRET_KEY` | Cards are recorded for display only; nothing is charged |
+| `PAYSTACK_SECRET_KEY` | Trials run, but an expired account cannot be paid for from the app |
 | `ANTHROPIC_API_KEY` | Category suggestions fall back to the keyword matcher |
 | `MONO_SECRET_KEY` | Bank feeds unavailable; CSV/Excel import unaffected |
 | No owner account | The Control Center at `/admin` answers 404 |

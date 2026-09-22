@@ -73,7 +73,7 @@ window.__resources = {
         </div>
       </div>
     </div>
-    <div style="border-top: 1px solid rgba(250,199,117,0.28); padding-top: 16px; font-size: 11.5px; color: #A8A296; line-height: 1.6;">14 days free. No card charged until the trial ends.<br />All figures in Naira (₦).</div>
+    <div style="border-top: 1px solid rgba(250,199,117,0.28); padding-top: 16px; font-size: 11.5px; color: #A8A296; line-height: 1.6;">14 days free. No card required to start.<br />All figures in Naira (₦).</div>
   </section>
 
   <section style="flex: 1 1 460px; min-width: 320px; display: flex; align-items: flex-start; justify-content: center; padding: 44px 30px 60px;">
@@ -216,7 +216,7 @@ window.__resources = {
           <sc-if value="{{ au.step3 }}" hint-placeholder-val="{{ false }}">
             <div>
               <h1 style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 23px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.015em;">Choose a plan</h1>
-              <div style="font-size: 13px; color: #403D37; margin-bottom: 18px;">Free for 14 days. Billing starts {{ au.firstCharge }} on the plan below.</div>
+              <div style="font-size: 13px; color: #403D37; margin-bottom: 18px;">Free for 14 days, no card required. We ask for payment when the trial ends on {{ au.trialEnds }}.</div>
               <div style="display: grid; gap: 10px;">
                 <sc-for list="{{ au.plans }}" as="p" hint-placeholder-count="2">
                   <button onClick="{{ p.pick }}" style="text-align: left; cursor: pointer; background: {{ p.bg }}; border: 1px solid {{ p.border }}; border-left: 3px solid {{ p.rule }}; border-radius: 6px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px;" style-hover="border-color: #1a1a1a;">
@@ -264,78 +264,18 @@ window.__resources = {
 
               <div style="display: flex; gap: 10px; margin-top: 16px;">
                 <button onClick="{{ au.back }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 12px 16px; font-size: 13px; font-weight: 500; cursor: pointer;" style-hover="background: #F4F3EE;">Back</button>
-                <button onClick="{{ au.next }}" style="flex: 1; border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); transition: transform .16s cubic-bezier(.2,.6,.3,1), box-shadow .16s; padding: 12px; font-size: 14px; font-weight: 600; cursor: pointer;" style-hover="background: #FAC775; color: #1a1a1a;">Continue to payment details</button>
+                <button onClick="{{ au.finish }}" style="flex: 1; border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); transition: transform .16s cubic-bezier(.2,.6,.3,1), box-shadow .16s; padding: 12px; font-size: 14px; font-weight: 600; cursor: pointer;" style-hover="background: #FAC775; color: #1a1a1a;">{{ au.finishLabel }}</button>
               </div>
-            </div>
-          </sc-if>
-
-          <sc-if value="{{ au.step4 }}" hint-placeholder-val="{{ false }}">
-            <div>
-              <h1 style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 23px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.015em;">Payment details</h1>
-              <div style="font-size: 13px; color: #403D37; margin-bottom: 18px;">Nothing is charged today. We hold your card so your books keep running when the trial ends on {{ au.trialEnds }}.</div>
-
-              <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; background: #F7F5F0; border: 1px solid #E5E1D8; border-radius: 6px; padding: 14px 16px; margin-bottom: 18px;">
-                <div>
-                  <div style="font-size: 13px; font-weight: 600;">{{ au.cardPlanLine }}</div>
-                  <div style="font-size: 12px; color: #5C5850; margin-top: 3px;">First charge {{ au.firstCharge }}</div>
-                </div>
-                <div style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 21px; font-weight: 700; font-variant-numeric: tabular-nums;">{{ au.total }}</div>
-              </div>
-
-              <sc-if value="{{ au.paystackReady }}" hint-placeholder-val="{{ false }}">
-                <div style="background: #FAEEDA; border: 1px solid #EBD9A8; border-radius: 6px; padding: 14px 16px; font-size: 12.5px; line-height: 1.55; color: #412402;">
-                  Your card is entered on Paystack's secure page, not here — Profitna never sees the number.
-                  <div style="margin-top: 8px;">{{ au.paystackNote }}</div>
-                </div>
-              </sc-if>
-              <sc-if value="{{ au.manualCard }}" hint-placeholder-val="{{ false }}">
-              <div style="display: flex; flex-direction: column; gap: 14px;">
-                <label style="display: block;">
-                  <span style="display: block; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: #5C5850; margin-bottom: 5px;">Name on card</span>
-                  <input value="{{ au.cardName }}" onChange="{{ au.setCardName }}" placeholder="TOLU ADEYEMI" style="width: 100%; padding: 10px 12px; border: 1px solid #C9C3B7; border-radius: 6px; background: #FFFFFF; font-size: 14px;" />
-                </label>
-                <label style="display: block;">
-                  <span style="display: block; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: #5C5850; margin-bottom: 5px;">Card number</span>
-                  <input inputMode="numeric" value="{{ au.cardNum }}" onChange="{{ au.setCardNum }}" placeholder="0000 0000 0000 0000" style="width: 100%; padding: 10px 12px; border: 1px solid #C9C3B7; border-radius: 6px; background: #FFFFFF; font-size: 14px; font-family: 'IBM Plex Mono', monospace; letter-spacing: 0.04em;" />
-                  <sc-if value="{{ au.cardBrand }}" hint-placeholder-val="{{ false }}">
-                    <span style="display: inline-block; font-size: 11.5px; font-weight: 600; color: #5C5850; margin-top: 6px;">{{ au.cardBrand }}</span>
-                  </sc-if>
-                </label>
-                <div style="display: flex; gap: 12px;">
-                  <label style="display: block; flex: 1;">
-                    <span style="display: block; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: #5C5850; margin-bottom: 5px;">Expiry</span>
-                    <input inputMode="numeric" value="{{ au.cardExp }}" onChange="{{ au.setCardExp }}" placeholder="MM/YY" style="width: 100%; padding: 10px 12px; border: 1px solid #C9C3B7; border-radius: 6px; background: #FFFFFF; font-size: 14px; font-family: 'IBM Plex Mono', monospace;" />
-                  </label>
-                  <label style="display: block; flex: 1;">
-                    <span style="display: block; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: #5C5850; margin-bottom: 5px;">CVV</span>
-                    <input inputMode="numeric" type="password" value="{{ au.cardCvc }}" onChange="{{ au.setCardCvc }}" placeholder="123" style="width: 100%; padding: 10px 12px; border: 1px solid #C9C3B7; border-radius: 6px; background: #FFFFFF; font-size: 14px; font-family: 'IBM Plex Mono', monospace;" />
-                  </label>
-                </div>
-              </div>
-              </sc-if>
-
-              <label style="display: flex; gap: 9px; align-items: flex-start; margin-top: 16px; cursor: pointer;">
-                <input type="checkbox" checked="{{ au.agreed }}" onChange="{{ au.toggleAgree }}" style="margin-top: 2px; width: 15px; height: 15px; accent-color: #1a1a1a;" />
-                <span style="font-size: 12px; color: #403D37; line-height: 1.5;">I authorise Profitna to charge this card {{ au.total }} {{ au.cadence }} from {{ au.firstCharge }}, and to renew automatically until I cancel.</span>
-              </label>
 
               <div style="display: flex; align-items: center; gap: 8px; margin-top: 14px; font-size: 11.5px; color: #5C5850;">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex: 0 0 13px;">
                   <path d="M5 11h14v10H5V11zm3 0V7a4 4 0 0 1 8 0v4"></path>
                 </svg>
-                <span>Card details are encrypted in transit and stored by our payment processor, never on our servers.</span>
-              </div>
-
-              <sc-if value="{{ au.err }}" hint-placeholder-val="{{ false }}">
-                <div style="background: #FBEEEA; border: 1px solid #E3C4BA; border-radius: 6px; padding: 9px 11px; font-size: 12.5px; color: #8A2F1D; margin-top: 14px;">{{ au.err }}</div>
-              </sc-if>
-
-              <div style="display: flex; gap: 10px; margin-top: 16px;">
-                <button onClick="{{ au.back }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 12px 16px; font-size: 13px; font-weight: 500; cursor: pointer;" style-hover="background: #F4F3EE;">Back</button>
-                <button onClick="{{ au.finish }}" style="flex: 1; border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); transition: transform .16s cubic-bezier(.2,.6,.3,1), box-shadow .16s; padding: 12px; font-size: 14px; font-weight: 600; cursor: pointer;" style-hover="background: #FAC775; color: #1a1a1a;">{{ au.finishLabel }}</button>
+                <span>No debit or credit card is needed to start. Nothing is charged today.</span>
               </div>
             </div>
           </sc-if>
+
 
         </div>
       </sc-if>
@@ -343,6 +283,60 @@ window.__resources = {
     </div>
   </section>
 
+</div>
+</sc-if>
+
+<sc-if value="{{ showPaywall }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; min-height: 100vh; align-items: center; justify-content: center; background: #1a1a1a; padding: 28px 20px;">
+  <div style="width: 100%; max-width: 468px;">
+
+    <div style="display: flex; align-items: flex-end; gap: 9px; justify-content: center;">
+      <div style="font-size: 26px; font-weight: 700; letter-spacing: 0.09em; line-height: 1; color: #FAEEDA;">PROFIT<span style="color: #FAC775;">NA</span></div>
+      <svg width="22" height="18" viewBox="0 0 20 16" fill="none" style="flex: 0 0 22px; margin-bottom: 1px;"><polyline points="1,13.4 6.6,7.9 10.1,11 16.9,3.4" stroke="#FAC775" stroke-width="2.6" stroke-linecap="square"></polyline><polygon points="18.9,1.1 11.8,2.1 17.9,8.2" fill="#FAC775"></polygon></svg>
+    </div>
+
+    <div style="background: #FFFFFF; border-radius: 10px; padding: 28px; margin-top: 26px;">
+      <h1 style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 23px; font-weight: 700; margin: 0 0 6px; letter-spacing: -0.015em;">{{ pay.title }}</h1>
+      <div style="font-size: 13.5px; color: #403D37; line-height: 1.55;">{{ pay.blurb }}</div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; background: #F7F5F0; border: 1px solid #E5E1D8; border-radius: 6px; padding: 14px 16px; margin-top: 18px;">
+        <div>
+          <div style="font-size: 13px; font-weight: 600;">{{ pay.planLine }}</div>
+          <div style="font-size: 12px; color: #5C5850; margin-top: 3px;">{{ pay.cadence }}</div>
+        </div>
+        <div style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 21px; font-weight: 700; font-variant-numeric: tabular-nums;">{{ pay.amount }}</div>
+      </div>
+
+      <div style="background: #F7F5F0; border-left: 3px solid #FAC775; border-radius: 4px; padding: 12px 14px; margin-top: 12px; font-size: 12.5px; color: #403D37; line-height: 1.55;">
+        Your books, records and every figure you have entered are safe. Nothing has been deleted — it all comes back the moment payment goes through.
+      </div>
+
+      <sc-if value="{{ pay.err }}" hint-placeholder-val="{{ false }}">
+        <div style="background: #FBEEEA; border: 1px solid #E3C4BA; border-radius: 6px; padding: 9px 11px; font-size: 12.5px; color: #8A2F1D; margin-top: 14px;">{{ pay.err }}</div>
+      </sc-if>
+
+      <sc-if value="{{ pay.canPay }}" hint-placeholder-val="{{ true }}">
+        <button onClick="{{ pay.subscribe }}" style="width: 100%; margin-top: 16px; border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); padding: 13px; font-size: 14px; font-weight: 600; cursor: pointer;" style-hover="background: #FAC775; color: #1a1a1a;">{{ pay.buttonLabel }}</button>
+        <div style="display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 11.5px; color: #5C5850;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex: 0 0 13px;">
+            <path d="M5 11h14v10H5V11zm3 0V7a4 4 0 0 1 8 0v4"></path>
+          </svg>
+          <span>Your card is entered on Paystack's secure page. Profitna never sees the number.</span>
+        </div>
+      </sc-if>
+      <sc-if value="{{ pay.noProcessor }}" hint-placeholder-val="{{ false }}">
+        <div style="background: #FAEEDA; border: 1px solid #EBD9A8; border-radius: 6px; padding: 14px 16px; font-size: 12.5px; line-height: 1.55; color: #412402; margin-top: 16px;">
+          Payments are not switched on for this deployment yet, so this account cannot be activated from here. Contact support@profitna.com.
+        </div>
+      </sc-if>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; border-top: 1px solid #E5E1D8; margin-top: 20px; padding-top: 14px;">
+        <div style="font-size: 12px; color: #5C5850;">{{ pay.who }}</div>
+        <a href="#" onClick="{{ pay.signOut }}" style="font-size: 12.5px;">Sign out</a>
+      </div>
+    </div>
+
+  </div>
 </div>
 </sc-if>
 
@@ -450,6 +444,19 @@ window.__resources = {
     </header>
 
     <div data-om="page" style="padding: 22px 26px 60px; flex: 1;">
+
+      <!-- Quiet while the trial has room, warmer as it runs out. Shown on
+           every screen, because the day it matters is not the day you happen
+           to be looking at the dashboard. -->
+      <sc-if value="{{ trial.show }}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; background: {{ trial.bg }}; border: 1px solid {{ trial.border }}; border-left: 3px solid {{ trial.rule }}; border-radius: 6px; padding: 11px 15px; margin-bottom: 18px;">
+          <div style="font-size: 13px; color: #412402;">
+            <span style="font-weight: 600;">{{ trial.headline }}</span>
+            <span style="color: #5C5850;"> {{ trial.detail }}</span>
+          </div>
+          <button onClick="{{ trial.go }}" style="border: 1px solid #1a1a1a; background: #FFFFFF; border-radius: 6px; padding: 7px 13px; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap;" style-hover="background: #1a1a1a; color: #FFFFFF;">{{ trial.cta }}</button>
+        </div>
+      </sc-if>
 
       <!-- ============ DASHBOARD ============ -->
       <sc-if value="{{ isDashboard }}" hint-placeholder-val="{{ true }}">
@@ -1383,6 +1390,7 @@ const NEW_CAT = '\u002B Create a new category\u2026';
 const NEW_PARTY = '\u002B Create a new record\u2026';
 
 const API = {
+  onPaywall: null,
   async call(method, path, body) {
     const res = await fetch('/api' + path, {
       method: method,
@@ -1392,7 +1400,15 @@ const API = {
     });
     const text = await res.text();
     const data = text ? JSON.parse(text) : {};
-    if (!res.ok) throw new Error(data.error || 'That did not go through. Try again.');
+    if (!res.ok) {
+      // 402 means the trial or the paid term has run out. Any call can come
+      // back with it — a tab left open overnight hits it on the next save —
+      // so it is handled once, here, rather than at every call site.
+      if (res.status === 402 && API.onPaywall) API.onPaywall(data.paywall || {});
+      const err = new Error(data.error || 'That did not go through. Try again.');
+      err.status = res.status;
+      throw err;
+    }
     return data;
   },
   get(path) { return API.call('GET', path); },
@@ -1409,7 +1425,7 @@ class Component extends DCLogic {
     this.state = {
       mode: 'sme', screen: 'dashboard', preset: 'ytd', role: 'Admin',
       session: null, account: null,
-      auth: { view: 'login', step: 1, name: '', org: '', email: '', pw: '', book: null, cycle: 'monthly', users: 1, agreed: false, err: '', cardName: '', cardNum: '', cardExp: '', cardCvc: '' },
+      auth: { view: 'login', step: 1, name: '', org: '', email: '', pw: '', book: null, cycle: 'monthly', users: 1, err: '', busy: false },
       search: '', txType: 'all', reportTab: 'pl', modal: null, form: {}, toast: null, aiQ: '', aiKey: null,
       newIncome: '', newExpense: '', newExpensePct: '100',
       imp: { open: false, step: 'source', source: 'csv', paste: '', url: '', fileName: '', rows: [] },
@@ -1421,11 +1437,16 @@ class Component extends DCLogic {
   }
 
   componentDidMount() {
+    // Any call that comes back 402 flips the whole app to the payment screen.
+    API.onPaywall = (paywall) => this.setState((st) => st.session
+      ? { session: { ...st.session, access: 'locked', accessReason: paywall.reason || st.session.accessReason }, booted: true }
+      : null);
+
     API.get('/auth/config')
       .then((c) => this.setState({
         googleReady: Boolean(c.google), googleClientId: c.googleClientId,
         paystackReady: Boolean(c.paystack && c.paystackPublicKey),
-        paystackKey: c.paystackPublicKey, paystackAmount: c.paystackAmount
+        paystackKey: c.paystackPublicKey
       }))
       .catch(() => {});
     API.get('/auth/me')
@@ -1437,6 +1458,12 @@ class Component extends DCLogic {
   // book slots stay, but only the one this account keeps is ever filled.
   applySession(session) {
     this.setState({ session, account: session, mode: session.book, screen: 'dashboard' });
+    // A locked account has no readable book — asking for it would only answer
+    // 402 — so the payment screen is shown straight away instead.
+    if (session.access === 'locked') {
+      this.setState({ booted: true });
+      return Promise.resolve();
+    }
     return this.loadBook(session);
   }
 
@@ -1479,7 +1506,7 @@ class Component extends DCLogic {
   // Paystack Inline. The card is typed into Paystack's own window, so the
   // number and CVV never enter this page or reach our server; what comes back
   // is a transaction reference the server verifies before trusting anything.
-  paystackAuthorise(email) {
+  paystackAuthorise(email, amountNaira) {
     if (!this._paystack) {
       this._paystack = new Promise((resolve, reject) => {
         const s = document.createElement('script');
@@ -1491,7 +1518,7 @@ class Component extends DCLogic {
       });
     }
 
-    const amountKobo = Math.round((this.state.paystackAmount || 50) * 100);
+    const amountKobo = Math.round(Number(amountNaira) * 100);
     const reference = 'profitna-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
 
     return this._paystack.then((Pop) => new Promise((resolve, reject) => {
@@ -2121,7 +2148,7 @@ class Component extends DCLogic {
       pick: () => this.setAuth({ cycle: p[0], err: '' })
     }));
 
-    const steps = [[1, 'Account'], [2, 'Books'], [3, 'Plan'], [4, 'Card']].map((s) => ({
+    const steps = [[1, 'Account'], [2, 'Books'], [3, 'Plan']].map((s) => ({
       label: s[1], bar: A.step >= s[0] ? '#FAC775' : '#DDD8CE', fg: A.step >= s[0] ? '#403D37' : '#A8A296'
     }));
 
@@ -2132,68 +2159,31 @@ class Component extends DCLogic {
         if (A.provider !== 'google' && A.pw.length < 8) return this.setAuth({ err: 'Password must be at least 8 characters.' });
         return this.setAuth({ step: 2, err: '' });
       }
-      if (A.step === 2) {
-        if (!A.book) return this.setAuth({ err: 'Choose the set of books you will keep.' });
-        return this.setAuth({ step: 3, err: '' });
-      }
-      return this.setAuth({ step: 4, err: '' });
+      if (!A.book) return this.setAuth({ err: 'Choose the set of books you will keep.' });
+      return this.setAuth({ step: 3, err: '' });
     };
 
-    const digits = (s) => (s || '').replace(/[^0-9]/g, '');
-    const luhn = (num) => {
-      let sum = 0, alt = false;
-      for (let i = num.length - 1; i >= 0; i--) {
-        let n = parseInt(num[i], 10);
-        if (alt) { n *= 2; if (n > 9) n -= 9; }
-        sum += n; alt = !alt;
-      }
-      return num.length >= 13 && sum % 10 === 0;
-    };
-    const brandOf = (num) => num[0] === '4' ? 'Visa' : /^5[1-5]/.test(num) ? 'Mastercard' : /^(50|5[6-9]|6)/.test(num) ? 'Verve / Maestro' : num.length >= 2 ? 'Card' : '';
-
-    const createAccount = (extra) => {
-      // The card number and CVV never leave the browser on either path: with
-      // Paystack they are typed into Paystack's window, and without it only
-      // the brand, last four digits and expiry — what the app displays back —
-      // are sent.
-      return API.post('/auth/signup', Object.assign({
+    // Creating an account costs nothing and asks for nothing to pay with.
+    // Payment is collected once, at the end of the trial, on the screen the
+    // server puts up when the books stop opening.
+    const finish = () => {
+      if (A.busy) return;
+      this.setAuth({ busy: true, err: '' });
+      return API.post('/auth/signup', {
         name: A.name.trim(), org: A.org.trim(), email: A.email.trim(),
         password: A.provider === 'google' ? undefined : A.pw,
         googleCredential: A.googleCredential,
         book: A.book, cycle: A.cycle, users: A.users
-      }, extra))
+      })
         .then((r) => {
-          this.setState((s) => ({ auth: { ...s.auth, pw: '', err: '', cardNum: '', cardCvc: '', googleCredential: null } }));
+          this.setState((s) => ({ auth: { ...s.auth, pw: '', err: '', busy: false, googleCredential: null } }));
           return this.applySession(r.session);
         })
-        .then(() => this.setState({ reportTab: 'pl', search: '', toast: 'Trial started — free until ' + longDate(shift(14)) + '.' }))
-        .catch((err) => this.setAuth({ err: err.message }));
-    };
-
-    const finish = () => {
-      const email = A.email.trim();
-      if (!A.agreed) return this.setAuth({ err: 'Please authorise the charge to continue.' });
-
-      if (st.paystackReady) {
-        this.setAuth({ err: '' });
-        return this.paystackAuthorise(email)
-          .then((reference) => createAccount({ paymentReference: reference }))
-          .catch((err) => this.setAuth({ err: err.message }));
-      }
-
-      // No payment processor configured: validate here and record the card for
-      // display only, which is what the server will store.
-      const num = digits(A.cardNum);
-      if (!A.cardName.trim()) return this.setAuth({ err: 'Enter the name printed on the card.' });
-      if (!luhn(num)) return this.setAuth({ err: 'That card number does not look valid. Check the digits and try again.' });
-      const exp = digits(A.cardExp);
-      const mm = parseInt(exp.slice(0, 2), 10), yy = parseInt(exp.slice(2, 4), 10);
-      if (exp.length !== 4 || !(mm >= 1 && mm <= 12)) return this.setAuth({ err: 'Enter the expiry as MM/YY.' });
-      const expEnd = new Date(2000 + yy, mm, 0);
-      if (expEnd < TODAY) return this.setAuth({ err: 'That card has expired. Use a card valid past ' + longDate(shift(14)) + '.' });
-      if (digits(A.cardCvc).length < 3) return this.setAuth({ err: 'Enter the 3-digit CVV from the back of the card.' });
-
-      createAccount({ card: { brand: brandOf(num), last4: num.slice(-4), exp: A.cardExp } });
+        .then(() => this.setState({
+          reportTab: 'pl', search: '',
+          toast: 'Trial started — free until ' + longDate(shift(14)) + ', no card needed.'
+        }))
+        .catch((err) => this.setAuth({ err: err.message, busy: false }));
     };
 
     const google = () => {
@@ -2226,20 +2216,30 @@ class Component extends DCLogic {
 
     const nm = ses ? ses.name || 'Account owner' : '';
     const initials = nm.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('') || 'LG';
+    // Days left are counted on the server and travel with the session, so the
+    // chrome, the banner and the paywall can never disagree about the date.
     let pill = '';
     if (ses) {
-      const start = new Date(ses.trialStart + 'T00:00:00');
-      const left = 14 - Math.round((TODAY - start) / 86400000);
-      pill = left > 0 ? 'Trial · ' + left + ' days left' : (ses.cycle === 'monthly' ? 'Monthly plan · active' : 'Yearly plan · active');
+      pill = ses.onTrial
+        ? (ses.daysLeft > 0 ? 'Trial · ' + ses.daysLeft + (ses.daysLeft === 1 ? ' day left' : ' days left') : 'Trial · last day')
+        : (ses.cycle === 'monthly' ? 'Monthly plan · active' : 'Yearly plan · active');
     }
 
+    const locked = Boolean(ses) && ses.access === 'locked';
+
     return {
-      showAuth: !ses && st.booted, authed: !!ses,
+      showAuth: !ses && st.booted,
+      // Locked accounts get the payment screen instead of the app — not the
+      // app with a dialog over it, because there is nothing behind it to read.
+      showPaywall: locked,
+      authed: !!ses && !locked,
+      pay: this.payVals(ses, longDate),
+      trial: this.trialVals(ses, longDate),
       userName: nm, userInitials: initials, trialPill: pill,
       goBilling: () => this.setState({ screen: 'settings' }),
       signOut: () => API.post('/auth/signout').catch(() => {}).then(() => this.setState({
         session: null, account: null, sme: EMPTY_BOOK(), church: EMPTY_BOOK(),
-        auth: { view: 'login', step: 1, name: '', org: '', email: '', pw: '', book: null, cycle: 'monthly', users: 1, agreed: false, err: '', cardName: '', cardNum: '', cardExp: '', cardCvc: '' }
+        auth: { view: 'login', step: 1, name: '', org: '', email: '', pw: '', book: null, cycle: 'monthly', users: 1, err: '', busy: false }
       })),
       au: {
         isLogin: A.view === 'login', isSignup: A.view === 'signup',
@@ -2247,31 +2247,18 @@ class Component extends DCLogic {
         signupBg: A.view === 'signup' ? '#1a1a1a' : '#FFFFFF', signupFg: A.view === 'signup' ? '#FFFFFF' : '#403D37',
         toLogin: () => this.setAuth({ view: 'login', err: '' }),
         toSignup: () => this.setAuth({ view: 'signup', step: 1, err: '' }),
-        step1: A.step === 1, step2: A.step === 2, step3: A.step === 3, step4: A.step === 4, steps,
-        cardName: A.cardName, cardNum: A.cardNum, cardExp: A.cardExp, cardCvc: A.cardCvc,
-        cardBrand: brandOf(digits(A.cardNum)),
-        cardPlanLine: (monthly ? 'Monthly plan' : 'Yearly plan') + ' \u00b7 ' + A.users + (A.users === 1 ? ' user' : ' users'),
-        setCardName: (e) => this.setAuth({ cardName: e.target.value }),
-        setCardNum: (e) => this.setAuth({ cardNum: digits(e.target.value).slice(0, 19).replace(/(.{4})/g, '$1 ').trim() }),
-        setCardExp: (e) => { const v = digits(e.target.value).slice(0, 4); this.setAuth({ cardExp: v.length > 2 ? v.slice(0, 2) + '/' + v.slice(2) : v }); },
-        setCardCvc: (e) => this.setAuth({ cardCvc: digits(e.target.value).slice(0, 4) }),
-        name: A.name, org: A.org, email: A.email, pw: A.pw, err: A.err, agreed: A.agreed, users: A.users,
+        step1: A.step === 1, step2: A.step === 2, step3: A.step === 3, steps,
+        name: A.name, org: A.org, email: A.email, pw: A.pw, err: A.err, users: A.users,
         setName: (e) => this.setAuth({ name: e.target.value }),
         setOrg: (e) => this.setAuth({ org: e.target.value }),
         setEmail: (e) => this.setAuth({ email: e.target.value }),
         setPw: (e) => this.setAuth({ pw: e.target.value }),
-        toggleAgree: () => this.setState((s) => ({ auth: { ...s.auth, agreed: !s.auth.agreed, err: '' } })),
         inc: () => this.setState((s) => ({ auth: { ...s.auth, users: Math.min(25, s.auth.users + 1) } })),
         dec: () => this.setState((s) => ({ auth: { ...s.auth, users: Math.max(1, s.auth.users - 1) } })),
         // Hides the Google buttons on a deployment without GOOGLE_CLIENT_ID,
         // rather than offering a control that cannot complete.
         googleReady: st.googleReady,
-        // With a processor configured the card is collected by Paystack, so
-        // this page shows an explanation instead of card fields.
-        paystackReady: Boolean(st.paystackReady),
-        manualCard: !st.paystackReady,
-        paystackNote: 'Paystack charges ' + money(st.paystackAmount || 50) + ' now to verify the card. Nothing else is charged until your trial ends on ' + longDate(shift(14)) + '.',
-        finishLabel: st.paystackReady ? 'Authorise card with Paystack' : 'Start 14-day free trial',
+        finishLabel: A.busy ? 'Setting up your books\u2026' : 'Start my 14-day free trial',
         isGoogle: A.provider === 'google',
         noProvider: A.provider !== 'google',
         dropGoogle: (e) => { if (e && e.preventDefault) e.preventDefault(); this.setAuth({ provider: null, pw: '' }); },
@@ -2285,22 +2272,98 @@ class Component extends DCLogic {
     };
   }
 
+  // The screen a customer sees once the trial — or a paid term — has run out.
+  payVals(ses, longDate) {
+    if (!ses) return {};
+    const st = this.state;
+    const trialEnded = ses.accessReason === 'trial_ended';
+    const suspended = ses.accessReason === 'suspended';
+
+    const subscribe = () => {
+      if (st.payBusy) return;
+      this.setState({ payBusy: true, payErr: '' });
+      this.paystackAuthorise(ses.email, ses.amount)
+        .then((reference) => API.post(this.orgPath('/subscription/activate'), { paymentReference: reference }))
+        // Re-read the session rather than guessing: the server decides what
+        // access the payment just bought.
+        .then(() => API.get('/auth/me'))
+        .then((r) => {
+          this.setState({ payBusy: false, payErr: '' });
+          return this.applySession(r.session);
+        })
+        .then(() => this.flash('Subscription active. Welcome back.'))
+        .catch((err) => this.setState({ payBusy: false, payErr: err.message }));
+    };
+
+    return {
+      title: suspended ? 'This account is on hold'
+        : trialEnded ? 'Your 14-day free trial has ended'
+        : 'Your subscription is not active',
+      blurb: suspended
+        ? 'Contact support@profitna.com and we will sort it out.'
+        : trialEnded
+          ? 'To continue using Profitna, activate your subscription below.'
+          : 'The last payment did not go through. Pay now to open your books again.',
+      planLine: (ses.cycle === 'monthly' ? 'Monthly plan' : 'Yearly plan') + ' \u00b7 ' +
+        ses.users + (ses.users === 1 ? ' user' : ' users'),
+      cadence: ses.cycle === 'monthly' ? 'Renews every month' : 'Renews every year',
+      amount: money(ses.amount || 0),
+      canPay: Boolean(st.paystackReady) && !suspended,
+      noProcessor: !st.paystackReady && !suspended,
+      buttonLabel: st.payBusy ? 'Opening Paystack\u2026' : 'Subscribe now',
+      err: st.payErr || '',
+      who: ses.email,
+      subscribe,
+      signOut: (e) => {
+        if (e && e.preventDefault) e.preventDefault();
+        return API.post('/auth/signout').catch(() => {}).then(() => this.setState({
+          session: null, account: null, payErr: '', payBusy: false,
+          sme: EMPTY_BOOK(), church: EMPTY_BOOK(),
+          auth: { view: 'login', step: 1, name: '', org: '', email: '', pw: '', book: null, cycle: 'monthly', users: 1, err: '', busy: false }
+        }));
+      }
+    };
+  }
+
+  // The reminder inside the app while the trial is still running.
+  trialVals(ses, longDate) {
+    if (!ses || !ses.onTrial || ses.access === 'locked') return { show: false };
+    const left = ses.daysLeft;
+    const urgent = left <= 3;
+    return {
+      show: true,
+      headline: left > 1 ? 'You have ' + left + ' days remaining in your free trial.'
+        : left === 1 ? 'One day left in your free trial.'
+        : 'Your free trial ends today.',
+      detail: 'Add payment any time — your books keep running from ' +
+        longDate(new Date(ses.trialEndsOn + 'T00:00:00')) + '.',
+      cta: left > 3 ? 'View plan' : 'Subscribe now',
+      go: () => this.setState({ screen: 'settings' }),
+      bg: urgent ? '#FDF1E4' : '#FBF7EE',
+      border: urgent ? '#EBD2A8' : '#E9E2D2',
+      rule: urgent ? '#E39B3C' : '#FAC775'
+    };
+  }
+
   subVals(ses, longDate, shift) {
     const PU = 5000, ANN = 57000;
     if (!ses) return {};
     const monthly = ses.cycle === 'monthly', users = ses.users;
     const rate = monthly ? PU : ANN, amount = rate * users;
-    const start = new Date(ses.trialStart + 'T00:00:00');
-    const left = 14 - Math.round((TODAY - start) / 86400000);
-    const nextD = new Date(start); nextD.setDate(nextD.getDate() + 14);
+    // The date the term runs to, and the count of days left, both come from
+    // the server with the session rather than being recomputed here.
+    const onTrial = Boolean(ses.onTrial), left = ses.daysLeft;
+    const nextD = new Date((ses.periodEnd || ses.trialEndsOn) + 'T00:00:00');
     const setSes = (patch) => this.save(API.patch(this.orgPath('/subscription'), patch), (r) => {
       const applied = { cycle: r.subscription.cycle, users: r.subscription.users };
       this.setState((s) => ({ session: { ...s.session, ...applied }, account: { ...s.account, ...applied } }));
     });
     return {
-      status: left > 0 ? 'Free trial · ' + left + ' days remaining' : 'Active',
-      help: left > 0
-        ? 'Nothing has been charged yet. Your plan starts automatically when the trial ends, and changes below take effect from that first charge.'
+      status: onTrial
+        ? (left > 0 ? 'Free trial · ' + left + (left === 1 ? ' day remaining' : ' days remaining') : 'Free trial · last day')
+        : 'Active',
+      help: onTrial
+        ? 'Nothing has been charged and no card is on file. When the trial ends we will ask you to pay for the plan below; your books stay exactly as you left them until you do.'
         : 'Your plan renews automatically. Changes to cycle or user count are applied on the next charge.',
       cycles: [['monthly', 'Monthly'], ['annual', 'Yearly — 5% off']].map((c) => ({
         label: c[1], go: () => setSes({ cycle: c[0] }),
@@ -2310,7 +2373,9 @@ class Component extends DCLogic {
       inc: () => setSes({ users: Math.min(25, users + 1) }),
       dec: () => setSes({ users: Math.max(1, users - 1) }),
       card: ses.card ? '\u2022\u2022\u2022\u2022 ' + ses.card.last4 : 'No card on file',
-      cardSub: ses.card ? ses.card.brand + ' \u00b7 expires ' + ses.card.exp : 'Add one before the trial ends',
+      cardSub: ses.card
+        ? ses.card.brand + ' \u00b7 expires ' + ses.card.exp
+        : 'None needed during the trial — you pay when it ends',
       nextDate: longDate(nextD),
       cadenceNote: monthly ? 'Then every month' : 'Then every year',
       amount: money(amount),
