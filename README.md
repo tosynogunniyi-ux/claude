@@ -27,12 +27,14 @@ adds fund accounting by designation.
 web/            The application interface
   Profitna.dc.html    every screen, the design system, and the API client
   support.js          the rendering runtime
+  admin.html          the platform owner's Control Center
   vendor/             React and the spreadsheet reader, served locally
 
 server/         The API and the database
-  src/routes/         auth, ledger, bank, org, subscription
+  src/routes/         auth, ledger, bank, org, subscription, admin
   src/sql/            schema migrations
   src/integrations/   Paystack, Google, Anthropic
+  src/create-admin.js the only way a Control Center account is created
   test/smoke.js       end-to-end checks against a running server
 
 deploy/         Bootstrap script and Caddy config
@@ -62,7 +64,27 @@ production so real accounts start empty and meet the designed empty states.
 
 With the server running, `npm run smoke` exercises signup, the ledger,
 invoices and payments, inventory, statement import, subscriptions, and
-confirms one organisation cannot read another's books.
+confirms one organisation cannot read another's books. `npm run smoke:admin`
+does the same for the Control Center.
+
+## The Control Center
+
+The platform owner's console — every registered account, what each is paying,
+when it renews or expires, what has happened on it, and the controls to
+suspend, deactivate or reinstate an account.
+
+It is a separate application behind separate credentials: its own table, its
+own cookie, its own sessions, and a required second factor. A customer's
+`admin` role is admin of one set of books and can never reach it.
+
+There is no default account and no route that creates one. Until you run
+
+```bash
+cd server && npm run create-admin -- --email you@example.com --name "Your Name"
+```
+
+`/admin` answers 404 to everyone. See
+**[server/README.md](server/README.md#the-control-center)** for the rest.
 
 ## Deploying
 
@@ -79,6 +101,7 @@ something honest rather than pretending:
 | `PAYSTACK_SECRET_KEY` | Cards are recorded for display only; nothing is charged |
 | `ANTHROPIC_API_KEY` | Category suggestions fall back to the keyword matcher |
 | `MONO_SECRET_KEY` | Bank feeds unavailable; CSV/Excel import unaffected |
+| No owner account | The Control Center at `/admin` answers 404 |
 
 ## Status
 
@@ -87,7 +110,8 @@ invoices and pledges, bills, payments, contacts, inventory with stock moves,
 statement import and reconciliation, the chart of accounts with per-account
 deductibility, reports, and subscription state. Data is scoped per
 organisation, and that scoping is enforced in one place in the API rather than
-sprinkled through it.
+sprinkled through it. The owner's Control Center is live behind its own
+credentials and second factor.
 
 Not finished yet:
 

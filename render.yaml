@@ -43,6 +43,12 @@ services:
         sync: false
       - key: MONO_WEBHOOK_SECRET
         sync: false
+      # The owner's console. It answers 404 until an account is created by
+      # running `node src/create-admin.js --email you@…` in a Render shell.
+      - key: ADMIN_PATH
+        sync: false
+      - key: ADMIN_IP_ALLOWLIST
+        sync: false
       # Deliberately absent: SEED_DEMO_DATA. Real accounts start empty.
 
 databases:

@@ -1,7 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { one, tx } = require('../db');
-const { issue, clear, requireAuth } = require('../auth');
+const { issue, clear, requireAuth, recordLogin, SUSPENDED_MESSAGE } = require('../auth');
 const { seedChartOfAccounts } = require('../defaults');
 const { seedDemoBooks } = require('../demo');
 const paystack = require('../integrations/paystack');
@@ -25,6 +25,7 @@ async function sessionFor(userId) {
             u.full_name     AS name,
             u.email,
             u.auth_provider AS provider,
+            u.status,
             m.role,
             o.id            AS "orgId",
             o.name          AS "orgName",
@@ -102,6 +103,29 @@ async function createAccount({ name, orgName, email, password, googleSub, book, 
       await seedDemoBooks(client, org.id, book);
     }
 
+    // The authorisation charge belongs in the billing history from the start,
+    // so the owner's console shows what the customer was actually charged
+    // rather than inferring it from a card being on file.
+    if (payment && payment.reference) {
+      await client.query(
+        `INSERT INTO payments (organization_id, provider, provider_reference, purpose,
+                               amount, currency, status, channel, card_brand, card_last4, paid_at)
+         VALUES ($1, $2, $3, 'card_authorisation', $4, $5, 'success', $6, $7, $8, $9)
+         ON CONFLICT (provider, provider_reference) DO NOTHING`,
+        [
+          org.id,
+          payment.provider || 'paystack',
+          payment.reference,
+          payment.amount || 0,
+          payment.currency || 'NGN',
+          payment.channel || null,
+          card ? card.brand : null,
+          card ? card.last4 : null,
+          payment.paidAt || null
+        ]
+      );
+    }
+
     await client.query(
       `INSERT INTO audit_log (organization_id, user_id, action, entity_type, entity_id)
        VALUES ($1, $2, 'account.created', 'organization', $3)`,
@@ -167,6 +191,7 @@ router.post('/signup', async (req, res, next) => {
     }
 
     const userId = await createAccount({ name, orgName, email, password, googleSub, book, cycle, seats, card, payment });
+    await recordLogin(req, userId);
     issue(req, res, { id: userId, email });
     res.status(201).json({ session: await sessionFor(userId) });
   } catch (err) {
@@ -182,12 +207,18 @@ router.post('/login', async (req, res, next) => {
     if (!EMAIL_RE.test(email)) return bad(res, 'Enter a valid email address.');
     if (!password) return bad(res, 'Enter your password.');
 
-    const user = await one('SELECT id, email, password_hash FROM users WHERE email = $1', [email]);
+    const user = await one('SELECT id, email, password_hash, status FROM users WHERE email = $1', [email]);
     // Same message either way, so the response cannot be used to enumerate
     // which emails have accounts.
     const ok = user && user.password_hash && (await bcrypt.compare(password, user.password_hash));
     if (!ok) return res.status(401).json({ error: 'That email and password do not match an account.' });
+    // Told only once the password is right: whether an account is suspended
+    // is the account holder's business, not a probe's.
+    if (user.status !== 'active') {
+      return res.status(403).json({ error: SUSPENDED_MESSAGE[user.status] || SUSPENDED_MESSAGE.suspended });
+    }
 
+    await recordLogin(req, user.id);
     issue(req, res, user);
     res.json({ session: await sessionFor(user.id) });
   } catch (err) {
@@ -202,14 +233,18 @@ router.post('/google', async (req, res, next) => {
     const profile = await google.verify((req.body || {}).credential);
     if (!profile) return res.status(501).json({ error: 'Google sign-in is not configured on this server.' });
 
-    const user = await one('SELECT id, email, google_sub FROM users WHERE email = $1', [profile.email]);
+    const user = await one('SELECT id, email, google_sub, status FROM users WHERE email = $1', [profile.email]);
     if (!user) {
       return res.status(404).json({ error: 'No Profitna account uses that Google address. Create one first.' });
+    }
+    if (user.status !== 'active') {
+      return res.status(403).json({ error: SUSPENDED_MESSAGE[user.status] || SUSPENDED_MESSAGE.suspended });
     }
     if (!user.google_sub) {
       const { query } = require('../db');
       await query("UPDATE users SET google_sub = $1, auth_provider = 'google' WHERE id = $2", [profile.sub, user.id]);
     }
+    await recordLogin(req, user.id);
     issue(req, res, user);
     res.json({ session: await sessionFor(user.id) });
   } catch (err) {

@@ -4,7 +4,9 @@ const express = require('express');
 const cookieParser = require('cookie-parser');
 
 const { requireAuth } = require('./auth');
+const { gate } = require('./admin-auth');
 const authRoutes = require('./routes/auth');
+const adminRoutes = require('./routes/admin');
 const orgRoutes = require('./routes/org');
 const ledgerRoutes = require('./routes/ledger');
 const bankRoutes = require('./routes/bank');
@@ -24,6 +26,11 @@ app.use(cookieParser());
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 app.use('/api/auth', authRoutes.router);
 
+// The platform owner's console. `gate` answers 404 — not 401 — when no owner
+// account exists or the caller is outside ADMIN_IP_ALLOWLIST, so a deployment
+// that has not run create-admin advertises nothing to probe at.
+app.use('/api/admin', gate, adminRoutes.router);
+
 const orgScoped = express.Router({ mergeParams: true });
 orgScoped.use(orgRoutes.router);
 orgScoped.use(ledgerRoutes.router);
@@ -36,6 +43,15 @@ app.use('/api/orgs/:orgId', requireAuth, orgScoped);
 // Only the files the app is actually made of are served.
 const WEB_ROOT = path.join(__dirname, '..', '..', 'web');
 app.get('/', (req, res) => res.sendFile(path.join(WEB_ROOT, 'Profitna.dc.html')));
+
+// Nothing in the product links here, and the path can be moved somewhere
+// unguessable with ADMIN_PATH. That is obscurity, not security — the console
+// is protected by the credentials behind it — but it keeps the login form out
+// of the way of people who have no business finding it.
+const ADMIN_PATH = (process.env.ADMIN_PATH || '/admin').replace(/\/+$/, '') || '/admin';
+app.get(ADMIN_PATH.startsWith('/') ? ADMIN_PATH : '/' + ADMIN_PATH, gate, (req, res) =>
+  res.sendFile(path.join(WEB_ROOT, 'admin.html'))
+);
 app.get('/support.js', (req, res) => res.sendFile(path.join(WEB_ROOT, 'support.js')));
 app.use('/vendor', express.static(path.join(WEB_ROOT, 'vendor'), { maxAge: '1y', index: false }));
 

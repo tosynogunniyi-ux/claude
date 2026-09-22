@@ -2,20 +2,17 @@ const express = require('express');
 const { one, query } = require('../db');
 const { requireOrg, audit } = require('../auth');
 const paystack = require('../integrations/paystack');
+const { PER_USER_MONTHLY, PER_USER_ANNUAL, amountFor } = require('../pricing');
 
 const router = express.Router({ mergeParams: true });
 
-const PER_USER_MONTHLY = 5000;
-const PER_USER_ANNUAL = 57000;
-
 function view(sub) {
-  const rate = sub.cycle === 'monthly' ? PER_USER_MONTHLY : PER_USER_ANNUAL;
   return {
     cycle: sub.cycle,
     users: sub.seats,
     trialStart: sub.trial_start,
     status: sub.status,
-    amount: rate * sub.seats,
+    amount: amountFor(sub.cycle, sub.seats),
     card: sub.card_last4 ? { brand: sub.card_brand, last4: sub.card_last4, exp: sub.card_exp } : null
   };
 }
@@ -84,19 +81,78 @@ async function chargeDue(organizationId) {
     return { charged: false, reason: 'no payment processor configured' };
   }
 
-  const rate = sub.cycle === 'monthly' ? PER_USER_MONTHLY : PER_USER_ANNUAL;
+  const amount = amountFor(sub.cycle, sub.seats);
+  const reference = 'profitna-' + organizationId + '-' + Date.now();
   const result = await paystack.chargeAuthorization({
     authorizationCode: sub.provider_authorization_code,
     email: sub.email,
-    amountNaira: rate * sub.seats,
-    reference: 'profitna-' + organizationId + '-' + Date.now()
+    amountNaira: amount,
+    reference
   });
 
-  await query('UPDATE subscriptions SET status = $2 WHERE organization_id = $1', [
+  // Recorded either way. A failed renewal is exactly what the owner needs to
+  // see in the console, and a history that only holds successes hides it.
+  await recordPayment({
     organizationId,
-    result.ok ? 'active' : 'past_due'
-  ]);
+    reference,
+    purpose: 'renewal',
+    amount,
+    status: result.ok ? 'success' : 'failed',
+    cardBrand: sub.card_brand,
+    cardLast4: sub.card_last4,
+    detail: result.ok ? null : { message: (result.body && result.body.message) || 'charge declined' }
+  });
+
+  if (result.ok) {
+    await rollPeriod(organizationId, sub.cycle);
+  } else {
+    await query("UPDATE subscriptions SET status = 'past_due' WHERE organization_id = $1", [organizationId]);
+  }
   return { charged: result.ok };
+}
+
+// A term starts today and ends one cycle out. Stored, because a renewal date
+// is a fact about a charge that happened — unlike expiry, which is read from
+// this date and the calendar.
+async function rollPeriod(organizationId, cycle) {
+  await query(
+    `UPDATE subscriptions
+        SET status = 'active',
+            current_period_start = CURRENT_DATE,
+            current_period_end = (CURRENT_DATE +
+              CASE WHEN $2 = 'annual' THEN INTERVAL '1 year' ELSE INTERVAL '1 month' END)::date
+      WHERE organization_id = $1`,
+    [organizationId, cycle || 'monthly']
+  );
+}
+
+async function recordPayment(p) {
+  await query(
+    `INSERT INTO payments (organization_id, provider, provider_reference, purpose, amount,
+                           currency, status, channel, card_brand, card_last4, paid_at, detail)
+     VALUES ($1, 'paystack', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+     -- The webhook is the later, authoritative word on a reference chargeDue
+     -- already wrote, so it corrects the row rather than being dropped. A
+     -- retried webhook rewrites the same values, which changes nothing.
+     ON CONFLICT (provider, provider_reference) DO UPDATE
+       SET status  = EXCLUDED.status,
+           paid_at = COALESCE(EXCLUDED.paid_at, payments.paid_at),
+           channel = COALESCE(EXCLUDED.channel, payments.channel),
+           detail  = EXCLUDED.detail`,
+    [
+      p.organizationId,
+      p.reference,
+      p.purpose || 'subscription',
+      p.amount || 0,
+      p.currency || 'NGN',
+      p.status || 'success',
+      p.channel || null,
+      p.cardBrand || null,
+      p.cardLast4 || null,
+      p.paidAt || (p.status === 'success' ? new Date().toISOString() : null),
+      p.detail ? JSON.stringify(p.detail) : null
+    ]
+  );
 }
 
 // Paystack posts here. Signature is verified over the raw body, so this route
@@ -109,13 +165,39 @@ async function paystackWebhook(req, res, next) {
     }
 
     const event = JSON.parse(req.body.toString('utf8'));
-    const code = event.data && event.data.authorization && event.data.authorization.authorization_code;
+    const data = event.data || {};
+    const auth = data.authorization || {};
+    const code = auth.authorization_code;
+
     if (code) {
-      const status = event.event === 'charge.success' ? 'active'
-        : event.event === 'invoice.payment_failed' ? 'past_due'
-        : null;
-      if (status) {
-        await query('UPDATE subscriptions SET status = $2 WHERE provider_authorization_code = $1', [code, status]);
+      const sub = await one('SELECT * FROM subscriptions WHERE provider_authorization_code = $1', [code]);
+      if (sub) {
+        const succeeded = event.event === 'charge.success';
+        const failed = event.event === 'invoice.payment_failed' || event.event === 'charge.failed';
+
+        if (succeeded || failed) {
+          // Paystack retries webhooks, and chargeDue may already have written
+          // this same reference — the unique constraint makes the second one
+          // a no-op rather than a duplicate line in the customer's history.
+          await recordPayment({
+            organizationId: sub.organization_id,
+            reference: data.reference || null,
+            purpose: 'subscription',
+            amount: Number(data.amount || 0) / 100,
+            currency: data.currency || 'NGN',
+            status: succeeded ? 'success' : 'failed',
+            channel: data.channel || null,
+            cardBrand: auth.brand || sub.card_brand,
+            cardLast4: auth.last4 || sub.card_last4,
+            paidAt: data.paid_at || null,
+            detail: succeeded ? null : { event: event.event, message: data.gateway_response || null }
+          });
+        }
+
+        if (succeeded) await rollPeriod(sub.organization_id, sub.cycle);
+        else if (failed) {
+          await query("UPDATE subscriptions SET status = 'past_due' WHERE id = $1", [sub.id]);
+        }
       }
     }
     res.json({ ok: true });

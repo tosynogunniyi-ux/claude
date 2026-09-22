@@ -240,6 +240,31 @@ To show the populated demo instead, uncomment `SEED_DEMO_DATA: "true"` in
 `docker-compose.yml`, `docker compose up -d`, and create a *new* account.
 Turn it back off before real customers sign up.
 
+### 8. Your Control Center account
+
+The owner's console at `https://profitna.com/admin` does not exist until you
+create an account for it. Nothing on the site links to it, and no form can
+create one — it is made on the server:
+
+```bash
+docker compose exec app node src/create-admin.js \
+  --email you@example.com --name "Your Name"
+```
+
+That prints a generated password and a two-factor secret, **once**. Add the
+secret to an authenticator app (Google Authenticator, 1Password, Authy) before
+you close the terminal, then sign in with the email, password and a six-digit
+code, and change the password from the console's Security tab.
+
+If you lose the authenticator:
+
+```bash
+docker compose exec app node src/create-admin.js --email you@example.com --rotate-totp
+```
+
+On Easypanel or another panel, run the same command from the service's
+console — the working directory is already `/app/server`.
+
 ---
 
 ## Running it afterwards

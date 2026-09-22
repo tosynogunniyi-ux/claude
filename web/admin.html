@@ -1,0 +1,1147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Profitna Control Center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  /* Same palette as the product — ink, cream and gold — so the console reads
+     as part of Profitna rather than a bolted-on tool. It is a separate page
+     with its own stylesheet because it is a separate application: nothing
+     here should be reachable from, or share state with, the customer app. */
+  :root {
+    --ink: #1a1a1a;
+    --ink-2: #262523;
+    --cream: #F4F3EE;
+    --card: #FFFFFF;
+    --line: #E2DED4;
+    --line-strong: #C9C3B7;
+    --text: #1a1a1a;
+    --muted: #6B665D;
+    --faint: #8A857C;
+    --gold: #FAC775;
+    --gold-deep: #B8863A;
+    --gold-ink: #412402;
+    --green: #1F7A4D;
+    --green-bg: #E7F3EC;
+    --red: #A33A2A;
+    --red-bg: #FAEAE6;
+    --amber: #97621A;
+    --amber-bg: #FBF0DC;
+    --slate: #5A6472;
+    --slate-bg: #ECEEF1;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--cream); color: var(--text);
+    font-family: 'Familjen Grotesk', system-ui, -apple-system, sans-serif;
+    font-size: 14px; line-height: 1.55; -webkit-font-smoothing: antialiased;
+  }
+  button, input, select { font-family: inherit; font-size: inherit; color: inherit; }
+  input, select {
+    padding: 8px 11px; border: 1px solid var(--line-strong); border-radius: 6px;
+    background: #fff; box-shadow: inset 0 1px 2px rgba(19,19,19,.04);
+  }
+  input:focus, select:focus { outline: none; border-color: var(--gold-deep); box-shadow: 0 0 0 3px rgba(250,199,117,.55); }
+  table { border-collapse: collapse; width: 100%; }
+  th { text-align: left; font-weight: 500; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); padding: 0 12px 9px; white-space: nowrap; }
+  th.sortable { cursor: pointer; user-select: none; }
+  th.sortable:hover { color: var(--gold-deep); }
+  td { padding: 11px 12px; border-top: 1px solid var(--line); vertical-align: middle; }
+  tbody tr { transition: background .12s; }
+  tbody tr.clickable { cursor: pointer; }
+  tbody tr.clickable:hover { background: #FBFAF7; }
+  .mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  .btn {
+    border: 1px solid var(--ink); background: var(--ink); color: #FAEEDA;
+    padding: 9px 16px; border-radius: 6px; cursor: pointer; font-weight: 500;
+    transition: background .14s, border-color .14s, opacity .14s;
+  }
+  .btn:hover { background: #000; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .btn.ghost { background: transparent; color: var(--text); border-color: var(--line-strong); }
+  .btn.ghost:hover { background: #fff; border-color: var(--gold-deep); }
+  .btn.gold { background: var(--gold); border-color: var(--gold); color: var(--gold-ink); }
+  .btn.gold:hover { background: #F7BC5C; }
+  .btn.danger { background: transparent; border-color: #D9B4AC; color: var(--red); }
+  .btn.danger:hover { background: var(--red-bg); }
+  .btn.sm { padding: 6px 11px; font-size: 13px; }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; }
+  .pad { padding: 18px 20px; }
+  .h2 { font-size: 17px; font-weight: 600; margin: 0; letter-spacing: -.01em; }
+  .label { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+
+  .pill {
+    display: inline-block; font-family: 'IBM Plex Mono', monospace; font-size: 11px;
+    font-weight: 500; padding: 2px 9px; border-radius: 999px; white-space: nowrap;
+  }
+  .pill-active, .pill-success { background: var(--green-bg); color: var(--green); }
+  .pill-trial { background: var(--amber-bg); color: var(--amber); }
+  .pill-expired, .pill-failed, .pill-suspended { background: var(--red-bg); color: var(--red); }
+  .pill-past_due, .pill-pending { background: var(--amber-bg); color: var(--amber); }
+  .pill-cancelled, .pill-none, .pill-deactivated, .pill-refunded { background: var(--slate-bg); color: var(--slate); }
+
+  #shell { display: flex; min-height: 100vh; align-items: stretch; }
+  #side {
+    flex: 0 0 236px; background: var(--ink); color: #E8EAEF;
+    display: flex; flex-direction: column; justify-content: space-between; padding: 26px 0 20px;
+  }
+  #side nav { display: flex; flex-direction: column; gap: 2px; padding: 22px 12px 0; }
+  #side nav button {
+    text-align: left; background: transparent; border: 0; color: #B9B3A7;
+    padding: 9px 14px; border-radius: 7px; cursor: pointer; font-size: 14px;
+    display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  }
+  #side nav button:hover { background: #262523; color: #FAEEDA; }
+  #side nav button.on { background: #302E2A; color: #FAEEDA; font-weight: 500; }
+  #side nav button.on::before { content: ''; position: absolute; }
+  #main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+  #top {
+    background: #fff; border-bottom: 1px solid var(--line);
+    padding: 16px 28px; display: flex; justify-content: space-between; align-items: center; gap: 16px;
+  }
+  #page { padding: 22px 28px 60px; }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; }
+  .kpi-value { font-size: 28px; font-weight: 600; letter-spacing: -.02em; margin-top: 6px; font-variant-numeric: tabular-nums; }
+  .kpi-note { font-size: 12.5px; color: var(--muted); margin-top: 3px; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .empty { padding: 34px 20px; text-align: center; color: var(--faint); }
+
+  #drawer {
+    position: fixed; inset: 0 0 0 auto; width: min(660px, 100%); background: var(--cream);
+    border-left: 1px solid var(--line-strong); box-shadow: -18px 0 50px rgba(19,19,19,.16);
+    transform: translateX(100%); transition: transform .22s ease; overflow-y: auto; z-index: 40;
+  }
+  #drawer.open { transform: none; }
+  #scrim { position: fixed; inset: 0; background: rgba(19,19,19,.32); opacity: 0; pointer-events: none; transition: opacity .22s; z-index: 30; }
+  #scrim.open { opacity: 1; pointer-events: auto; }
+
+  #toast {
+    position: fixed; left: 50%; bottom: 26px; transform: translate(-50%, 20px);
+    background: var(--ink); color: #FAEEDA; padding: 11px 18px; border-radius: 8px;
+    opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 60;
+  }
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
+  #toast.bad { background: var(--red); color: #fff; }
+
+  @media (max-width: 880px) {
+    #shell { flex-wrap: wrap; }
+    #side { flex: 0 0 100%; flex-direction: row; align-items: center; padding: 14px 16px; }
+    #side nav { flex-direction: row; overflow-x: auto; padding: 0; }
+    #side > div:last-child { display: none; }
+    #top, #page { padding-left: 16px; padding-right: 16px; }
+    .grid-2 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===================================================================== -->
+<!-- SIGN IN                                                                -->
+<!-- ===================================================================== -->
+<div id="gate" style="display:none; min-height:100vh; background:var(--ink); align-items:center; justify-content:center; padding:24px;">
+  <div style="width:100%; max-width:392px;">
+    <div style="display:flex; align-items:flex-end; gap:9px; justify-content:center;">
+      <div style="font-size:26px; font-weight:700; letter-spacing:.09em; line-height:1; color:#FAEEDA;">PROFIT<span style="color:var(--gold);">NA</span></div>
+      <svg width="22" height="18" viewBox="0 0 20 16" fill="none" style="margin-bottom:1px;">
+        <polyline points="1,13.4 6.6,7.9 10.1,11 16.9,3.4" stroke="#FAC775" stroke-width="2.6" stroke-linecap="square"></polyline>
+        <polygon points="18.9,1.1 11.8,2.1 17.9,8.2" fill="#FAC775"></polygon>
+      </svg>
+    </div>
+    <div style="text-align:center; font-size:10px; letter-spacing:.18em; text-transform:uppercase; color:#A39D90; margin-top:6px;">Control Center</div>
+
+    <form id="gate-form" class="card" style="margin-top:26px; padding:24px;">
+      <h1 style="font-size:21px; font-weight:700; margin:0 0 4px; letter-spacing:-.015em;">Owner sign-in</h1>
+      <p style="margin:0 0 18px; color:var(--muted); font-size:13px;">This area is not part of the customer app and uses its own credentials.</p>
+
+      <label class="label" for="g-email">Email</label>
+      <input id="g-email" type="email" autocomplete="username" required style="width:100%; margin:6px 0 14px;" />
+
+      <label class="label" for="g-password">Password</label>
+      <input id="g-password" type="password" autocomplete="current-password" required style="width:100%; margin:6px 0 14px;" />
+
+      <label class="label" for="g-code">Authenticator code</label>
+      <input id="g-code" class="mono" inputmode="numeric" autocomplete="one-time-code" maxlength="6"
+             placeholder="000000" style="width:100%; margin:6px 0 4px; letter-spacing:.3em;" />
+      <div style="font-size:12px; color:var(--faint); margin-bottom:16px;">Six digits from the app you enrolled when the account was created.</div>
+
+      <div id="gate-error" role="alert" style="display:none; background:var(--red-bg); color:var(--red); border-radius:6px; padding:9px 12px; font-size:13px; margin-bottom:14px;"></div>
+
+      <button class="btn" type="submit" style="width:100%;" id="gate-submit">Sign in</button>
+    </form>
+  </div>
+</div>
+
+<!-- ===================================================================== -->
+<!-- CONSOLE                                                                -->
+<!-- ===================================================================== -->
+<div id="shell" style="display:none;">
+  <aside id="side">
+    <div style="width:100%;">
+      <div style="padding:0 20px;">
+        <div style="display:flex; align-items:flex-end; gap:8px;">
+          <div style="font-size:20px; font-weight:700; letter-spacing:.09em; line-height:1; color:#FAEEDA;">PROFIT<span style="color:var(--gold);">NA</span></div>
+        </div>
+        <div style="font-size:9.5px; letter-spacing:.18em; text-transform:uppercase; color:#A39D90; margin-top:5px;">Control Center</div>
+        <div style="width:38px; height:2px; background:var(--gold); margin:16px 0 0;"></div>
+      </div>
+      <nav id="nav"></nav>
+    </div>
+    <div style="padding:0 20px; font-size:12px; color:#7E7970;">
+      <div id="side-admin" style="color:#B9B3A7; margin-bottom:8px;"></div>
+      <button class="btn ghost sm" id="signout" style="color:#B9B3A7; border-color:#3A3833; background:transparent;">Sign out</button>
+    </div>
+  </aside>
+
+  <div id="main">
+    <header id="top">
+      <div>
+        <div class="label" id="crumb">Overview</div>
+        <h1 id="title" style="font-size:26px; font-weight:700; margin:2px 0 0; letter-spacing:-.02em;">Platform overview</h1>
+      </div>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <span class="mono" id="clock" style="font-size:12px; color:var(--faint);"></span>
+        <button class="btn ghost sm" id="refresh">Refresh</button>
+      </div>
+    </header>
+    <div id="page"></div>
+  </div>
+</div>
+
+<div id="scrim"></div>
+<aside id="drawer" aria-label="Account detail"></aside>
+<div id="toast" role="status"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ---------------------------------------------------------------- plumbing
+
+  var state = {
+    view: 'overview',
+    admin: null,
+    users: { q: '', status: '', sub: '', book: '', cycle: '', sort: 'created', dir: 'desc', page: 1 },
+    subs: { q: '', status: '', cycle: '', expiring: false, sort: 'expires', dir: 'asc', page: 1 },
+    payments: { q: '', status: '', from: '', to: '', page: 1 }
+  };
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  function esc(v) {
+    if (v === null || v === undefined) return '';
+    return String(v).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  // Everything goes through here, so a session that has ended anywhere in the
+  // console drops back to the sign-in screen instead of rendering blanks.
+  async function api(path, options) {
+    var res = await fetch('/api/admin' + path, Object.assign({ credentials: 'same-origin' }, options || {}));
+    if (res.status === 401) {
+      showGate();
+      throw new Error('signed out');
+    }
+    var text = await res.text();
+    var body;
+    try { body = text ? JSON.parse(text) : {}; } catch (e) { body = { raw: text }; }
+    if (!res.ok) throw new Error(body.error || 'Something went wrong.');
+    return body;
+  }
+
+  function send(path, method, payload) {
+    return api(path, {
+      method: method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  }
+
+  var toastTimer = null;
+  function toast(message, bad) {
+    var el = $('toast');
+    el.textContent = message;
+    el.className = 'show' + (bad ? ' bad' : '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.className = ''; }, 3200);
+  }
+
+  // ---------------------------------------------------------- formatting
+
+  var naira = new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 });
+
+  function money(value) { return naira.format(Number(value) || 0).replace('NGN', '₦'); }
+  function count(value) { return new Intl.NumberFormat('en-NG').format(Number(value) || 0); }
+
+  function day(value) {
+    if (!value) return '—';
+    var d = new Date(value);
+    if (isNaN(d)) return '—';
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+
+  function ago(value) {
+    if (!value) return 'never';
+    var seconds = (Date.now() - new Date(value).getTime()) / 1000;
+    if (seconds < 90) return 'just now';
+    var steps = [[60, 'min'], [3600, 'hr'], [86400, 'day'], [604800, 'week'], [2629800, 'month'], [31557600, 'year']];
+    for (var i = steps.length - 1; i >= 0; i--) {
+      if (seconds >= steps[i][0]) {
+        var n = Math.floor(seconds / steps[i][0]);
+        return n + ' ' + steps[i][1] + (n === 1 ? '' : 's') + ' ago';
+      }
+    }
+    return 'just now';
+  }
+
+  function untilDay(value) {
+    if (!value) return '—';
+    var days = Math.round((new Date(value + 'T00:00:00') - new Date(new Date().toDateString())) / 86400000);
+    if (isNaN(days)) return '—';
+    if (days === 0) return 'today';
+    if (days < 0) return Math.abs(days) + (Math.abs(days) === 1 ? ' day ago' : ' days ago');
+    return 'in ' + days + (days === 1 ? ' day' : ' days');
+  }
+
+  var LABELS = {
+    trial: 'Trial', active: 'Active', past_due: 'Past due', expired: 'Expired',
+    cancelled: 'Cancelled', suspended: 'Suspended', none: 'No plan',
+    deactivated: 'Deactivated', success: 'Success', failed: 'Failed',
+    pending: 'Pending', refunded: 'Refunded', trialing: 'Trial'
+  };
+
+  function pill(value) {
+    var key = String(value || 'none');
+    return '<span class="pill pill-' + esc(key) + '">' + esc(LABELS[key] || (key.charAt(0).toUpperCase() + key.slice(1))) + '</span>';
+  }
+
+  // ------------------------------------------------------------ small charts
+
+  // Hand-drawn SVG rather than a charting library: four hundred bytes of path
+  // arithmetic against a megabyte of dependency, on a page that draws two
+  // shapes.
+  function barChart(points, options) {
+    var o = options || {};
+    var w = 100, h = 40, gap = points.length > 40 ? 0.15 : 0.3;
+    var max = Math.max.apply(null, points.map(function (p) { return p.value; }).concat([1]));
+    var band = w / points.length;
+    var bars = points.map(function (p, i) {
+      var height = (p.value / max) * h;
+      var x = i * band + (band * gap) / 2;
+      return '<rect x="' + x.toFixed(2) + '" y="' + (h - height).toFixed(2) +
+        '" width="' + (band * (1 - gap)).toFixed(2) + '" height="' + Math.max(height, p.value > 0 ? 0.6 : 0).toFixed(2) +
+        '" fill="' + (o.colour || '#B8863A') + '" rx="0.4"><title>' + esc(p.label + ': ' + p.title) + '</title></rect>';
+    }).join('');
+    return '<svg viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none" style="width:100%; height:' + (o.height || 120) + 'px; display:block;">' +
+      '<line x1="0" y1="' + h + '" x2="' + w + '" y2="' + h + '" stroke="#E2DED4" stroke-width="0.3" />' + bars + '</svg>';
+  }
+
+  function axis(labels) {
+    return '<div style="display:flex; justify-content:space-between; font-size:11px; color:var(--faint); margin-top:6px;" class="mono">' +
+      labels.map(function (l) { return '<span>' + esc(l) + '</span>'; }).join('') + '</div>';
+  }
+
+  function stateBars(rows, total) {
+    return rows.map(function (r) {
+      var pct = total ? Math.round((r.value / total) * 100) : 0;
+      return '<div style="margin-bottom:11px;">' +
+        '<div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:5px;">' +
+          '<span style="font-size:13px;">' + esc(r.label) + '</span>' +
+          '<span class="mono" style="font-size:12.5px; color:var(--muted);">' + count(r.value) + ' · ' + pct + '%</span>' +
+        '</div>' +
+        '<div style="height:7px; background:#EFEDE7; border-radius:999px; overflow:hidden;">' +
+          '<div style="height:100%; width:' + pct + '%; background:' + r.colour + ';"></div>' +
+        '</div></div>';
+    }).join('');
+  }
+
+  // ------------------------------------------------------------------- views
+
+  var VIEWS = [
+    { id: 'overview', label: 'Overview', title: 'Platform overview' },
+    { id: 'users', label: 'Users', title: 'Registered users' },
+    { id: 'subscriptions', label: 'Subscriptions', title: 'Subscriptions' },
+    { id: 'payments', label: 'Payments', title: 'Payments' },
+    { id: 'activity', label: 'Activity', title: 'Activity log' },
+    { id: 'security', label: 'Security', title: 'Console security' }
+  ];
+
+  function drawNav() {
+    $('nav').innerHTML = VIEWS.map(function (v) {
+      return '<button data-view="' + v.id + '" class="' + (v.id === state.view ? 'on' : '') + '">' + esc(v.label) + '</button>';
+    }).join('');
+    Array.prototype.forEach.call($('nav').querySelectorAll('button'), function (b) {
+      b.onclick = function () { go(b.getAttribute('data-view')); };
+    });
+  }
+
+  function go(view) {
+    state.view = view;
+    var meta = VIEWS.filter(function (v) { return v.id === view; })[0] || VIEWS[0];
+    $('crumb').textContent = meta.label;
+    $('title').textContent = meta.title;
+    drawNav();
+    render();
+  }
+
+  function loading() {
+    $('page').innerHTML = '<div class="card empty">Loading…</div>';
+  }
+
+  async function render() {
+    try {
+      if (state.view === 'overview') return await renderOverview();
+      if (state.view === 'users') return await renderUsers();
+      if (state.view === 'subscriptions') return await renderSubscriptions();
+      if (state.view === 'payments') return await renderPayments();
+      if (state.view === 'activity') return await renderActivity();
+      if (state.view === 'security') return await renderSecurity();
+    } catch (err) {
+      if (err.message !== 'signed out') {
+        $('page').innerHTML = '<div class="card empty">' + esc(err.message) + '</div>';
+      }
+    }
+  }
+
+  // --------------------------------------------------------------- overview
+
+  async function renderOverview() {
+    loading();
+    var d = await api('/overview');
+
+    var kpis = [
+      { label: 'Registered users', value: count(d.users.total), note: count(d.users.new30) + ' in the last 30 days' },
+      { label: 'Active subscribers', value: count(d.subscriptions.active), note: count(d.subscriptions.trial) + ' on trial' },
+      { label: 'Monthly recurring', value: money(d.revenue.monthlyRecurring), note: money(d.revenue.annualRunRate) + ' a year at this rate' },
+      { label: 'Collected in 30 days', value: money(d.revenue.last30), note: money(d.revenue.allTime) + ' all time' },
+      { label: 'Expiring within 7 days', value: count(d.subscriptions.expiring), note: count(d.subscriptions.expired) + ' already expired' }
+    ];
+
+    var signupPoints = d.trends.signups.map(function (s) {
+      return { value: s.count, label: day(s.day), title: s.count + (s.count === 1 ? ' signup' : ' signups') };
+    });
+    var revenuePoints = d.trends.revenue.map(function (r) {
+      return { value: r.amount, label: r.month, title: money(r.amount) };
+    });
+
+    var html = '<div class="kpis">' + kpis.map(function (k) {
+      return '<div class="card pad"><div class="label">' + esc(k.label) + '</div>' +
+        '<div class="kpi-value">' + k.value + '</div>' +
+        '<div class="kpi-note">' + esc(k.note) + '</div></div>';
+    }).join('') + '</div>';
+
+    html += '<div class="grid-2" style="margin-top:16px;">' +
+      '<div class="card pad">' +
+        '<h2 class="h2">New registrations</h2>' +
+        '<div style="font-size:12.5px; color:var(--muted); margin:2px 0 14px;">Last 30 days · ' + count(d.users.new7) + ' this week</div>' +
+        barChart(signupPoints, { colour: '#1a1a1a' }) +
+        axis([day(d.trends.signups[0].day), 'today']) +
+      '</div>' +
+      '<div class="card pad">' +
+        '<h2 class="h2">Subscription revenue</h2>' +
+        '<div style="font-size:12.5px; color:var(--muted); margin:2px 0 14px;">Payments collected, by month</div>' +
+        barChart(revenuePoints, { colour: '#B8863A' }) +
+        axis([d.trends.revenue[0].month, d.trends.revenue[d.trends.revenue.length - 1].month]) +
+      '</div>' +
+    '</div>';
+
+    var s = d.subscriptions;
+    html += '<div class="grid-2" style="margin-top:16px;">' +
+      '<div class="card pad">' +
+        '<h2 class="h2">Subscription states</h2>' +
+        '<div style="font-size:12.5px; color:var(--muted); margin:2px 0 16px;">' + count(s.total) + ' in total</div>' +
+        stateBars([
+          { label: 'Active', value: s.active, colour: '#1F7A4D' },
+          { label: 'Trial', value: s.trial, colour: '#FAC775' },
+          { label: 'Past due', value: s.past_due, colour: '#97621A' },
+          { label: 'Expired', value: s.expired, colour: '#A33A2A' },
+          { label: 'Cancelled', value: s.cancelled, colour: '#8A857C' },
+          { label: 'Suspended', value: s.suspended, colour: '#5A6472' }
+        ], s.total) +
+      '</div>' +
+      '<div class="card pad">' +
+        '<h2 class="h2">Accounts</h2>' +
+        '<div style="font-size:12.5px; color:var(--muted); margin:2px 0 16px;">' + count(d.users.seen30) + ' signed in within 30 days</div>' +
+        stateBars([
+          { label: 'Active', value: d.users.active, colour: '#1F7A4D' },
+          { label: 'Suspended', value: d.users.suspended, colour: '#A33A2A' },
+          { label: 'Deactivated', value: d.users.deactivated, colour: '#8A857C' }
+        ], d.users.total) +
+        (d.revenue.failed30
+          ? '<div style="margin-top:14px; background:var(--red-bg); color:var(--red); border-radius:6px; padding:9px 12px; font-size:13px;">' +
+            count(d.revenue.failed30) + ' payment' + (d.revenue.failed30 === 1 ? '' : 's') + ' failed in the last 30 days.</div>'
+          : '') +
+      '</div>' +
+    '</div>';
+
+    html += '<div class="card" style="margin-top:16px;">' +
+      '<div class="pad" style="border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center;">' +
+        '<h2 class="h2">Approaching expiry</h2>' +
+        '<button class="btn ghost sm" data-goto="subscriptions">See all subscriptions</button>' +
+      '</div>' +
+      (d.expiring.length
+        ? '<div style="overflow-x:auto;"><table><thead><tr>' +
+            '<th style="padding-left:20px;">Organisation</th><th>Contact</th><th>Plan</th><th>State</th><th>Ends</th>' +
+          '</tr></thead><tbody>' +
+          d.expiring.map(function (e) {
+            return '<tr><td style="padding-left:20px; font-weight:500;">' + esc(e.orgName) + '</td>' +
+              '<td style="color:var(--muted);">' + esc(e.email || '—') + '</td>' +
+              '<td class="mono" style="font-size:12.5px;">' + esc(e.cycle) + ' · ' + esc(e.seats) + (e.seats === 1 ? ' seat' : ' seats') + '</td>' +
+              '<td>' + pill(e.status) + '</td>' +
+              '<td class="mono" style="font-size:12.5px;">' + esc(day(e.periodEnd)) + ' <span style="color:var(--faint);">· ' + esc(untilDay(e.periodEnd)) + '</span></td></tr>';
+          }).join('') +
+          '</tbody></table></div>'
+        : '<div class="empty">Nothing expires in the next fortnight.</div>') +
+    '</div>';
+
+    html += '<div class="grid-2" style="margin-top:16px;">' +
+      '<div class="card">' +
+        '<div class="pad" style="border-bottom:1px solid var(--line);"><h2 class="h2">Latest registrations</h2></div>' +
+        (d.recentUsers.length
+          ? '<table><tbody>' + d.recentUsers.map(function (u) {
+              return '<tr class="clickable" data-user="' + esc(u.id) + '">' +
+                '<td style="padding-left:20px;"><div style="font-weight:500;">' + esc(u.name || '—') + '</div>' +
+                '<div style="font-size:12.5px; color:var(--muted);">' + esc(u.email) + '</div></td>' +
+                '<td style="color:var(--muted);">' + esc(u.orgName || '—') + '</td>' +
+                '<td class="mono" style="font-size:12.5px; color:var(--faint); text-align:right; padding-right:20px;">' + esc(ago(u.createdAt)) + '</td></tr>';
+            }).join('') + '</tbody></table>'
+          : '<div class="empty">No accounts yet.</div>') +
+      '</div>' +
+      '<div class="card">' +
+        '<div class="pad" style="border-bottom:1px solid var(--line);"><h2 class="h2">Latest payments</h2></div>' +
+        (d.recentPayments.length
+          ? '<table><tbody>' + d.recentPayments.map(function (p) {
+              return '<tr><td style="padding-left:20px;"><div style="font-weight:500;">' + esc(p.orgName) + '</div>' +
+                '<div style="font-size:12.5px; color:var(--muted);">' + esc(LABELS[p.purpose] || p.purpose.replace(/_/g, ' ')) + '</div></td>' +
+                '<td>' + pill(p.status) + '</td>' +
+                '<td class="mono num" style="text-align:right; padding-right:20px;">' + money(p.amount) + '</td></tr>';
+            }).join('') + '</tbody></table>'
+          : '<div class="empty">No payments recorded yet.</div>') +
+      '</div>' +
+    '</div>';
+
+    $('page').innerHTML = html;
+    wireGoto();
+    wireUserRows();
+  }
+
+  // ------------------------------------------------------------------ users
+
+  function query(params) {
+    var parts = [];
+    Object.keys(params).forEach(function (k) {
+      if (params[k] !== '' && params[k] !== false && params[k] !== null && params[k] !== undefined) {
+        parts.push(encodeURIComponent(k) + '=' + encodeURIComponent(params[k]));
+      }
+    });
+    return parts.length ? '?' + parts.join('&') : '';
+  }
+
+  function selectBox(id, value, options) {
+    return '<select id="' + id + '">' + options.map(function (o) {
+      return '<option value="' + esc(o[0]) + '"' + (String(value) === String(o[0]) ? ' selected' : '') + '>' + esc(o[1]) + '</option>';
+    }).join('') + '</select>';
+  }
+
+  function pager(prefix, total, p) {
+    var pages = Math.max(1, Math.ceil(total / p.pageSize));
+    return '<div class="pad" style="border-top:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; gap:12px;">' +
+      '<span style="font-size:12.5px; color:var(--muted);">' + count(total) + ' result' + (total === 1 ? '' : 's') +
+        ' · page ' + p.page + ' of ' + pages + '</span>' +
+      '<span style="display:flex; gap:8px;">' +
+        '<button class="btn ghost sm" id="' + prefix + '-prev"' + (p.page <= 1 ? ' disabled' : '') + '>Previous</button>' +
+        '<button class="btn ghost sm" id="' + prefix + '-next"' + (p.page >= pages ? ' disabled' : '') + '>Next</button>' +
+      '</span></div>';
+  }
+
+  function sortableHeader(key, label, current) {
+    var arrow = current.sort === key ? (current.dir === 'asc' ? ' ↑' : ' ↓') : '';
+    return '<th class="sortable" data-sort="' + key + '">' + esc(label) + arrow + '</th>';
+  }
+
+  async function renderUsers() {
+    loading();
+    var f = state.users;
+    var d = await api('/users' + query({
+      q: f.q, status: f.status, sub: f.sub, book: f.book, cycle: f.cycle,
+      sort: f.sort, dir: f.dir, page: f.page, pageSize: 25
+    }));
+
+    var html = '<div class="card pad filters">' +
+      '<input id="u-q" placeholder="Search name, email or organisation" value="' + esc(f.q) + '" style="flex:1 1 260px; min-width:200px;" />' +
+      selectBox('u-status', f.status, [['', 'Any account status'], ['active', 'Active'], ['suspended', 'Suspended'], ['deactivated', 'Deactivated']]) +
+      selectBox('u-sub', f.sub, [['', 'Any subscription'], ['trial', 'Trial'], ['active', 'Active'], ['past_due', 'Past due'], ['expired', 'Expired'], ['cancelled', 'Cancelled'], ['suspended', 'Suspended'], ['none', 'No plan']]) +
+      selectBox('u-book', f.book, [['', 'All books'], ['sme', 'Business'], ['church', 'Church']]) +
+      selectBox('u-cycle', f.cycle, [['', 'Any plan'], ['monthly', 'Monthly'], ['annual', 'Annual']]) +
+      '<button class="btn ghost sm" id="u-clear">Clear</button>' +
+      '<a class="btn gold sm" style="text-decoration:none;" href="/api/admin/users.csv' + query({ q: f.q, status: f.status, sub: f.sub, book: f.book, cycle: f.cycle, sort: f.sort, dir: f.dir }) + '">Export CSV</a>' +
+    '</div>';
+
+    html += '<div class="card" style="margin-top:16px;">' +
+      (d.users.length
+        ? '<div style="overflow-x:auto;"><table><thead><tr>' +
+            sortableHeader('name', 'Name', f) +
+            '<th>Organisation</th>' +
+            sortableHeader('created', 'Registered', f) +
+            sortableHeader('lastLogin', 'Last login', f) +
+            '<th>Plan</th>' +
+            '<th>Subscription</th>' +
+            sortableHeader('expires', 'Renews / ends', f) +
+            sortableHeader('status', 'Account', f) +
+          '</tr></thead><tbody>' +
+          d.users.map(function (u) {
+            return '<tr class="clickable" data-user="' + esc(u.id) + '">' +
+              '<td><div style="font-weight:500;">' + esc(u.name || '—') + '</div>' +
+                '<div style="font-size:12.5px; color:var(--muted);">' + esc(u.email) + '</div></td>' +
+              '<td><div>' + esc(u.orgName || '—') + '</div>' +
+                '<div style="font-size:12px; color:var(--faint);">' + esc(u.book === 'church' ? 'Church books' : u.book ? 'Business books' : '') +
+                (u.role ? ' · ' + esc(u.role) : '') + '</div></td>' +
+              '<td class="mono" style="font-size:12.5px;">' + esc(day(u.createdAt)) + '</td>' +
+              '<td class="mono" style="font-size:12.5px; color:' + (u.lastLoginAt ? 'inherit' : 'var(--faint)') + ';">' + esc(ago(u.lastLoginAt)) + '</td>' +
+              '<td class="mono" style="font-size:12.5px;">' + (u.cycle ? esc(u.cycle) + '<div style="color:var(--faint);">' + money(u.amount) + '</div>' : '—') + '</td>' +
+              '<td>' + pill(u.subscription) + '</td>' +
+              '<td class="mono" style="font-size:12.5px;">' + esc(day(u.periodEnd)) + '</td>' +
+              '<td>' + pill(u.status) + '</td></tr>';
+          }).join('') +
+          '</tbody></table></div>' + pager('u', d.total, { page: d.page, pageSize: d.pageSize })
+        : '<div class="empty">No accounts match those filters.</div>') +
+    '</div>';
+
+    $('page').innerHTML = html;
+
+    var debounce = null;
+    $('u-q').oninput = function (e) {
+      clearTimeout(debounce);
+      var value = e.target.value;
+      debounce = setTimeout(function () { f.q = value; f.page = 1; renderUsers(); }, 280);
+    };
+    ['status', 'sub', 'book', 'cycle'].forEach(function (key) {
+      $('u-' + key).onchange = function (e) { f[key] = e.target.value; f.page = 1; renderUsers(); };
+    });
+    $('u-clear').onclick = function () {
+      state.users = { q: '', status: '', sub: '', book: '', cycle: '', sort: 'created', dir: 'desc', page: 1 };
+      renderUsers();
+    };
+    wirePager('u', f, renderUsers, d);
+    wireSort(f, renderUsers);
+    wireUserRows();
+  }
+
+  function wirePager(prefix, f, redraw, d) {
+    var prev = $(prefix + '-prev');
+    var next = $(prefix + '-next');
+    if (prev) prev.onclick = function () { f.page = Math.max(1, f.page - 1); redraw(); };
+    if (next) next.onclick = function () { f.page = f.page + 1; redraw(); };
+  }
+
+  function wireSort(f, redraw) {
+    Array.prototype.forEach.call(document.querySelectorAll('th.sortable'), function (th) {
+      th.onclick = function () {
+        var key = th.getAttribute('data-sort');
+        if (f.sort === key) f.dir = f.dir === 'asc' ? 'desc' : 'asc';
+        else { f.sort = key; f.dir = 'desc'; }
+        f.page = 1;
+        redraw();
+      };
+    });
+  }
+
+  function wireGoto() {
+    Array.prototype.forEach.call(document.querySelectorAll('[data-goto]'), function (b) {
+      b.onclick = function () { go(b.getAttribute('data-goto')); };
+    });
+  }
+
+  function wireUserRows() {
+    Array.prototype.forEach.call(document.querySelectorAll('[data-user]'), function (tr) {
+      tr.onclick = function () { openUser(tr.getAttribute('data-user')); };
+    });
+  }
+
+  // --------------------------------------------------------- account drawer
+
+  function closeDrawer() {
+    $('drawer').className = '';
+    $('scrim').className = '';
+  }
+
+  async function openUser(id) {
+    $('scrim').className = 'open';
+    $('drawer').className = 'open';
+    $('drawer').innerHTML = '<div class="empty" style="padding-top:60px;">Loading account…</div>';
+
+    var d;
+    try { d = await api('/users/' + id); } catch (err) {
+      $('drawer').innerHTML = '<div class="empty" style="padding-top:60px;">' + esc(err.message) + '</div>';
+      return;
+    }
+
+    var u = d.user;
+    var org = d.organisations[0];
+
+    var html = '<div style="background:var(--ink); color:#E8EAEF; padding:22px 24px;">' +
+      '<div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">' +
+        '<div><div style="font-size:21px; font-weight:600; color:#fff; letter-spacing:-.015em;">' + esc(u.name || u.email) + '</div>' +
+        '<div class="mono" style="font-size:12.5px; color:#A39D90; margin-top:3px;">' + esc(u.email) + '</div></div>' +
+        '<button class="btn ghost sm" id="drawer-close" style="color:#B9B3A7; border-color:#3A3833; background:transparent;">Close</button>' +
+      '</div>' +
+      // Two status pills side by side would read as one fact, so each says
+      // which of the two it is.
+      '<div style="display:flex; gap:14px; margin-top:14px; flex-wrap:wrap; align-items:center;">' +
+        '<span style="display:flex; gap:6px; align-items:center;"><span style="font-size:11px; color:#8A857C;">Account</span>' + pill(u.status) + '</span>' +
+        (org ? '<span style="display:flex; gap:6px; align-items:center;"><span style="font-size:11px; color:#8A857C;">Subscription</span>' + pill(org.subscription) + '</span>' : '') +
+        '<span class="pill" style="background:#302E2A; color:#B9B3A7;">' + esc(u.provider === 'google' ? 'Google sign-in' : 'Password') + '</span>' +
+      '</div>' +
+    '</div>';
+
+    function row(label, value) {
+      return '<div style="display:flex; justify-content:space-between; gap:16px; padding:8px 0; border-bottom:1px solid var(--line);">' +
+        '<span style="color:var(--muted); font-size:13px;">' + esc(label) + '</span>' +
+        '<span class="mono" style="font-size:12.5px; text-align:right;">' + value + '</span></div>';
+    }
+
+    html += '<div style="padding:20px 24px;">';
+
+    html += '<div class="card pad"><h2 class="h2" style="margin-bottom:10px;">Account</h2>' +
+      row('Registered', esc(day(u.createdAt))) +
+      row('Last login', esc(u.lastLoginAt ? day(u.lastLoginAt) + ' · ' + ago(u.lastLoginAt) : 'never')) +
+      row('Sign-ins', count(u.loginCount)) +
+      row('Last address', esc(u.lastLoginIp || '—')) +
+      (u.statusReason ? row('Status note', esc(u.statusReason)) : '') +
+      (u.statusChangedAt ? row('Status changed', esc(day(u.statusChangedAt))) : '') +
+    '</div>';
+
+    if (org) {
+      html += '<div class="card pad" style="margin-top:14px;"><h2 class="h2" style="margin-bottom:10px;">' + esc(org.name) + '</h2>' +
+        row('Books', esc(org.book === 'church' ? 'Church' : 'Business') + ' · ' + esc(org.businessType || '')) +
+        row('Role', esc(org.role)) +
+        row('People on the books', count(org.members)) +
+        row('Plan', org.cycle ? esc(org.cycle) + ' · ' + esc(org.seats) + (org.seats === 1 ? ' seat' : ' seats') + ' · ' + money(org.amount) : '—') +
+        row('Subscription', pill(org.subscription)) +
+        row('Trial started', esc(day(org.trialStart))) +
+        row('Term started', esc(org.periodStart ? day(org.periodStart) : 'not billed yet')) +
+        row('Renews / ends', esc(day(org.periodEnd)) + ' · ' + esc(untilDay(org.periodEnd))) +
+        (org.cancelledAt ? row('Cancelled', esc(day(org.cancelledAt))) : '') +
+        row('Card', org.cardLast4 ? esc(org.cardBrand + ' •••• ' + org.cardLast4 + (org.cardExp ? ' · ' + org.cardExp : '')) : 'none on file') +
+      '</div>';
+    }
+
+    html += '<div class="card pad" style="margin-top:14px;">' +
+      '<h2 class="h2">Manage this account</h2>' +
+      '<p style="color:var(--muted); font-size:13px; margin:4px 0 14px;">Suspending ends every session the customer has open, immediately. Deactivating is how a closed account is recorded.</p>' +
+      '<input id="d-reason" placeholder="Reason (kept in the audit log)" style="width:100%; margin-bottom:12px;" />' +
+      '<div style="display:flex; gap:8px; flex-wrap:wrap;">' +
+        (u.status !== 'active' ? '<button class="btn gold sm" data-set="active">Reactivate</button>' : '') +
+        (u.status !== 'suspended' ? '<button class="btn ghost sm" data-set="suspended">Suspend</button>' : '') +
+        (u.status !== 'deactivated' ? '<button class="btn danger sm" data-set="deactivated">Deactivate</button>' : '') +
+      '</div>' +
+    '</div>';
+
+    html += '<div class="card" style="margin-top:14px;">' +
+      '<div class="pad" style="border-bottom:1px solid var(--line);"><h2 class="h2">Payment history</h2></div>' +
+      (d.payments.length
+        ? '<table><tbody>' + d.payments.map(function (p) {
+            return '<tr><td style="padding-left:20px;"><div>' + esc(day(p.paidAt || p.createdAt)) + '</div>' +
+              '<div style="font-size:12px; color:var(--faint);">' + esc(String(p.purpose).replace(/_/g, ' ')) + (p.reference ? ' · ' + esc(p.reference) : '') + '</div></td>' +
+              '<td>' + pill(p.status) + '</td>' +
+              '<td class="mono num" style="text-align:right; padding-right:20px;">' + money(p.amount) + '</td></tr>';
+          }).join('') + '</tbody></table>'
+        : '<div class="empty">No payments on this account.</div>') +
+    '</div>';
+
+    html += '<div class="card" style="margin-top:14px;">' +
+      '<div class="pad" style="border-bottom:1px solid var(--line);"><h2 class="h2">Recent activity</h2></div>' +
+      (d.activity.length
+        ? '<table><tbody>' + d.activity.slice(0, 20).map(function (a) {
+            return '<tr><td style="padding-left:20px;">' + esc(String(a.action).replace(/\./g, ' · ')) +
+              '<div style="font-size:12px; color:var(--faint);">' + esc(a.orgName || '') + '</div></td>' +
+              '<td class="mono" style="font-size:12px; color:var(--faint); text-align:right; padding-right:20px;">' + esc(ago(a.createdAt)) + '</td></tr>';
+          }).join('') + '</tbody></table>'
+        : '<div class="empty">Nothing recorded yet.</div>') +
+    '</div>';
+
+    if (d.administration.length) {
+      html += '<div class="card" style="margin-top:14px;">' +
+        '<div class="pad" style="border-bottom:1px solid var(--line);"><h2 class="h2">Administrative history</h2></div>' +
+        '<table><tbody>' + d.administration.map(function (a) {
+          return '<tr><td style="padding-left:20px;">' + esc(String(a.action).replace(/\./g, ' · ')) +
+            '<div style="font-size:12px; color:var(--faint);">by ' + esc(a.adminEmail || 'unknown') +
+            (a.detail && a.detail.reason ? ' — ' + esc(a.detail.reason) : '') + '</div></td>' +
+            '<td class="mono" style="font-size:12px; color:var(--faint); text-align:right; padding-right:20px;">' + esc(ago(a.createdAt)) + '</td></tr>';
+        }).join('') + '</tbody></table></div>';
+    }
+
+    html += '</div>';
+
+    $('drawer').innerHTML = html;
+    $('drawer-close').onclick = closeDrawer;
+
+    Array.prototype.forEach.call($('drawer').querySelectorAll('[data-set]'), function (b) {
+      b.onclick = async function () {
+        var status = b.getAttribute('data-set');
+        var reason = $('d-reason').value.trim();
+        if (status !== 'active' && !confirm('Set ' + u.email + ' to ' + status + '?')) return;
+        b.disabled = true;
+        try {
+          await send('/users/' + u.id, 'PATCH', { status: status, reason: reason });
+          toast(u.email + ' is now ' + status + '.');
+          await openUser(u.id);
+          render();
+        } catch (err) {
+          toast(err.message, true);
+          b.disabled = false;
+        }
+      };
+    });
+  }
+
+  // ---------------------------------------------------------- subscriptions
+
+  async function renderSubscriptions() {
+    loading();
+    var f = state.subs;
+    var d = await api('/subscriptions' + query({
+      q: f.q, status: f.status, cycle: f.cycle, expiring: f.expiring,
+      sort: f.sort, dir: f.dir, page: f.page, pageSize: 25
+    }));
+
+    var html = '<div class="card pad filters">' +
+      '<input id="s-q" placeholder="Search organisation" value="' + esc(f.q) + '" style="flex:1 1 240px;" />' +
+      selectBox('s-status', f.status, [['', 'Any state'], ['trial', 'Trial'], ['active', 'Active'], ['past_due', 'Past due'], ['expired', 'Expired'], ['cancelled', 'Cancelled'], ['suspended', 'Suspended']]) +
+      selectBox('s-cycle', f.cycle, [['', 'Any plan'], ['monthly', 'Monthly'], ['annual', 'Annual']]) +
+      '<label style="display:flex; align-items:center; gap:7px; font-size:13px;">' +
+        '<input type="checkbox" id="s-expiring"' + (f.expiring ? ' checked' : '') + ' style="width:16px; height:16px; box-shadow:none;" /> Ending within 14 days</label>' +
+    '</div>';
+
+    html += '<div class="card" style="margin-top:16px;">' +
+      (d.subscriptions.length
+        ? '<div style="overflow-x:auto;"><table><thead><tr>' +
+            sortableHeader('org', 'Organisation', f) +
+            '<th>Contact</th><th>Plan</th>' +
+            sortableHeader('status', 'State', f) +
+            '<th>Started</th>' +
+            sortableHeader('expires', 'Renews / ends', f) +
+            '<th style="text-align:right;">Collected</th><th></th>' +
+          '</tr></thead><tbody>' +
+          d.subscriptions.map(function (s) {
+            return '<tr>' +
+              '<td><div style="font-weight:500;">' + esc(s.orgName) + '</div>' +
+                '<div style="font-size:12px; color:var(--faint);">' + esc(s.book === 'church' ? 'Church books' : 'Business books') + '</div></td>' +
+              '<td style="color:var(--muted); font-size:13px;">' + esc(s.email || '—') + '</td>' +
+              '<td class="mono" style="font-size:12.5px;">' + esc(s.cycle) + ' · ' + esc(s.seats) + (s.seats === 1 ? ' seat' : ' seats') +
+                '<div style="color:var(--faint);">' + money(s.amount) + '</div></td>' +
+              '<td>' + pill(s.status) + '</td>' +
+              '<td class="mono" style="font-size:12.5px;">' + esc(day(s.trialStart)) + '</td>' +
+              '<td class="mono" style="font-size:12.5px;">' + esc(day(s.periodEnd)) +
+                '<div style="color:var(--faint);">' + esc(untilDay(s.periodEnd)) + '</div></td>' +
+              '<td class="mono num" style="text-align:right;">' + money(s.paid) + '</td>' +
+              '<td style="text-align:right;"><button class="btn ghost sm" data-sub="' + esc(s.id) + '">Manage</button></td></tr>';
+          }).join('') +
+          '</tbody></table></div>' + pager('s', d.total, { page: d.page, pageSize: d.pageSize })
+        : '<div class="empty">No subscriptions match those filters.</div>') +
+    '</div>';
+
+    $('page').innerHTML = html;
+
+    var debounce = null;
+    $('s-q').oninput = function (e) {
+      clearTimeout(debounce);
+      var value = e.target.value;
+      debounce = setTimeout(function () { f.q = value; f.page = 1; renderSubscriptions(); }, 280);
+    };
+    $('s-status').onchange = function (e) { f.status = e.target.value; f.page = 1; renderSubscriptions(); };
+    $('s-cycle').onchange = function (e) { f.cycle = e.target.value; f.page = 1; renderSubscriptions(); };
+    $('s-expiring').onchange = function (e) { f.expiring = e.target.checked; f.page = 1; renderSubscriptions(); };
+    wirePager('s', f, renderSubscriptions, d);
+    wireSort(f, renderSubscriptions);
+
+    Array.prototype.forEach.call(document.querySelectorAll('[data-sub]'), function (b) {
+      b.onclick = function () {
+        var sub = d.subscriptions.filter(function (s) { return s.id === b.getAttribute('data-sub'); })[0];
+        openSubscription(sub);
+      };
+    });
+  }
+
+  function openSubscription(s) {
+    $('scrim').className = 'open';
+    $('drawer').className = 'open';
+    $('drawer').innerHTML =
+      '<div style="background:var(--ink); color:#E8EAEF; padding:22px 24px; display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">' +
+        '<div><div style="font-size:21px; font-weight:600; color:#fff;">' + esc(s.orgName) + '</div>' +
+        '<div class="mono" style="font-size:12.5px; color:#A39D90; margin-top:3px;">' + esc(s.email || '') + '</div></div>' +
+        '<button class="btn ghost sm" id="drawer-close" style="color:#B9B3A7; border-color:#3A3833; background:transparent;">Close</button>' +
+      '</div>' +
+      '<div style="padding:20px 24px;"><div class="card pad">' +
+        '<h2 class="h2" style="margin-bottom:14px;">Manage subscription</h2>' +
+        '<label class="label">State</label>' +
+        selectBox('m-status', s.storedStatus, [['trialing', 'Trial'], ['active', 'Active'], ['past_due', 'Past due'], ['cancelled', 'Cancelled'], ['suspended', 'Suspended']]) +
+        '<div style="font-size:12px; color:var(--faint); margin:5px 0 14px;">Currently reading as ' + esc(LABELS[s.status] || s.status) +
+          ', which also takes the date below into account.</div>' +
+        '<label class="label">Plan</label>' +
+        '<div style="display:flex; gap:10px; margin:6px 0 14px;">' +
+          selectBox('m-cycle', s.cycle, [['monthly', 'Monthly'], ['annual', 'Annual']]) +
+          '<input id="m-seats" type="number" min="1" max="25" value="' + esc(s.seats) + '" style="width:92px;" />' +
+        '</div>' +
+        '<label class="label" for="m-end">Renews / ends on</label>' +
+        '<input id="m-end" type="date" value="' + esc(s.periodEnd || '') + '" style="width:100%; margin:6px 0 4px;" />' +
+        '<div style="font-size:12px; color:var(--faint); margin-bottom:18px;">Clear this to fall back to the end of the 14-day trial.</div>' +
+        '<div style="display:flex; gap:8px;">' +
+          '<button class="btn" id="m-save">Save changes</button>' +
+          '<button class="btn ghost" id="m-cancel">Cancel</button>' +
+        '</div>' +
+      '</div></div>';
+
+    $('drawer-close').onclick = closeDrawer;
+    $('m-cancel').onclick = closeDrawer;
+    $('m-save').onclick = async function () {
+      $('m-save').disabled = true;
+      try {
+        await send('/subscriptions/' + s.id, 'PATCH', {
+          status: $('m-status').value,
+          cycle: $('m-cycle').value,
+          seats: Number($('m-seats').value),
+          periodEnd: $('m-end').value
+        });
+        toast('Subscription updated.');
+        closeDrawer();
+        renderSubscriptions();
+      } catch (err) {
+        toast(err.message, true);
+        $('m-save').disabled = false;
+      }
+    };
+  }
+
+  // --------------------------------------------------------------- payments
+
+  async function renderPayments() {
+    loading();
+    var f = state.payments;
+    var d = await api('/payments' + query({
+      q: f.q, status: f.status, from: f.from, to: f.to, page: f.page, pageSize: 25
+    }));
+
+    var html = '<div class="card pad filters">' +
+      '<input id="p-q" placeholder="Search organisation or reference" value="' + esc(f.q) + '" style="flex:1 1 240px;" />' +
+      selectBox('p-status', f.status, [['', 'Any outcome'], ['success', 'Success'], ['failed', 'Failed'], ['pending', 'Pending'], ['refunded', 'Refunded']]) +
+      '<label style="font-size:13px; color:var(--muted);">From <input id="p-from" type="date" value="' + esc(f.from) + '" /></label>' +
+      '<label style="font-size:13px; color:var(--muted);">To <input id="p-to" type="date" value="' + esc(f.to) + '" /></label>' +
+      '<span style="margin-left:auto; font-weight:600;" class="num">' + money(d.collected) + ' collected</span>' +
+    '</div>';
+
+    html += '<div class="card" style="margin-top:16px;">' +
+      (d.payments.length
+        ? '<div style="overflow-x:auto;"><table><thead><tr>' +
+            '<th>Date</th><th>Organisation</th><th>Purpose</th><th>Card</th><th>Reference</th><th>Outcome</th><th style="text-align:right;">Amount</th>' +
+          '</tr></thead><tbody>' +
+          d.payments.map(function (p) {
+            return '<tr>' +
+              '<td class="mono" style="font-size:12.5px;">' + esc(day(p.paidAt || p.createdAt)) + '</td>' +
+              '<td style="font-weight:500;">' + esc(p.orgName) + '</td>' +
+              '<td style="font-size:13px; color:var(--muted);">' + esc(String(p.purpose).replace(/_/g, ' ')) + '</td>' +
+              '<td class="mono" style="font-size:12.5px;">' + esc(p.cardLast4 ? p.cardBrand + ' ••' + p.cardLast4 : '—') + '</td>' +
+              '<td class="mono" style="font-size:11.5px; color:var(--faint); max-width:200px; overflow:hidden; text-overflow:ellipsis;">' + esc(p.reference || '—') + '</td>' +
+              '<td>' + pill(p.status) + '</td>' +
+              '<td class="mono num" style="text-align:right;">' + money(p.amount) + '</td></tr>';
+          }).join('') +
+          '</tbody></table></div>' + pager('p', d.total, { page: d.page, pageSize: d.pageSize })
+        : '<div class="empty">No payments match those filters.<div style="margin-top:6px; font-size:12.5px;">Charges appear here once Paystack is live and a card has been authorised.</div></div>') +
+    '</div>';
+
+    $('page').innerHTML = html;
+
+    var debounce = null;
+    $('p-q').oninput = function (e) {
+      clearTimeout(debounce);
+      var value = e.target.value;
+      debounce = setTimeout(function () { f.q = value; f.page = 1; renderPayments(); }, 280);
+    };
+    $('p-status').onchange = function (e) { f.status = e.target.value; f.page = 1; renderPayments(); };
+    $('p-from').onchange = function (e) { f.from = e.target.value; f.page = 1; renderPayments(); };
+    $('p-to').onchange = function (e) { f.to = e.target.value; f.page = 1; renderPayments(); };
+    wirePager('p', f, renderPayments, d);
+  }
+
+  // --------------------------------------------------------------- activity
+
+  async function renderActivity() {
+    loading();
+    var d = await api('/activity?pageSize=60');
+
+    $('page').innerHTML = '<div class="card">' +
+      '<div class="pad" style="border-bottom:1px solid var(--line);">' +
+        '<h2 class="h2">Everything that happened</h2>' +
+        '<div style="font-size:12.5px; color:var(--muted); margin-top:2px;">Console actions and customer activity, newest first.</div>' +
+      '</div>' +
+      (d.events.length
+        ? '<table><tbody>' + d.events.map(function (e) {
+            return '<tr><td style="padding-left:20px; width:110px;">' +
+                '<span class="pill" style="background:' + (e.scope === 'platform' ? '#1a1a1a; color:#FAC775' : 'var(--slate-bg); color:var(--slate)') + ';">' +
+                esc(e.scope === 'platform' ? 'console' : 'customer') + '</span></td>' +
+              '<td><div style="font-weight:500;">' + esc(String(e.action).replace(/\./g, ' · ')) + '</div>' +
+                '<div style="font-size:12.5px; color:var(--muted);">' + esc(e.actor || 'unknown') +
+                (e.orgName ? ' · ' + esc(e.orgName) : '') +
+                (e.detail && e.detail.reason ? ' — ' + esc(e.detail.reason) : '') + '</div></td>' +
+              '<td class="mono" style="font-size:12px; color:var(--faint); text-align:right; padding-right:20px; white-space:nowrap;">' +
+                esc(ago(e.createdAt)) + '</td></tr>';
+          }).join('') + '</tbody></table>'
+        : '<div class="empty">Nothing yet.</div>') +
+    '</div>';
+  }
+
+  // --------------------------------------------------------------- security
+
+  async function renderSecurity() {
+    loading();
+    var d = await api('/sessions');
+    var me = state.admin || {};
+
+    $('page').innerHTML = '<div class="grid-2">' +
+      '<div class="card pad">' +
+        '<h2 class="h2">Change password</h2>' +
+        '<p style="color:var(--muted); font-size:13px; margin:4px 0 14px;">Changing it ends every other session this account has open.</p>' +
+        '<input id="pw-current" type="password" placeholder="Current password" autocomplete="current-password" style="width:100%; margin-bottom:10px;" />' +
+        '<input id="pw-next" type="password" placeholder="New password — at least 12 characters" autocomplete="new-password" style="width:100%; margin-bottom:14px;" />' +
+        '<button class="btn" id="pw-save">Change password</button>' +
+      '</div>' +
+      '<div class="card pad">' +
+        '<h2 class="h2">This account</h2>' +
+        '<div style="margin-top:10px;">' +
+          '<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--line);">' +
+            '<span style="color:var(--muted); font-size:13px;">Email</span><span class="mono" style="font-size:12.5px;">' + esc(me.email || '') + '</span></div>' +
+          '<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--line);">' +
+            '<span style="color:var(--muted); font-size:13px;">Two-factor</span><span class="mono" style="font-size:12.5px;">' +
+            esc(me.totp_enrolled_at ? 'enrolled ' + day(me.totp_enrolled_at) : 'not enrolled') + '</span></div>' +
+          '<div style="display:flex; justify-content:space-between; padding:8px 0;">' +
+            '<span style="color:var(--muted); font-size:13px;">Previous sign-in</span><span class="mono" style="font-size:12.5px;">' +
+            esc(me.last_login_at ? ago(me.last_login_at) : '—') + '</span></div>' +
+        '</div>' +
+        '<p style="color:var(--muted); font-size:12.5px; margin:14px 0 0;">Lost the authenticator? On the server, run<br />' +
+          '<span class="mono" style="font-size:12px;">npm run create-admin -- --email ' + esc(me.email || 'you@example.com') + ' --rotate-totp</span></p>' +
+      '</div>' +
+    '</div>' +
+    '<div class="card" style="margin-top:16px;">' +
+      '<div class="pad" style="border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center;">' +
+        '<h2 class="h2">Open sessions</h2>' +
+        '<button class="btn ghost sm" id="revoke-others"' + (d.sessions.length < 2 ? ' disabled' : '') + '>End all others</button>' +
+      '</div>' +
+      '<table><tbody>' + d.sessions.map(function (s) {
+        return '<tr><td style="padding-left:20px;"><div class="mono" style="font-size:12.5px;">' + esc(s.ip || 'unknown address') + '</div>' +
+          '<div style="font-size:12px; color:var(--faint); max-width:420px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">' + esc(s.user_agent || '') + '</div></td>' +
+          '<td>' + (s.current ? '<span class="pill pill-active">this device</span>' : '') + '</td>' +
+          '<td class="mono" style="font-size:12px; color:var(--faint); text-align:right; padding-right:20px;">active ' + esc(ago(s.last_seen_at)) + '</td></tr>';
+      }).join('') + '</tbody></table>' +
+    '</div>';
+
+    $('pw-save').onclick = async function () {
+      var current = $('pw-current').value;
+      var next = $('pw-next').value;
+      if (next.length < 12) return toast('Choose a password of at least 12 characters.', true);
+      $('pw-save').disabled = true;
+      try {
+        await send('/password', 'POST', { current: current, next: next });
+        toast('Password changed. Other sessions have been ended.');
+        renderSecurity();
+      } catch (err) {
+        toast(err.message, true);
+        $('pw-save').disabled = false;
+      }
+    };
+
+    $('revoke-others').onclick = async function () {
+      try {
+        var r = await send('/sessions/revoke-others', 'POST', {});
+        toast(r.revoked + ' session' + (r.revoked === 1 ? '' : 's') + ' ended.');
+        renderSecurity();
+      } catch (err) { toast(err.message, true); }
+    };
+  }
+
+  // ------------------------------------------------------------------- boot
+
+  function showGate() {
+    $('shell').style.display = 'none';
+    $('gate').style.display = 'flex';
+    closeDrawer();
+  }
+
+  function showConsole() {
+    $('gate').style.display = 'none';
+    $('shell').style.display = 'flex';
+  }
+
+  $('gate-form').onsubmit = async function (e) {
+    e.preventDefault();
+    $('gate-error').style.display = 'none';
+    $('gate-submit').disabled = true;
+    try {
+      var res = await fetch('/api/admin/login', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: $('g-email').value.trim(),
+          password: $('g-password').value,
+          code: $('g-code').value.trim()
+        })
+      });
+      var body = await res.json().catch(function () { return {}; });
+      if (!res.ok) throw new Error(body.error || 'Sign-in failed.');
+      $('g-password').value = '';
+      $('g-code').value = '';
+      await start();
+    } catch (err) {
+      $('gate-error').textContent = err.message;
+      $('gate-error').style.display = 'block';
+    }
+    $('gate-submit').disabled = false;
+  };
+
+  $('signout').onclick = async function () {
+    try { await send('/logout', 'POST', {}); } catch (e) { /* the cookie is gone either way */ }
+    showGate();
+  };
+
+  $('refresh').onclick = function () { render(); };
+  $('scrim').onclick = closeDrawer;
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeDrawer(); });
+
+  function tickClock() {
+    $('clock').textContent = new Date().toLocaleString('en-GB', {
+      weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+    });
+  }
+
+  async function start() {
+    var me;
+    try {
+      me = await api('/me');
+    } catch (err) {
+      return; // api() has already shown the sign-in screen
+    }
+    state.admin = me.admin;
+    $('side-admin').textContent = me.admin.name || me.admin.email;
+    showConsole();
+    tickClock();
+    setInterval(tickClock, 30000);
+    go('overview');
+  }
+
+  showGate();
+  start();
+})();
+</script>
+</body>
+</html>

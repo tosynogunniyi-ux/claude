@@ -10,7 +10,7 @@ COPY server/package.json server/package-lock.json ./server/
 RUN cd server && npm ci --omit=dev
 
 COPY server ./server
-COPY web/Profitna.dc.html web/support.js ./web/
+COPY web/Profitna.dc.html web/support.js web/admin.html ./web/
 COPY web/vendor ./web/vendor
 
 # Runs unprivileged; node:alpine ships a "node" user for exactly this.

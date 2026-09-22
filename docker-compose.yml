@@ -38,6 +38,10 @@ services:
       ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-opus-5}
       MONO_SECRET_KEY: ${MONO_SECRET_KEY:-}
       MONO_WEBHOOK_SECRET: ${MONO_WEBHOOK_SECRET:-}
+      # The owner's console. It answers 404 until an account is created with
+      #   docker compose exec app node src/create-admin.js --email you@…
+      ADMIN_PATH: ${ADMIN_PATH:-/admin}
+      ADMIN_IP_ALLOWLIST: ${ADMIN_IP_ALLOWLIST:-}
       # Deliberately not set in production: real accounts start empty.
       # SEED_DEMO_DATA: "true"
     # Migrations run to completion before the server accepts traffic.
