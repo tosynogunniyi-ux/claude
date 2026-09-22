@@ -51,6 +51,9 @@ services:
       #   docker compose exec app node src/create-admin.js --email you@…
       ADMIN_PATH: ${ADMIN_PATH:-/admin}
       ADMIN_IP_ALLOWLIST: ${ADMIN_IP_ALLOWLIST:-}
+      # Ends trials and renews terms. Idle until PAYSTACK_SECRET_KEY is set.
+      BILLING_SCHEDULER: ${BILLING_SCHEDULER:-}
+      BILLING_INTERVAL_MINUTES: ${BILLING_INTERVAL_MINUTES:-60}
     command: sh -c "node src/migrate.js && node src/index.js"
 
 volumes:

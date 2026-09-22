@@ -13,6 +13,9 @@ require('dotenv').config();
 const bcrypt = require('bcryptjs');
 const { pool } = require('../src/db');
 const totp = require('../src/totp');
+// Read directly for the scheduling checks: which subscriptions are due, and
+// when a declined one comes round again, is decided here rather than over HTTP.
+const billingModule = require('../src/billing');
 
 const BASE = process.env.SMOKE_BASE || 'http://localhost:4000';
 
@@ -241,6 +244,119 @@ async function makeOwner(email, password) {
 
   const badDate = await admin('PATCH', '/api/admin/subscriptions/' + sub.id, { periodEnd: 'tomorrow' });
   check('a malformed period end is refused', badDate.status === 400, 'status ' + badDate.status);
+
+  // ------------------------------------------------------- automatic billing
+  console.log('\nautomatic billing');
+
+  const billing = await admin('GET', '/api/admin/billing');
+  check('billing status loads', billing.status === 200, 'status ' + billing.status);
+  check('it reports whether the scheduler is on', typeof billing.body.scheduler.on === 'boolean');
+  check(
+    'it is honest about having no processor',
+    billing.body.scheduler.processor === Boolean(process.env.PAYSTACK_SECRET_KEY),
+    JSON.stringify(billing.body.scheduler)
+  );
+  check('it counts what is due', typeof billing.body.dueNow === 'number');
+
+  // The subscription was pushed to 2020 above, so it is overdue — but it has
+  // no authorisation code, which is exactly the case that must not be
+  // mistaken for a failed charge.
+  await pool.query(
+    "UPDATE subscriptions SET status = 'active', current_period_end = CURRENT_DATE - 1 WHERE id = $1",
+    [sub.id]
+  );
+
+  const withoutCard = await billingModule.due(200);
+  check(
+    'a subscription with no card on file is not queued for charging',
+    !withoutCard.some((r) => r.organizationId === orgId),
+    'it was queued'
+  );
+
+  await pool.query(
+    "UPDATE subscriptions SET provider_authorization_code = 'AUTH_smoke_' || $2 WHERE id = $1",
+    [sub.id, stamp]
+  );
+
+  const queued = await billingModule.due(200);
+  check(
+    'an overdue subscription with a card is queued',
+    queued.some((r) => r.organizationId === orgId),
+    'it was not queued'
+  );
+
+  const notYet = await pool.query(
+    `SELECT COUNT(*)::int AS n FROM subscriptions
+      WHERE id = $1 AND COALESCE(current_period_end, trial_start + 14) > CURRENT_DATE`,
+    [sub.id]
+  );
+  check('…and one whose term has not ended is not', notYet.rows[0].n === 0);
+
+  const run = await admin('POST', '/api/admin/billing/run');
+  check('a run can be triggered by hand', run.status === 200, 'status ' + run.status);
+  check(
+    'without Paystack it says so rather than pretending',
+    Boolean(run.body.run.error) === !process.env.PAYSTACK_SECRET_KEY,
+    JSON.stringify(run.body.run)
+  );
+
+  const afterRun = await admin('GET', '/api/admin/billing');
+  check('the run is recorded', afterRun.body.runs.length >= 1);
+  check('and shown as the last run', Boolean(afterRun.body.lastRun));
+
+  // Retry scheduling, without needing a payment processor: drive the same
+  // columns the scheduler writes and confirm the shortlist respects them.
+  await pool.query(
+    `UPDATE subscriptions
+        SET charge_attempts = 1, next_charge_attempt_at = now() + interval '1 day'
+      WHERE id = $1`,
+    [sub.id]
+  );
+  const inBackoff = await billingModule.due(200);
+  check(
+    'a declined card is not retried until its backoff has passed',
+    !inBackoff.some((r) => r.organizationId === orgId),
+    'it was retried immediately'
+  );
+
+  await pool.query(
+    "UPDATE subscriptions SET next_charge_attempt_at = now() - interval '1 minute' WHERE id = $1",
+    [sub.id]
+  );
+  const afterBackoff = await billingModule.due(200);
+  check(
+    '…and is retried once it has',
+    afterBackoff.some((r) => r.organizationId === orgId),
+    'it was not retried'
+  );
+
+  await pool.query('UPDATE subscriptions SET charge_attempts = $2 WHERE id = $1', [
+    sub.id,
+    billingModule.MAX_ATTEMPTS
+  ]);
+  const givenUp = await billingModule.due(200);
+  check(
+    'after the last attempt it stops rather than retrying for ever',
+    !givenUp.some((r) => r.organizationId === orgId),
+    'it is still being retried'
+  );
+
+  await pool.query("UPDATE subscriptions SET status = 'cancelled' WHERE id = $1", [sub.id]);
+  await pool.query('UPDATE subscriptions SET charge_attempts = 0 WHERE id = $1', [sub.id]);
+  const cancelled = await billingModule.due(200);
+  check(
+    'a cancelled subscription is never charged',
+    !cancelled.some((r) => r.organizationId === orgId),
+    'it was queued'
+  );
+
+  await pool.query("UPDATE subscriptions SET status = 'suspended' WHERE id = $1", [sub.id]);
+  const suspendedSubCheck = await billingModule.due(200);
+  check(
+    'nor a suspended one',
+    !suspendedSubCheck.some((r) => r.organizationId === orgId),
+    'it was queued'
+  );
 
   // --------------------------------------------------------------- payments
   console.log('\npayments and activity');

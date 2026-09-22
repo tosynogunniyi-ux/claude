@@ -4,6 +4,8 @@ const bcrypt = require('bcryptjs');
 const { one, many, query } = require('../db');
 const totp = require('../totp');
 const pricing = require('../pricing');
+const billing = require('../billing');
+const paystack = require('../integrations/paystack');
 const {
   requireAdmin,
   adminAudit,
@@ -689,6 +691,61 @@ router.patch('/subscriptions/:id', async (req, res, next) => {
         amount: pricing.amountFor(updated.cycle, updated.seats)
       }
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// =========================================================================
+// AUTOMATIC BILLING
+// =========================================================================
+
+router.get('/billing', async (req, res, next) => {
+  try {
+    const [last, waiting, ready, recent] = await Promise.all([
+      billing.lastRun(),
+      billing.outstanding(),
+      billing.due(200),
+      many(
+        `SELECT id, trigger, started_at AS "startedAt", finished_at AS "finishedAt",
+                considered, charged, failed, amount, error
+           FROM billing_runs ORDER BY started_at DESC LIMIT 10`
+      )
+    ]);
+
+    res.json({
+      scheduler: {
+        on: billing.enabled(),
+        everyMinutes: Math.round(billing.intervalMs() / 60000),
+        processor: paystack.configured(),
+        maxAttempts: billing.MAX_ATTEMPTS,
+        retryDays: billing.RETRY_DAYS
+      },
+      lastRun: last,
+      // What the next pass would attempt, versus everything overdue including
+      // the subscriptions sitting out a retry window.
+      dueNow: ready.length,
+      outstanding: waiting.map((w) => Object.assign(w, { amount: undefined })),
+      runs: recent.map((r) => Object.assign(r, { amount: Number(r.amount) }))
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// The same pass the timer runs, on demand. Useful on the day you go live, and
+// after fixing whatever stopped a charge going through.
+router.post('/billing/run', async (req, res, next) => {
+  try {
+    const result = await billing.runOnce('manual');
+    await adminAudit(req, 'billing.run', 'billing_run', result.id, {
+      considered: result.considered,
+      charged: result.charged,
+      failed: result.failed,
+      amount: result.amount,
+      error: result.error
+    });
+    res.json({ run: result });
   } catch (err) {
     next(err);
   }

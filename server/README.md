@@ -41,6 +41,7 @@ what it can honestly do:
 | `ADMIN_PATH` | The owner's console is served at `/admin`. |
 | `ADMIN_IP_ALLOWLIST` | The console is reachable from any address. |
 | `ADMIN_TOTP` | Two-factor is required. Set it to `off` only if you cannot use an authenticator app. |
+| `BILLING_SCHEDULER` | Trials end and terms renew automatically. Set it to `off` to stop that. |
 
 ## How it fits together
 
@@ -61,6 +62,7 @@ what it can honestly do:
   `configured()` check.
 - `src/admin-auth.js`, `src/routes/admin.js`, `web/admin.html` — the Control
   Center, described below.
+- `src/billing.js` — the timer that ends trials and renews terms.
 
 Two rules the schema enforces by design, carried over from the build spec:
 document status is **derived** from payments and due date rather than stored,
@@ -144,9 +146,51 @@ be used to bypass payment.
 Without Paystack, the form validates locally and sends only the brand, last
 four and expiry — what the UI displays back.
 
-The reusable authorisation code is what `chargeDue()` charges when a trial
-ends or a term renews. Wire that to a scheduler when you go live, and point
-the Paystack webhook at `/api/webhooks/paystack`.
+The reusable authorisation code is what the biller charges when a trial ends
+or a term renews. Point the Paystack webhook at `/api/webhooks/paystack`.
+
+## Automatic billing
+
+`src/billing.js` is what makes a trial end. It runs inside the server process
+on a timer (`BILLING_INTERVAL_MINUTES`, default 60) and stays idle until
+`PAYSTACK_SECRET_KEY` is set, so a deployment without a processor charges
+nothing rather than failing loudly every hour.
+
+Each pass takes a Postgres **advisory lock**, so running more than one
+container does not charge the same card twice, and it charges at most
+`BILLING_BATCH` (50) subscriptions, so a backlog after downtime drains over
+several passes instead of firing hundreds of charges at once.
+
+**What is due:** a subscription whose term has run out —
+`COALESCE(current_period_end, trial_start + 14) <= today` — that is still
+`trialing`, `active` or `past_due` and has an authorisation code. Cancelled
+and suspended subscriptions are never charged, and neither is one with no card
+on file.
+
+**When it succeeds**, `chargeDue()` writes a `payments` row, moves the
+subscription to `active`, and rolls `current_period_start` / `_end` forward a
+month or a year.
+
+**When the card is declined**, the subscription goes `past_due`, the failed
+charge is recorded with the reason the processor gave, and it is retried after
+1, then 3, then 5, then 7 days. After the fourth attempt it stops and leaves
+the subscription `past_due` for a human. Ending someone's books because a card
+expired is the owner's decision, not a timer's — the Control Center shows
+every one of these on the Subscriptions page, with the attempt count and the
+last error.
+
+The owner can also run a pass on demand from that page ("Run now"), which is
+the same code path, recorded in `billing_runs` and in the platform audit log.
+
+`npm run test:billing` exercises the whole path — due list, successful charge,
+period roll, payment row, decline, retry backoff, giving up, and recovery —
+against the real database with only the processor stubbed.
+
+| Variable | Effect |
+|---|---|
+| `BILLING_SCHEDULER=off` | The timer never starts. "Run now" still works. |
+| `BILLING_INTERVAL_MINUTES` | How often a pass runs. Default 60. |
+| `BILLING_BATCH` | Most subscriptions charged in one pass. Default 50. |
 
 ## Deploying
 
@@ -163,7 +207,6 @@ if it is unavailable.
 
 ## Not wired yet
 
-- Charging at trial end needs a scheduler calling `chargeDue()`.
 - Mono's Connect widget needs adding to the front end; the exchange, webhook
   and storage are in place behind `MONO_SECRET_KEY`.
 - WhatsApp and email delivery are UI-only, as the design intends — no

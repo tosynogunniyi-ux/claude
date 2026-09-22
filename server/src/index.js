@@ -77,6 +77,9 @@ if (require.main === module) {
   app.listen(port, '0.0.0.0', () => {
     console.log('Profitna server listening on port ' + port);
     console.log('If your proxy targets a different port, set PORT to match it.');
+    // Ends trials and renews terms. Holds a Postgres advisory lock for each
+    // pass, so running more than one container does not charge twice.
+    require('./billing').start();
   });
 }
 

@@ -808,15 +808,77 @@
 
   // ---------------------------------------------------------- subscriptions
 
+  // The state of the thing that actually ends trials. It sits above the
+  // subscription list because that is where you look when you are asking
+  // "why has this one not been charged?".
+  function billingCard(b) {
+    var s = b.scheduler;
+    var last = b.lastRun;
+    var warn = !s.on || !s.processor || (last && last.error);
+
+    var status = !s.on
+      ? 'Switched off — BILLING_SCHEDULER is set to off, so nothing will be charged.'
+      : !s.processor
+        ? 'Idle — PAYSTACK_SECRET_KEY is not set, so there is nothing to charge with.'
+        : 'On — checks every ' + s.everyMinutes + ' minute' + (s.everyMinutes === 1 ? '' : 's') +
+          '. A declined card is retried ' + s.maxAttempts + ' times over ' +
+          s.retryDays.reduce(function (a, n) { return a + n; }, 0) + ' days, then left past due.';
+
+    var lastLine = !last
+      ? 'Has not run yet.'
+      : 'Last run ' + ago(last.startedAt) + ' · ' + count(last.considered) + ' due · ' +
+        count(last.charged) + ' charged · ' + count(last.failed) + ' failed' +
+        (Number(last.amount) ? ' · ' + money(last.amount) : '') +
+        (last.error ? ' — ' + last.error : '');
+
+    var problems = (b.outstanding || []).filter(function (o) { return o.attempts > 0; });
+
+    return '<div class="card pad" style="margin-bottom:16px;' +
+        (warn ? ' border-color:#E0C9A0; background:#FFFDF8;' : '') + '">' +
+      '<div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap;">' +
+        '<div style="flex:1 1 320px; min-width:240px;">' +
+          '<h2 class="h2">Automatic billing</h2>' +
+          '<div style="font-size:13px; color:' + (warn ? 'var(--amber)' : 'var(--muted)') + '; margin-top:3px;">' + esc(status) + '</div>' +
+          '<div style="font-size:12.5px; color:var(--faint); margin-top:4px;">' + esc(lastLine) + '</div>' +
+        '</div>' +
+        '<div style="display:flex; align-items:center; gap:14px;">' +
+          '<div style="text-align:right;">' +
+            '<div class="label">Due now</div>' +
+            '<div style="font-size:22px; font-weight:600;" class="num">' + count(b.dueNow) + '</div>' +
+          '</div>' +
+          '<button class="btn" id="billing-run"' + (s.processor ? '' : ' disabled') + '>Run now</button>' +
+        '</div>' +
+      '</div>' +
+      (problems.length
+        ? '<div style="margin-top:14px; border-top:1px solid var(--line); padding-top:12px;">' +
+            '<div class="label" style="margin-bottom:8px;">Retrying after a declined card</div>' +
+            problems.map(function (o) {
+              return '<div style="display:flex; justify-content:space-between; gap:12px; padding:5px 0; font-size:13px;">' +
+                '<span>' + esc(o.orgName) + '</span>' +
+                '<span class="mono" style="font-size:12px; color:var(--muted);">' +
+                  'attempt ' + esc(o.attempts) + ' of ' + esc(s.maxAttempts) +
+                  ' · next ' + esc(o.nextAttempt ? ago(o.nextAttempt).replace(' ago', ' overdue') : 'not scheduled') +
+                  (o.lastError ? ' · ' + esc(o.lastError) : '') +
+                '</span></div>';
+            }).join('') +
+          '</div>'
+        : '') +
+    '</div>';
+  }
+
   async function renderSubscriptions() {
     loading();
     var f = state.subs;
-    var d = await api('/subscriptions' + query({
-      q: f.q, status: f.status, cycle: f.cycle, expiring: f.expiring,
-      sort: f.sort, dir: f.dir, page: f.page, pageSize: 25
-    }));
+    var results = await Promise.all([
+      api('/subscriptions' + query({
+        q: f.q, status: f.status, cycle: f.cycle, expiring: f.expiring,
+        sort: f.sort, dir: f.dir, page: f.page, pageSize: 25
+      })),
+      api('/billing')
+    ]);
+    var d = results[0];
 
-    var html = '<div class="card pad filters">' +
+    var html = billingCard(results[1]) + '<div class="card pad filters">' +
       '<input id="s-q" placeholder="Search organisation" value="' + esc(f.q) + '" style="flex:1 1 240px;" />' +
       selectBox('s-status', f.status, [['', 'Any state'], ['trial', 'Trial'], ['active', 'Active'], ['past_due', 'Past due'], ['expired', 'Expired'], ['cancelled', 'Cancelled'], ['suspended', 'Suspended']]) +
       selectBox('s-cycle', f.cycle, [['', 'Any plan'], ['monthly', 'Monthly'], ['annual', 'Annual']]) +
@@ -863,6 +925,25 @@
     $('s-status').onchange = function (e) { f.status = e.target.value; f.page = 1; renderSubscriptions(); };
     $('s-cycle').onchange = function (e) { f.cycle = e.target.value; f.page = 1; renderSubscriptions(); };
     $('s-expiring').onchange = function (e) { f.expiring = e.target.checked; f.page = 1; renderSubscriptions(); };
+
+    $('billing-run').onclick = async function () {
+      $('billing-run').disabled = true;
+      $('billing-run').textContent = 'Running…';
+      try {
+        var r = (await send('/billing/run', 'POST', {})).run;
+        toast(r.error
+          ? r.error
+          : r.considered === 0
+            ? 'Nothing was due.'
+            : r.charged + ' charged, ' + r.failed + ' failed.', Boolean(r.error));
+        renderSubscriptions();
+      } catch (err) {
+        toast(err.message, true);
+        $('billing-run').disabled = false;
+        $('billing-run').textContent = 'Run now';
+      }
+    };
+
     wirePager('s', f, renderSubscriptions, d);
     wireSort(f, renderSubscriptions);
 

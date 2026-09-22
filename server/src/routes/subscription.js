@@ -64,8 +64,10 @@ router.post('/subscription/cancel', requireOrg('admin'), async (req, res, next) 
   }
 });
 
-// Charges the stored card. Runs when a trial ends or a term renews — call it
-// from a scheduler once the deployment has a live Paystack key.
+// Charges the stored card once, for one organisation. Deciding *when* that
+// should happen is src/billing.js; this only does it and reports what
+// happened, so the same function serves the scheduler and the owner's
+// "run now" button.
 async function chargeDue(organizationId) {
   const sub = await one(
     `SELECT s.*, o.name AS org_name,
@@ -76,19 +78,31 @@ async function chargeDue(organizationId) {
       WHERE s.organization_id = $1`,
     [organizationId]
   );
-  if (!sub || sub.status === 'cancelled') return { charged: false, reason: 'not billable' };
-  if (!paystack.configured() || !sub.provider_authorization_code) {
-    return { charged: false, reason: 'no payment processor configured' };
+  if (!sub || sub.status === 'cancelled' || sub.status === 'suspended') {
+    return { charged: false, reason: 'not billable' };
   }
+  if (!paystack.configured()) return { charged: false, reason: 'no payment processor configured' };
+  if (!sub.provider_authorization_code) return { charged: false, reason: 'no card on file' };
 
   const amount = amountFor(sub.cycle, sub.seats);
   const reference = 'profitna-' + organizationId + '-' + Date.now();
-  const result = await paystack.chargeAuthorization({
-    authorizationCode: sub.provider_authorization_code,
-    email: sub.email,
-    amountNaira: amount,
-    reference
-  });
+
+  let result;
+  try {
+    result = await paystack.chargeAuthorization({
+      authorizationCode: sub.provider_authorization_code,
+      email: sub.email,
+      amountNaira: amount,
+      reference
+    });
+  } catch (err) {
+    // Paystack unreachable is not a declined card: nothing was charged, so
+    // say so plainly and let the scheduler try again rather than recording a
+    // failure against the customer.
+    return { charged: false, reason: 'could not reach the payment processor: ' + err.message, amount };
+  }
+
+  const message = (result.body && result.body.message) || 'charge declined';
 
   // Recorded either way. A failed renewal is exactly what the owner needs to
   // see in the console, and a history that only holds successes hides it.
@@ -100,7 +114,7 @@ async function chargeDue(organizationId) {
     status: result.ok ? 'success' : 'failed',
     cardBrand: sub.card_brand,
     cardLast4: sub.card_last4,
-    detail: result.ok ? null : { message: (result.body && result.body.message) || 'charge declined' }
+    detail: result.ok ? null : { message }
   });
 
   if (result.ok) {
@@ -108,7 +122,17 @@ async function chargeDue(organizationId) {
   } else {
     await query("UPDATE subscriptions SET status = 'past_due' WHERE organization_id = $1", [organizationId]);
   }
-  return { charged: result.ok };
+
+  await audit(
+    organizationId,
+    null,
+    result.ok ? 'subscription.charged' : 'subscription.charge_failed',
+    'subscription',
+    sub.id,
+    result.ok ? { amount, cycle: sub.cycle, seats: sub.seats } : { amount, reason: message }
+  );
+
+  return { charged: result.ok, amount, reason: result.ok ? null : message };
 }
 
 // A term starts today and ends one cycle out. Stored, because a renewal date

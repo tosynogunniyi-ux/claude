@@ -265,6 +265,25 @@ docker compose exec app node src/create-admin.js --email you@example.com --rotat
 On Easypanel or another panel, run the same command from the service's
 console — the working directory is already `/app/server`.
 
+### 9. Billing
+
+Nothing else to switch on: the server ends trials and renews terms by itself,
+checking every hour. It stays idle until `PAYSTACK_SECRET_KEY` is set, so it
+charges nothing until you have a live key.
+
+Two things to do once that key is in place:
+
+- Point the Paystack webhook at `https://profitna.com/api/webhooks/paystack`
+  (Paystack dashboard → Settings → API Keys & Webhooks).
+- Open the Control Center's **Subscriptions** page. The card at the top says
+  whether billing is on, when it last ran and what it charged, lists any
+  subscription being retried after a declined card, and has a **Run now**
+  button.
+
+A declined card is retried after 1, 3, 5 and 7 days. After the fourth failure
+the subscription is left **past due** rather than cancelled — that decision
+stays yours, in the console.
+
 ---
 
 ## Running it afterwards

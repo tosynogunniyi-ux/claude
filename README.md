@@ -65,7 +65,8 @@ production so real accounts start empty and meet the designed empty states.
 With the server running, `npm run smoke` exercises signup, the ledger,
 invoices and payments, inventory, statement import, subscriptions, and
 confirms one organisation cannot read another's books. `npm run smoke:admin`
-does the same for the Control Center.
+does the same for the Control Center, and `npm run test:billing` drives a
+trial through to a charge, a decline, a retry and a recovery.
 
 ## The Control Center
 
@@ -115,8 +116,6 @@ credentials and second factor.
 
 Not finished yet:
 
-- Nothing charges the card when a trial ends — `chargeDue()` exists but needs a
-  scheduler calling it.
 - Mono's bank-connect widget is not in the front end; the exchange, webhook and
   storage are ready behind it.
 - WhatsApp and email delivery are interface only, and say so in the product.

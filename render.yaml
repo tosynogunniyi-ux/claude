@@ -49,6 +49,9 @@ services:
         sync: false
       - key: ADMIN_IP_ALLOWLIST
         sync: false
+      # Ends trials and renews terms. Idle until PAYSTACK_SECRET_KEY is set.
+      - key: BILLING_INTERVAL_MINUTES
+        value: "60"
       # Deliberately absent: SEED_DEMO_DATA. Real accounts start empty.
 
 databases:

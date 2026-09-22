@@ -11,7 +11,8 @@
     "migrate": "node src/migrate.js",
     "create-admin": "node src/create-admin.js",
     "smoke": "node test/smoke.js",
-    "smoke:admin": "node test/admin-smoke.js"
+    "smoke:admin": "node test/admin-smoke.js",
+    "test:billing": "node test/billing.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.0",
