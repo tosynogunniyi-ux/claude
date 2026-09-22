@@ -10,23 +10,27 @@ function secret() {
   return s;
 }
 
-function issue(res, user) {
-  const token = jwt.sign({ sub: user.id, email: user.email }, secret(), { expiresIn: '7d' });
-  res.cookie(COOKIE, token, {
+// Marked secure whenever the request actually arrived over HTTPS, rather than
+// relying on NODE_ENV being set correctly. Behind a reverse proxy the TLS ends
+// at the proxy, so this reads the forwarded protocol — app.set('trust proxy')
+// makes req.secure honour it. A deployment that forgets NODE_ENV still gets a
+// cookie that only travels over HTTPS.
+function cookieOptions(req) {
+  return {
     httpOnly: true,
     sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: MAX_AGE_MS
-  });
+    secure: Boolean(req && (req.secure || req.get('x-forwarded-proto') === 'https'))
+  };
+}
+
+function issue(req, res, user) {
+  const token = jwt.sign({ sub: user.id, email: user.email }, secret(), { expiresIn: '7d' });
+  res.cookie(COOKIE, token, Object.assign(cookieOptions(req), { maxAge: MAX_AGE_MS }));
   return token;
 }
 
-function clear(res) {
-  res.clearCookie(COOKIE, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production'
-  });
+function clear(req, res) {
+  res.clearCookie(COOKIE, cookieOptions(req));
 }
 
 function readToken(req) {

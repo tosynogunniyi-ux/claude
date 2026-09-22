@@ -73,8 +73,10 @@ scheduler when you go live.
 ## Deploying
 
 The app is one Node process plus Postgres, so Render, Railway and Fly all fit.
-Set the env vars, run `npm run migrate` on release, and serve behind HTTPS —
-`NODE_ENV=production` marks the session cookie `secure`.
+Set the env vars, run `npm run migrate` on release, and serve behind HTTPS.
+The session cookie is marked `secure` whenever the request arrived over HTTPS,
+including through a reverse proxy, so it does not depend on `NODE_ENV` being
+remembered.
 
 The front end loads React and the spreadsheet reader from `web/vendor/`
 rather than a public CDN, so the app boots without third-party availability.

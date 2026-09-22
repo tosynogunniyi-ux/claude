@@ -161,7 +161,7 @@ router.post('/signup', async (req, res, next) => {
     }
 
     const userId = await createAccount({ name, orgName, email, password, googleSub, book, cycle, seats, card, payment });
-    issue(res, { id: userId, email });
+    issue(req, res, { id: userId, email });
     res.status(201).json({ session: await sessionFor(userId) });
   } catch (err) {
     if (err.status === 409) return res.status(409).json({ error: err.message });
@@ -182,7 +182,7 @@ router.post('/login', async (req, res, next) => {
     const ok = user && user.password_hash && (await bcrypt.compare(password, user.password_hash));
     if (!ok) return res.status(401).json({ error: 'That email and password do not match an account.' });
 
-    issue(res, user);
+    issue(req, res, user);
     res.json({ session: await sessionFor(user.id) });
   } catch (err) {
     next(err);
@@ -204,7 +204,7 @@ router.post('/google', async (req, res, next) => {
       const { query } = require('../db');
       await query("UPDATE users SET google_sub = $1, auth_provider = 'google' WHERE id = $2", [profile.sub, user.id]);
     }
-    issue(res, user);
+    issue(req, res, user);
     res.json({ session: await sessionFor(user.id) });
   } catch (err) {
     next(err);
@@ -220,7 +220,7 @@ router.get('/me', requireAuth, async (req, res, next) => {
 });
 
 router.post('/signout', (req, res) => {
-  clear(res);
+  clear(req, res);
   res.json({ ok: true });
 });
 
