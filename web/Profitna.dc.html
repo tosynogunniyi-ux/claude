@@ -34,6 +34,34 @@ window.__resources = {
   a:hover { color: #8A5A10; }
   table { border-collapse: collapse; }
   input, select, textarea, button { font-family: inherit; font-size: inherit; color: inherit; }
+  /* What a role cannot do is shown as unavailable rather than offered and
+     then refused. data-w marks a control that needs write access, data-a one
+     that needs admin. The API is still the authority — this only stops the
+     interface promising something it will not deliver. */
+  [data-role="viewer"] [data-w],
+  [data-role="viewer"] [data-a],
+  [data-role="accountant"] [data-a] {
+    opacity: 0.4;
+    pointer-events: none;
+    cursor: not-allowed;
+  }
+  [data-role="viewer"] [data-w] input, [data-role="viewer"] [data-w] select,
+  [data-role="viewer"] [data-a] input, [data-role="viewer"] [data-a] select,
+  [data-role="accountant"] [data-a] input, [data-role="accountant"] [data-a] select {
+    background: #F4F3EE !important;
+    box-shadow: none !important;
+  }
+
+  /* Print / PDF puts the report on the page and nothing else — no sidebar,
+     no toolbar, no buttons that mean nothing on paper. */
+  @media print {
+    body { background: #FFFFFF !important; }
+    aside[data-om="sidebar"], header[data-om="topbar"],
+    div[data-om="reporttools"], div[data-om="banner"] { display: none !important; }
+    div[data-om="page"] { padding: 0 !important; }
+    div[data-om="report"] { border: 0 !important; max-width: none !important; padding: 0 !important; }
+    @page { margin: 14mm; }
+  }
   @media (max-width: 900px) {
     aside[data-om="sidebar"] { flex: 0 0 100% !important; padding-bottom: 8px !important; }
     aside[data-om="sidebar"] nav { flex-direction: row !important; overflow-x: auto !important; gap: 6px !important; padding: 10px 12px !important; }
@@ -73,7 +101,7 @@ window.__resources = {
         </div>
       </div>
     </div>
-    <div style="border-top: 1px solid rgba(250,199,117,0.28); padding-top: 16px; font-size: 11.5px; color: #A8A296; line-height: 1.6;">14 days free. No card charged until the trial ends.<br />All figures in Naira (₦).</div>
+    <div style="border-top: 1px solid rgba(250,199,117,0.28); padding-top: 16px; font-size: 11.5px; color: #A8A296; line-height: 1.6;">14 days free. No card required to start.<br />All figures in Naira (₦).</div>
   </section>
 
   <section style="flex: 1 1 460px; min-width: 320px; display: flex; align-items: flex-start; justify-content: center; padding: 44px 30px 60px;">
@@ -88,6 +116,7 @@ window.__resources = {
         <div style="background: #FFFFFF; border: 1px solid #E5E1D8; border-top: 3px solid #FAC775; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.04), 0 1px 3px rgba(19,19,19,.06); padding: 32px; margin-top: 14px;">
           <h1 style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 23px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.015em;">Welcome back</h1>
           <div style="font-size: 13px; color: #403D37; margin-bottom: 20px;">Sign in to continue to your books.</div>
+          <sc-if value="{{ au.googleReady }}" hint-placeholder-val="{{ false }}">
           <button onClick="{{ au.google }}" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 12px; font-size: 14px; font-weight: 600; color: #1a1a1a; cursor: pointer; box-shadow: 0 1px 2px rgba(19,19,19,.05); transition: background .14s, box-shadow .14s;" style-hover="background: #F7F5F0; box-shadow: 0 2px 4px rgba(19,19,19,.06);">
             <svg width="17" height="17" viewBox="0 0 48 48" style="flex: 0 0 17px;">
               <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.6 30.2 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.8 6.1C12.3 13.2 17.7 9.5 24 9.5z"></path>
@@ -102,6 +131,7 @@ window.__resources = {
             <span style="font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: #5C5850;">or</span>
             <span style="flex: 1; height: 1px; background: #E5E1D8;"></span>
           </div>
+          </sc-if>
           <div style="display: flex; flex-direction: column; gap: 14px;">
             <label style="display: block;">
               <span style="display: block; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: #5C5850; margin-bottom: 5px;">Email address</span>
@@ -136,6 +166,7 @@ window.__resources = {
             <div>
               <h1 style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 23px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.015em;">Create your account</h1>
               <div style="font-size: 13px; color: #403D37; margin-bottom: 20px;">14 days free, full access. Card details come at the last step.</div>    
+              <sc-if value="{{ au.googleReady }}" hint-placeholder-val="{{ false }}">
               <button onClick="{{ au.google }}" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 12px; font-size: 14px; font-weight: 600; color: #1a1a1a; cursor: pointer; box-shadow: 0 1px 2px rgba(19,19,19,.05); transition: background .14s, box-shadow .14s;" style-hover="background: #F7F5F0; box-shadow: 0 2px 4px rgba(19,19,19,.06);">
                 <svg width="17" height="17" viewBox="0 0 48 48" style="flex: 0 0 17px;">
                   <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.6 30.2 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.8 6.1C12.3 13.2 17.7 9.5 24 9.5z"></path>
@@ -150,6 +181,7 @@ window.__resources = {
                 <span style="font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: #5C5850;">or</span>
                 <span style="flex: 1; height: 1px; background: #E5E1D8;"></span>
               </div>
+              </sc-if>
               <div style="display: flex; flex-direction: column; gap: 14px;">
                 <label style="display: block;">
                   <span style="display: block; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: #5C5850; margin-bottom: 5px;">Full name</span>
@@ -212,7 +244,7 @@ window.__resources = {
           <sc-if value="{{ au.step3 }}" hint-placeholder-val="{{ false }}">
             <div>
               <h1 style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 23px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.015em;">Choose a plan</h1>
-              <div style="font-size: 13px; color: #403D37; margin-bottom: 18px;">Free for 14 days. Billing starts {{ au.firstCharge }} on the plan below.</div>
+              <div style="font-size: 13px; color: #403D37; margin-bottom: 18px;">Free for 14 days, no card required. We ask for payment when the trial ends on {{ au.trialEnds }}.</div>
               <div style="display: grid; gap: 10px;">
                 <sc-for list="{{ au.plans }}" as="p" hint-placeholder-count="2">
                   <button onClick="{{ p.pick }}" style="text-align: left; cursor: pointer; background: {{ p.bg }}; border: 1px solid {{ p.border }}; border-left: 3px solid {{ p.rule }}; border-radius: 6px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px;" style-hover="border-color: #1a1a1a;">
@@ -254,76 +286,46 @@ window.__resources = {
                 </div>
               </div>
 
+              <!-- A seat nobody is named for helps nobody, so the extra ones
+                   are filled in here, with the role each person gets. -->
+              <sc-if value="{{ au.hasTeam }}" hint-placeholder-val="{{ false }}">
+                <div style="border: 1px solid #E5E1D8; border-radius: 6px; background: #FFFFFF; padding: 14px 16px; margin-top: 12px;">
+                  <div style="font-size: 13px; font-weight: 600;">Who else is on the account?</div>
+                  <div style="font-size: 12.5px; color: #5C5850; margin-top: 3px;">{{ au.teamNote }}</div>
+                  <sc-for list="{{ au.team }}" as="t" hint-placeholder-count="2">
+                    <div style="border-top: 1px solid #E4DFD5; margin-top: 12px; padding-top: 12px;">
+                      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <input value="{{ t.email }}" onChange="{{ t.setEmail }}" placeholder="name@company.com" style="flex: 2 1 190px; min-width: 0; padding: 9px 11px; border: 1px solid #C9C3B7; border-radius: 6px; background: #FFFFFF; font-size: 13px;" />
+                        <sc-raw-select value="{{ t.role }}" onChange="{{ t.setRole }}" style="flex: 1 1 130px; padding: 9px 10px; border: 1px solid #C9C3B7; border-radius: 6px; background: #FFFFFF; font-size: 13px;">
+                          <option value="admin">Admin</option>
+                          <option value="accountant">Accountant</option>
+                          <option value="viewer">Viewer</option>
+                        </sc-raw-select>
+                      </div>
+                      <div style="font-size: 11.5px; color: #5C5850; margin-top: 6px;">{{ t.note }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+
               <sc-if value="{{ au.err }}" hint-placeholder-val="{{ false }}">
                 <div style="background: #FBEEEA; border: 1px solid #E3C4BA; border-radius: 6px; padding: 9px 11px; font-size: 12.5px; color: #8A2F1D; margin-top: 14px;">{{ au.err }}</div>
               </sc-if>
 
               <div style="display: flex; gap: 10px; margin-top: 16px;">
                 <button onClick="{{ au.back }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 12px 16px; font-size: 13px; font-weight: 500; cursor: pointer;" style-hover="background: #F4F3EE;">Back</button>
-                <button onClick="{{ au.next }}" style="flex: 1; border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); transition: transform .16s cubic-bezier(.2,.6,.3,1), box-shadow .16s; padding: 12px; font-size: 14px; font-weight: 600; cursor: pointer;" style-hover="background: #FAC775; color: #1a1a1a;">Continue to payment details</button>
+                <button onClick="{{ au.finish }}" style="flex: 1; border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); transition: transform .16s cubic-bezier(.2,.6,.3,1), box-shadow .16s; padding: 12px; font-size: 14px; font-weight: 600; cursor: pointer;" style-hover="background: #FAC775; color: #1a1a1a;">{{ au.finishLabel }}</button>
               </div>
-            </div>
-          </sc-if>
-
-          <sc-if value="{{ au.step4 }}" hint-placeholder-val="{{ false }}">
-            <div>
-              <h1 style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 23px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.015em;">Payment details</h1>
-              <div style="font-size: 13px; color: #403D37; margin-bottom: 18px;">Nothing is charged today. We hold your card so your books keep running when the trial ends on {{ au.trialEnds }}.</div>
-
-              <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; background: #F7F5F0; border: 1px solid #E5E1D8; border-radius: 6px; padding: 14px 16px; margin-bottom: 18px;">
-                <div>
-                  <div style="font-size: 13px; font-weight: 600;">{{ au.cardPlanLine }}</div>
-                  <div style="font-size: 12px; color: #5C5850; margin-top: 3px;">First charge {{ au.firstCharge }}</div>
-                </div>
-                <div style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 21px; font-weight: 700; font-variant-numeric: tabular-nums;">{{ au.total }}</div>
-              </div>
-
-              <div style="display: flex; flex-direction: column; gap: 14px;">
-                <label style="display: block;">
-                  <span style="display: block; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: #5C5850; margin-bottom: 5px;">Name on card</span>
-                  <input value="{{ au.cardName }}" onChange="{{ au.setCardName }}" placeholder="TOLU ADEYEMI" style="width: 100%; padding: 10px 12px; border: 1px solid #C9C3B7; border-radius: 6px; background: #FFFFFF; font-size: 14px;" />
-                </label>
-                <label style="display: block;">
-                  <span style="display: block; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: #5C5850; margin-bottom: 5px;">Card number</span>
-                  <input inputMode="numeric" value="{{ au.cardNum }}" onChange="{{ au.setCardNum }}" placeholder="0000 0000 0000 0000" style="width: 100%; padding: 10px 12px; border: 1px solid #C9C3B7; border-radius: 6px; background: #FFFFFF; font-size: 14px; font-family: 'IBM Plex Mono', monospace; letter-spacing: 0.04em;" />
-                  <sc-if value="{{ au.cardBrand }}" hint-placeholder-val="{{ false }}">
-                    <span style="display: inline-block; font-size: 11.5px; font-weight: 600; color: #5C5850; margin-top: 6px;">{{ au.cardBrand }}</span>
-                  </sc-if>
-                </label>
-                <div style="display: flex; gap: 12px;">
-                  <label style="display: block; flex: 1;">
-                    <span style="display: block; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: #5C5850; margin-bottom: 5px;">Expiry</span>
-                    <input inputMode="numeric" value="{{ au.cardExp }}" onChange="{{ au.setCardExp }}" placeholder="MM/YY" style="width: 100%; padding: 10px 12px; border: 1px solid #C9C3B7; border-radius: 6px; background: #FFFFFF; font-size: 14px; font-family: 'IBM Plex Mono', monospace;" />
-                  </label>
-                  <label style="display: block; flex: 1;">
-                    <span style="display: block; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: #5C5850; margin-bottom: 5px;">CVV</span>
-                    <input inputMode="numeric" type="password" value="{{ au.cardCvc }}" onChange="{{ au.setCardCvc }}" placeholder="123" style="width: 100%; padding: 10px 12px; border: 1px solid #C9C3B7; border-radius: 6px; background: #FFFFFF; font-size: 14px; font-family: 'IBM Plex Mono', monospace;" />
-                  </label>
-                </div>
-              </div>
-
-              <label style="display: flex; gap: 9px; align-items: flex-start; margin-top: 16px; cursor: pointer;">
-                <input type="checkbox" checked="{{ au.agreed }}" onChange="{{ au.toggleAgree }}" style="margin-top: 2px; width: 15px; height: 15px; accent-color: #1a1a1a;" />
-                <span style="font-size: 12px; color: #403D37; line-height: 1.5;">I authorise Profitna to charge this card {{ au.total }} {{ au.cadence }} from {{ au.firstCharge }}, and to renew automatically until I cancel.</span>
-              </label>
 
               <div style="display: flex; align-items: center; gap: 8px; margin-top: 14px; font-size: 11.5px; color: #5C5850;">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex: 0 0 13px;">
                   <path d="M5 11h14v10H5V11zm3 0V7a4 4 0 0 1 8 0v4"></path>
                 </svg>
-                <span>Card details are encrypted in transit and stored by our payment processor, never on our servers.</span>
-              </div>
-
-              <sc-if value="{{ au.err }}" hint-placeholder-val="{{ false }}">
-                <div style="background: #FBEEEA; border: 1px solid #E3C4BA; border-radius: 6px; padding: 9px 11px; font-size: 12.5px; color: #8A2F1D; margin-top: 14px;">{{ au.err }}</div>
-              </sc-if>
-
-              <div style="display: flex; gap: 10px; margin-top: 16px;">
-                <button onClick="{{ au.back }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 12px 16px; font-size: 13px; font-weight: 500; cursor: pointer;" style-hover="background: #F4F3EE;">Back</button>
-                <button onClick="{{ au.finish }}" style="flex: 1; border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); transition: transform .16s cubic-bezier(.2,.6,.3,1), box-shadow .16s; padding: 12px; font-size: 14px; font-weight: 600; cursor: pointer;" style-hover="background: #FAC775; color: #1a1a1a;">Start 14-day free trial</button>
+                <span>No debit or credit card is needed to start. Nothing is charged today.</span>
               </div>
             </div>
           </sc-if>
+
 
         </div>
       </sc-if>
@@ -334,8 +336,121 @@ window.__resources = {
 </div>
 </sc-if>
 
+<sc-if value="{{ showInvite }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; min-height: 100vh; align-items: center; justify-content: center; background: #1a1a1a; padding: 28px 20px;">
+  <div style="width: 100%; max-width: 440px;">
+
+    <div style="display: flex; align-items: flex-end; gap: 9px; justify-content: center;">
+      <div style="font-size: 26px; font-weight: 700; letter-spacing: 0.09em; line-height: 1; color: #FAEEDA;">PROFIT<span style="color: #FAC775;">NA</span></div>
+      <svg width="22" height="18" viewBox="0 0 20 16" fill="none" style="flex: 0 0 22px; margin-bottom: 1px;"><polyline points="1,13.4 6.6,7.9 10.1,11 16.9,3.4" stroke="#FAC775" stroke-width="2.6" stroke-linecap="square"></polyline><polygon points="18.9,1.1 11.8,2.1 17.9,8.2" fill="#FAC775"></polygon></svg>
+    </div>
+
+    <div style="background: #FFFFFF; border-radius: 10px; padding: 28px; margin-top: 26px;">
+      <h1 style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 22px; font-weight: 700; margin: 0 0 6px; letter-spacing: -0.015em;">{{ inv.title }}</h1>
+      <div style="font-size: 13.5px; color: #403D37; line-height: 1.55;">{{ inv.blurb }}</div>
+
+      <sc-if value="{{ inv.open }}" hint-placeholder-val="{{ true }}">
+        <div>
+          <div style="background: #F7F5F0; border: 1px solid #E5E1D8; border-radius: 6px; padding: 13px 15px; margin-top: 16px;">
+            <div style="font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600;">Your role</div>
+            <div style="font-size: 15px; font-weight: 600; margin-top: 4px;">{{ inv.role }}</div>
+            <div style="font-size: 12.5px; color: #5C5850; margin-top: 3px; line-height: 1.5;">{{ inv.roleNote }}</div>
+          </div>
+
+          <label style="display: block; margin-top: 14px;">
+            <span style="display: block; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: #5C5850; margin-bottom: 5px;">Email</span>
+            <input value="{{ inv.email }}" disabled="{{ true }}" style="width: 100%; padding: 10px 12px; border: 1px solid #E4DFD5; border-radius: 6px; background: #F7F5F0; font-size: 14px; color: #5C5850;" />
+          </label>
+
+          <sc-if value="{{ inv.needsName }}" hint-placeholder-val="{{ true }}">
+            <label style="display: block; margin-top: 12px;">
+              <span style="display: block; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: #5C5850; margin-bottom: 5px;">Your full name</span>
+              <input value="{{ inv.name }}" onChange="{{ inv.setName }}" placeholder="Segun Ade" style="width: 100%; padding: 10px 12px; border: 1px solid #C9C3B7; border-radius: 6px; background: #FFFFFF; font-size: 14px;" />
+            </label>
+          </sc-if>
+
+          <label style="display: block; margin-top: 12px;">
+            <span style="display: block; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: #5C5850; margin-bottom: 5px;">{{ inv.passwordLabel }}</span>
+            <input type="password" value="{{ inv.password }}" onChange="{{ inv.setPassword }}" placeholder="At least 8 characters" style="width: 100%; padding: 10px 12px; border: 1px solid #C9C3B7; border-radius: 6px; background: #FFFFFF; font-size: 14px;" />
+          </label>
+
+          <sc-if value="{{ inv.err }}" hint-placeholder-val="{{ false }}">
+            <div style="background: #FBEEEA; border: 1px solid #E3C4BA; border-radius: 6px; padding: 9px 11px; font-size: 12.5px; color: #8A2F1D; margin-top: 14px;">{{ inv.err }}</div>
+          </sc-if>
+
+          <button onClick="{{ inv.accept }}" style="width: 100%; margin-top: 16px; border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); padding: 13px; font-size: 14px; font-weight: 600; cursor: pointer;" style-hover="background: #FAC775; color: #1a1a1a;">{{ inv.buttonLabel }}</button>
+          <div style="font-size: 11.5px; color: #5C5850; margin-top: 10px; line-height: 1.5;">{{ inv.footnote }}</div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ inv.closed }}" hint-placeholder-val="{{ false }}">
+        <div>
+          <div style="background: #FAEEDA; border: 1px solid #EBD9A8; border-radius: 6px; padding: 14px 16px; font-size: 12.5px; line-height: 1.55; color: #412402; margin-top: 16px;">{{ inv.closedNote }}</div>
+          <a href="/" style="display: block; text-align: center; margin-top: 16px; font-size: 13px;">Go to Profitna</a>
+        </div>
+      </sc-if>
+    </div>
+
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ showPaywall }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; min-height: 100vh; align-items: center; justify-content: center; background: #1a1a1a; padding: 28px 20px;">
+  <div style="width: 100%; max-width: 468px;">
+
+    <div style="display: flex; align-items: flex-end; gap: 9px; justify-content: center;">
+      <div style="font-size: 26px; font-weight: 700; letter-spacing: 0.09em; line-height: 1; color: #FAEEDA;">PROFIT<span style="color: #FAC775;">NA</span></div>
+      <svg width="22" height="18" viewBox="0 0 20 16" fill="none" style="flex: 0 0 22px; margin-bottom: 1px;"><polyline points="1,13.4 6.6,7.9 10.1,11 16.9,3.4" stroke="#FAC775" stroke-width="2.6" stroke-linecap="square"></polyline><polygon points="18.9,1.1 11.8,2.1 17.9,8.2" fill="#FAC775"></polygon></svg>
+    </div>
+
+    <div style="background: #FFFFFF; border-radius: 10px; padding: 28px; margin-top: 26px;">
+      <h1 style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 23px; font-weight: 700; margin: 0 0 6px; letter-spacing: -0.015em;">{{ pay.title }}</h1>
+      <div style="font-size: 13.5px; color: #403D37; line-height: 1.55;">{{ pay.blurb }}</div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; background: #F7F5F0; border: 1px solid #E5E1D8; border-radius: 6px; padding: 14px 16px; margin-top: 18px;">
+        <div>
+          <div style="font-size: 13px; font-weight: 600;">{{ pay.planLine }}</div>
+          <div style="font-size: 12px; color: #5C5850; margin-top: 3px;">{{ pay.cadence }}</div>
+        </div>
+        <div style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 21px; font-weight: 700; font-variant-numeric: tabular-nums;">{{ pay.amount }}</div>
+      </div>
+
+      <div style="background: #F7F5F0; border-left: 3px solid #FAC775; border-radius: 4px; padding: 12px 14px; margin-top: 12px; font-size: 12.5px; color: #403D37; line-height: 1.55;">
+        Your books, records and every figure you have entered are safe. Nothing has been deleted — it all comes back the moment payment goes through.
+      </div>
+
+      <sc-if value="{{ pay.err }}" hint-placeholder-val="{{ false }}">
+        <div style="background: #FBEEEA; border: 1px solid #E3C4BA; border-radius: 6px; padding: 9px 11px; font-size: 12.5px; color: #8A2F1D; margin-top: 14px;">{{ pay.err }}</div>
+      </sc-if>
+
+      <sc-if value="{{ pay.canPay }}" hint-placeholder-val="{{ true }}">
+        <button onClick="{{ pay.subscribe }}" style="width: 100%; margin-top: 16px; border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); padding: 13px; font-size: 14px; font-weight: 600; cursor: pointer;" style-hover="background: #FAC775; color: #1a1a1a;">{{ pay.buttonLabel }}</button>
+        <div style="display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 11.5px; color: #5C5850;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex: 0 0 13px;">
+            <path d="M5 11h14v10H5V11zm3 0V7a4 4 0 0 1 8 0v4"></path>
+          </svg>
+          <span>Your card is entered on Paystack's secure page. Profitna never sees the number.</span>
+        </div>
+      </sc-if>
+      <sc-if value="{{ pay.noProcessor }}" hint-placeholder-val="{{ false }}">
+        <div style="background: #FAEEDA; border: 1px solid #EBD9A8; border-radius: 6px; padding: 14px 16px; font-size: 12.5px; line-height: 1.55; color: #412402; margin-top: 16px;">
+          Payments are not switched on for this deployment yet, so this account cannot be activated from here. Contact support@profitna.com.
+        </div>
+      </sc-if>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; border-top: 1px solid #E5E1D8; margin-top: 20px; padding-top: 14px;">
+        <div style="font-size: 12px; color: #5C5850;">{{ pay.who }}</div>
+        <a href="#" onClick="{{ pay.signOut }}" style="font-size: 12.5px;">Sign out</a>
+      </div>
+    </div>
+
+  </div>
+</div>
+</sc-if>
+
 <sc-if value="{{ authed }}" hint-placeholder-val="{{ false }}">
-<div style="display: flex; min-height: 100vh; align-items: stretch; flex-wrap: wrap; background: #F4F3EE;">
+<div data-role="{{ roleKey }}" style="display: flex; min-height: 100vh; align-items: stretch; flex-wrap: wrap; background: #F4F3EE;">
 
   <!-- ======================= SIDEBAR ======================= -->
   <aside data-om="sidebar" style="flex: 0 0 {{ navWidth }}; min-width: 0; background: #1a1a1a; color: #E8EAEF; display: flex; flex-direction: column; padding: 0 0 20px; overflow: hidden; transition: flex-basis .18s cubic-bezier(.2,.6,.3,1);">
@@ -433,11 +548,36 @@ window.__resources = {
           </sc-for>
         </div>
         <button onClick="{{ goBilling }}" style="border: 1px solid #EBD8B4; background: #FAEEDA; color: #412402; border-radius: 6px; padding: 7px 12px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;" style-hover="background: #F5E2C2;">{{ trialPill }}</button>
-        <button onClick="{{ openTx }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); transition: transform .16s cubic-bezier(.2,.6,.3,1), box-shadow .16s; padding: 8px 15px; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap;" style-hover="background: #FAC775; color: #1a1a1a;">+ {{ newTxLabel }}</button>
+        <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ openTx }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); transition: transform .16s cubic-bezier(.2,.6,.3,1), box-shadow .16s; padding: 8px 15px; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap;" style-hover="background: #FAC775; color: #1a1a1a;">+ {{ newTxLabel }}</button>
       </div>
     </header>
 
     <div data-om="page" style="padding: 22px 26px 60px; flex: 1;">
+
+      <!-- Quiet while the trial has room, warmer as it runs out. Shown on
+           every screen, because the day it matters is not the day you happen
+           to be looking at the dashboard. -->
+      <sc-if value="{{ readOnly.show }}" hint-placeholder-val="{{ false }}">
+        <div data-om="banner" style="display: flex; align-items: center; gap: 10px; background: {{ readOnly.bg }}; border: 1px solid {{ readOnly.border }}; border-left: 3px solid {{ readOnly.rule }}; border-radius: 6px; padding: 11px 15px; margin-bottom: 14px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5C5850" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex: 0 0 14px;">
+            <path d="M5 11h14v10H5V11zm3 0V7a4 4 0 0 1 8 0v4"></path>
+          </svg>
+          <div style="font-size: 13px; color: #412402;">
+            <span style="font-weight: 600;">{{ readOnly.headline }}</span>
+            <span style="color: #5C5850;"> {{ readOnly.detail }}</span>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ trial.show }}" hint-placeholder-val="{{ false }}">
+        <div data-om="banner" style="display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; background: {{ trial.bg }}; border: 1px solid {{ trial.border }}; border-left: 3px solid {{ trial.rule }}; border-radius: 6px; padding: 11px 15px; margin-bottom: 18px;">
+          <div style="font-size: 13px; color: #412402;">
+            <span style="font-weight: 600;">{{ trial.headline }}</span>
+            <span style="color: #5C5850;"> {{ trial.detail }}</span>
+          </div>
+          <button onClick="{{ trial.go }}" style="border: 1px solid #1a1a1a; background: #FFFFFF; border-radius: 6px; padding: 7px 13px; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap;" style-hover="background: #1a1a1a; color: #FFFFFF;">{{ trial.cta }}</button>
+        </div>
+      </sc-if>
 
       <!-- ============ DASHBOARD ============ -->
       <sc-if value="{{ isDashboard }}" hint-placeholder-val="{{ true }}">
@@ -680,8 +820,8 @@ window.__resources = {
               <option value="expense">Expenses only</option>
               <option value="uncoded">Needs a category</option>
             </sc-raw-select>
-            <button onClick="{{ runAI }}" style="border: 1px solid #B8863A; background: #FAEEDA; color: #412402; border-radius: 6px; padding: 8px 13px; font-size: 12.5px; font-weight: 600; cursor: pointer;" style-hover="background: #FAC775;">Suggest categories with AI</button>
-            <button onClick="{{ openImport }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 13px; font-size: 12.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Import statement</button>
+            <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ runAI }}" style="border: 1px solid #B8863A; background: #FAEEDA; color: #412402; border-radius: 6px; padding: 8px 13px; font-size: 12.5px; font-weight: 600; cursor: pointer;" style-hover="background: #FAC775;">Suggest categories with AI</button>
+            <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ openImport }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 13px; font-size: 12.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Import statement</button>
             <button onClick="{{ exportCsv }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 13px; font-size: 12.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Export CSV</button>
           </div>
 
@@ -717,7 +857,7 @@ window.__resources = {
             <div style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.04), 0 1px 3px rgba(19,19,19,.06); padding: 48px 24px; text-align: center; margin-top: -1px;">
               <div style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 19px; font-weight: 600;">Nothing here for this filter</div>
               <div style="font-size: 13px; color: #5C5850; margin: 8px 0 20px;">Widen the date range, clear the search, or import a bank statement to bring entries in.</div>
-              <button onClick="{{ openImport }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); padding: 12px 20px; font-size: 13px; font-weight: 600; cursor: pointer;" style-hover="background: #FAC775; color: #1a1a1a;">Import statement</button>
+              <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ openImport }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); padding: 12px 20px; font-size: 13px; font-weight: 600; cursor: pointer;" style-hover="background: #FAC775; color: #1a1a1a;">Import statement</button>
             </div>
           </sc-if>
           <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; font-size: 12.5px; color: #5C5850; padding: 16px 2px 0;">
@@ -748,8 +888,8 @@ window.__resources = {
           </div>
 
           <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
-            <button onClick="{{ openDoc }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); transition: transform .16s cubic-bezier(.2,.6,.3,1), box-shadow .16s; padding: 8px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer;" style-hover="background: #FAC775; color: #1a1a1a;">+ New {{ docWord }}</button>
-            <button onClick="{{ sendReminders }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 14px; font-size: 12.5px; cursor: pointer;" style-hover="background: #F4F3EE;">{{ reminderLabel }}</button>
+            <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ openDoc }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); transition: transform .16s cubic-bezier(.2,.6,.3,1), box-shadow .16s; padding: 8px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer;" style-hover="background: #FAC775; color: #1a1a1a;">+ New {{ docWord }}</button>
+            <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ sendReminders }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 14px; font-size: 12.5px; cursor: pointer;" style-hover="background: #F4F3EE;">{{ reminderLabel }}</button>
           </div>
 
           <div style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.04), 0 1px 3px rgba(19,19,19,.06); overflow: hidden; overflow-x: auto;">
@@ -853,8 +993,8 @@ window.__resources = {
                     <sc-raw-td style="padding: 12px 16px; text-align: right; font-family: 'IBM Plex Mono', monospace;">{{ i.value }}</sc-raw-td>
                     <sc-raw-td style="padding: 12px 16px; text-align: right; white-space: nowrap;">
                       <span style="display: inline-flex; gap: 6px;">
-                        <button onClick="{{ i.buy }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 4px 9px; font-size: 11.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Receive</button>
-                        <button onClick="{{ i.sell }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 4px 9px; font-size: 11.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Sell</button>
+                        <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ i.buy }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 4px 9px; font-size: 11.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Receive</button>
+                        <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ i.sell }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 4px 9px; font-size: 11.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Sell</button>
                       </span>
                     </sc-raw-td>
                   </sc-raw-tr>
@@ -878,9 +1018,9 @@ window.__resources = {
           </div>
 
           <div style="display: flex; gap: 8px; margin: 14px 0; flex-wrap: wrap;">
-            <button onClick="{{ openImport }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 14px; font-size: 12.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Import statement — CSV, Excel or Google Sheets</button>
-            <button onClick="{{ refreshBank }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 14px; font-size: 12.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Refresh bank lines</button>
-            <button onClick="{{ autoMatch }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); transition: transform .16s cubic-bezier(.2,.6,.3,1), box-shadow .16s; padding: 8px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer;" style-hover="background: #FAC775; color: #1a1a1a;">Run AI auto-match</button>
+            <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ openImport }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 14px; font-size: 12.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Import statement — CSV, Excel or Google Sheets</button>
+            <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ refreshBank }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 14px; font-size: 12.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Refresh bank lines</button>
+            <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ autoMatch }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); transition: transform .16s cubic-bezier(.2,.6,.3,1), box-shadow .16s; padding: 8px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer;" style-hover="background: #FAC775; color: #1a1a1a;">Run AI auto-match</button>
           </div>
 
           <div style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.04), 0 1px 3px rgba(19,19,19,.06); overflow: hidden; overflow-x: auto;">
@@ -902,7 +1042,7 @@ window.__resources = {
                     <sc-raw-td style="padding: 12px 16px; text-align: right; font-family: 'IBM Plex Mono', monospace; color: {{ b.amountColor }};">{{ b.amount }}</sc-raw-td>
                     <sc-raw-td style="padding: 12px 16px; font-size: 12.5px; color: {{ b.matchColor }};">{{ b.match }}</sc-raw-td>
                     <sc-raw-td style="padding: 12px 16px; text-align: right; white-space: nowrap;">
-                      <button onClick="{{ b.action }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 4px 10px; font-size: 11.5px; cursor: pointer;" style-hover="background: #1a1a1a; color: #FFFFFF;">{{ b.actionLabel }}</button>
+                      <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ b.action }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 4px 10px; font-size: 11.5px; cursor: pointer;" style-hover="background: #1a1a1a; color: #FFFFFF;">{{ b.actionLabel }}</button>
                     </sc-raw-td>
                   </sc-raw-tr>
                 </sc-for>
@@ -918,7 +1058,7 @@ window.__resources = {
       <!-- ============ REPORTS ============ -->
       <sc-if value="{{ isReports }}" hint-placeholder-val="{{ false }}">
         <div>
-          <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px;">
+          <div data-om="reporttools" style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px;">
             <sc-for list="{{ reportTabs }}" as="r" hint-placeholder-count="5">
               <button onClick="{{ r.go }}" style="border: 1px solid #C9C3B7; border-radius: 6px; padding: 7px 13px; font-size: 12.5px; font-weight: 500; cursor: pointer; background: {{ r.bg }}; color: {{ r.fg }};" style-hover="border-color: #1a1a1a;">{{ r.label }}</button>
             </sc-for>
@@ -927,12 +1067,13 @@ window.__resources = {
             <button onClick="{{ printReport }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 7px 13px; font-size: 12.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Print / PDF</button>
           </div>
 
-          <div style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; padding: 34px 38px; max-width: 860px;">
+          <div data-om="report" style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; padding: 34px 38px; max-width: 860px;">
             <div style="text-align: center; border-bottom: 2px solid #1a1a1a; padding-bottom: 14px;">
-              <div style="display: flex; align-items: flex-end; justify-content: center; gap: 7px; margin-bottom: 16px;">
-                <div style="font-size: 16px; font-weight: 700; letter-spacing: 0.09em; line-height: 1; color: #1a1a1a;">PROFIT<span style="color: #997315;">NA</span></div>
-                <svg width="14" height="11" viewBox="0 0 20 16" fill="none" style="flex: 0 0 14px; margin-bottom: 1px;"><polyline points="1,13.4 6.6,7.9 10.1,11 16.9,3.4" stroke="#997315" stroke-width="2.6" stroke-linecap="square"></polyline><polygon points="18.9,1.1 11.8,2.1 17.9,8.2" fill="#997315"></polygon></svg>
-              </div>
+              <!-- The company's own mark when it has one. Profitna's stays at
+                   the foot of the page, where a supplier's mark belongs. -->
+              <sc-if value="{{ brand.hasLogo }}" hint-placeholder-val="{{ false }}">
+                <div role="img" aria-label="{{ orgName }}" style="{{ brand.reportStyle }}"></div>
+              </sc-if>
               <div style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 21px; font-weight: 700;">{{ orgName }}</div>
               <div style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 15px; margin-top: 3px;">{{ report.title }}</div>
               <div style="font-size: 12.5px; color: #5C5850; margin-top: 4px; letter-spacing: 0.04em;">{{ report.period }}</div>
@@ -957,6 +1098,15 @@ window.__resources = {
             <sc-if value="{{ report.note }}" hint-placeholder-val="{{ false }}">
               <div style="margin-top: 24px; padding-top: 14px; border-top: 1px solid #EFECE4; font-size: 12px; color: #5C5850; line-height: 1.6;">{{ report.note }}</div>
             </sc-if>
+
+            <div style="margin-top: 26px; padding-top: 12px; border-top: 1px solid #EFECE4; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+              <div style="font-size: 10.5px; color: #8A857C; letter-spacing: 0.04em;">{{ report.stamp }}</div>
+              <div style="display: flex; align-items: center; gap: 5px;">
+                <span style="font-size: 10.5px; color: #8A857C; letter-spacing: 0.04em;">Powered by</span>
+                <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.09em; line-height: 1; color: #5C5850;">PROFIT<span style="color: #997315;">NA</span></span>
+                <svg width="10" height="8" viewBox="0 0 20 16" fill="none" style="flex: 0 0 10px;"><polyline points="1,13.4 6.6,7.9 10.1,11 16.9,3.4" stroke="#997315" stroke-width="3" stroke-linecap="square"></polyline><polygon points="18.9,1.1 11.8,2.1 17.9,8.2" fill="#997315"></polygon></svg>
+              </div>
+            </div>
           </div>
         </div>
       </sc-if>
@@ -964,6 +1114,22 @@ window.__resources = {
       <!-- ============ SETTINGS ============ -->
       <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 16px;">
+
+          <!-- Nothing typed into this panel reaches the books until this is
+               pressed, so it says plainly which state it is in. -->
+          <div style="grid-column: 1 / -1; position: sticky; top: 0; z-index: 5; display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; background: {{ save.bg }}; border: 1px solid {{ save.border }}; border-radius: 6px; padding: 12px 16px;">
+            <div>
+              <div style="font-size: 13.5px; font-weight: 600; color: {{ save.fg }};">{{ save.headline }}</div>
+              <div style="font-size: 12px; color: #5C5850; margin-top: 2px;">{{ save.detail }}</div>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <sc-if value="{{ save.dirty }}" hint-placeholder-val="{{ false }}">
+                <button data-a="" disabled="{{ perm.noAdmin }}" onClick="{{ save.discard }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 9px 14px; font-size: 13px; font-weight: 500; cursor: pointer;" style-hover="border-color: #9E3A26; color: #9E3A26;">Discard</button>
+              </sc-if>
+              <button data-a="" disabled="{{ perm.noAdmin }}" onClick="{{ save.go }}" disabled="{{ save.disabled }}" style="border: 0; background: {{ save.buttonBg }}; color: {{ save.buttonFg }}; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); padding: 9px 18px; font-size: 13px; font-weight: 600; cursor: {{ save.cursor }};" style-hover="background: #FAC775; color: #1a1a1a;">{{ save.label }}</button>
+            </div>
+          </div>
+
           <div style="background: #FFFFFF; border: 1px solid #E5E1D8; border-top: 3px solid #FAC775; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.04), 0 1px 3px rgba(19,19,19,.06); padding: 24px; grid-column: 1 / -1;">
             <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 14px; flex-wrap: wrap;">
               <h2 style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 19px; font-weight: 600; margin: 0;">Subscription</h2>
@@ -975,16 +1141,16 @@ window.__resources = {
                 <div style="font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: #5C5850; margin-bottom: 7px;">Billing cycle</div>
                 <div style="display: flex; border: 1px solid #C9C3B7; border-radius: 6px; overflow: hidden; background: #FFFFFF;">
                   <sc-for list="{{ sub.cycles }}" as="c" hint-placeholder-count="2">
-                    <button onClick="{{ c.go }}" style="flex: 1; border: 0; border-right: 1px solid #E4DFD5; padding: 9px 10px; font-size: 12.5px; font-weight: 500; cursor: pointer; background: {{ c.bg }}; color: {{ c.fg }};">{{ c.label }}</button>
+                    <button data-a="" disabled="{{ perm.noAdmin }}" onClick="{{ c.go }}" style="flex: 1; border: 0; border-right: 1px solid #E4DFD5; padding: 9px 10px; font-size: 12.5px; font-weight: 500; cursor: pointer; background: {{ c.bg }}; color: {{ c.fg }};">{{ c.label }}</button>
                   </sc-for>
                 </div>
               </div>
               <div>
                 <div style="font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: #5C5850; margin-bottom: 7px;">Users</div>
                 <div style="display: flex; align-items: center; border: 1px solid #C9C3B7; border-radius: 6px; overflow: hidden; background: #FFFFFF; width: fit-content;">
-                  <button onClick="{{ sub.dec }}" style="border: 0; border-right: 1px solid #E4DFD5; background: #F7F5F0; padding: 10px 16px; font-size: 15px; cursor: pointer;" style-hover="background: #F4F3EE;">−</button>
+                  <button data-a="" disabled="{{ perm.noAdmin }}" onClick="{{ sub.dec }}" style="border: 0; border-right: 1px solid #E4DFD5; background: #F7F5F0; padding: 10px 16px; font-size: 15px; cursor: pointer;" style-hover="background: #F4F3EE;">−</button>
                   <div style="padding: 8px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 14px; font-weight: 500;">{{ sub.users }}</div>
-                  <button onClick="{{ sub.inc }}" style="border: 0; border-left: 1px solid #E4DFD5; background: #F7F5F0; padding: 10px 16px; font-size: 15px; cursor: pointer;" style-hover="background: #F4F3EE;">+</button>
+                  <button data-a="" disabled="{{ perm.noAdmin }}" onClick="{{ sub.inc }}" style="border: 0; border-left: 1px solid #E4DFD5; background: #F7F5F0; padding: 10px 16px; font-size: 15px; cursor: pointer;" style-hover="background: #F4F3EE;">+</button>
                 </div>
               </div>
               <div>
@@ -1005,29 +1171,167 @@ window.__resources = {
             </div>
             <div style="border-top: 1px solid #E4DFD5; margin-top: 15px; padding-top: 12px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
               <div style="font-size: 12px; color: #5C5850;">{{ sub.booksNote }}</div>
-              <button onClick="{{ sub.cancel }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 14px; font-size: 12.5px; font-weight: 500; cursor: pointer;" style-hover="border-color: #9E3A26; color: #9E3A26;">Cancel subscription</button>
+              <button data-a="" disabled="{{ perm.noAdmin }}" onClick="{{ sub.cancel }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 14px; font-size: 12.5px; font-weight: 500; cursor: pointer;" style-hover="border-color: #9E3A26; color: #9E3A26;">Cancel subscription</button>
             </div>
           </div>
 
           <div style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.04), 0 1px 3px rgba(19,19,19,.06); padding: 24px;">
             <h2 style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 19px; font-weight: 600; margin: 0 0 14px;">Organisation profile</h2>
             <sc-for list="{{ settingsFields }}" as="f" hint-placeholder-count="6">
-              <label style="display: block; margin-bottom: 11px;">
+              <label data-a="" style="display: block; margin-bottom: 11px;">
                 <span style="display: block; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #5C5850; margin-bottom: 4px;">{{ f.label }}</span>
-                <input value="{{ f.value }}" onChange="{{ f.onChange }}" style="width: 100%; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 10px; font-size: 13px; background: #FFFFFF;" />
+                <input disabled="{{ perm.noAdmin }}" value="{{ f.value }}" onChange="{{ f.onChange }}" style="width: 100%; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 10px; font-size: 13px; background: #FFFFFF;" />
               </label>
             </sc-for>
           </div>
 
-          <div style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.04), 0 1px 3px rgba(19,19,19,.06); padding: 24px;">
-            <h2 style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 19px; font-weight: 600; margin: 0 0 6px;">Team &amp; access</h2>
-            <p style="font-size: 12.5px; color: #5C5850; margin: 0 0 12px; line-height: 1.5;">Switch your own role to preview what each permission level sees.</p>
-            <sc-for list="{{ roles }}" as="r" hint-placeholder-count="3">
-              <button onClick="{{ r.go }}" style="display: block; width: 100%; text-align: left; border: 1px solid {{ r.border }}; background: {{ r.bg }}; border-radius: 6px; padding: 10px 13px; margin-bottom: 8px; cursor: pointer;" style-hover="border-color: #1a1a1a;">
-                <div style="font-weight: 600; font-size: 14px;">{{ r.name }}</div>
-                <div style="font-size: 12px; color: #5C5850; margin-top: 2px;">{{ r.desc }}</div>
-              </button>
+          <div style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.04), 0 1px 3px rgba(19,19,19,.06); padding: 24px; grid-column: 1 / -1;">
+            <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap;">
+              <h2 style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 19px; font-weight: 600; margin: 0;">Bank accounts</h2>
+              <div style="font-size: 12.5px; color: #5C5850;">{{ banks.summary }}</div>
+            </div>
+            <p style="font-size: 12.5px; color: #5C5850; margin: 6px 0 14px; line-height: 1.5;">Every account the business holds money in. The opening balance is what was in it before Profitna; each balance below is that figure plus everything recorded against the account since.</p>
+
+            <sc-for list="{{ banks.accounts }}" as="b" hint-placeholder-count="2">
+              <div style="border: 1px solid {{ b.border }}; border-left: 3px solid {{ b.rule }}; border-radius: 6px; padding: 14px 16px; margin-bottom: 10px; background: {{ b.bg }};">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; flex-wrap: wrap;">
+                  <div data-a="" style="flex: 1 1 260px; min-width: 0;">
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                      <input disabled="{{ perm.noAdmin }}" value="{{ b.name }}" onChange="{{ b.setName }}" placeholder="Account name" style="flex: 2 1 150px; min-width: 0; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 10px; font-size: 13px; background: #FFFFFF;" />
+                      <input disabled="{{ perm.noAdmin }}" value="{{ b.bankName }}" onChange="{{ b.setBankName }}" placeholder="Bank" style="flex: 2 1 130px; min-width: 0; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 10px; font-size: 13px; background: #FFFFFF;" />
+                      <input disabled="{{ perm.noAdmin }}" value="{{ b.accountNumber }}" onChange="{{ b.setAccountNumber }}" placeholder="0123456789" inputMode="numeric" style="flex: 1 1 120px; min-width: 0; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 10px; font-size: 13px; font-family: 'IBM Plex Mono', monospace; background: #FFFFFF;" />
+                    </div>
+                    <div style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; align-items: center;">
+                      <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #5C5850;">
+                        Opening balance
+                        <input disabled="{{ perm.noAdmin }}" value="{{ b.openingBalance }}" onChange="{{ b.setOpening }}" inputMode="numeric" placeholder="0.00" style="width: 130px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 7px 9px; font-size: 13px; text-align: right; font-family: 'IBM Plex Mono', monospace; background: #FFFFFF;" />
+                      </label>
+                      <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #5C5850;">
+                        as at
+                        <input type="date" disabled="{{ perm.noAdmin }}" value="{{ b.openingDate }}" onChange="{{ b.setOpeningDate }}" style="border: 1px solid #C9C3B7; border-radius: 6px; padding: 7px 9px; font-size: 12.5px; background: #FFFFFF;" />
+                      </label>
+                      <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #5C5850; cursor: pointer;">
+                        <input type="radio" disabled="{{ perm.noAdmin }}" checked="{{ b.isPrimary }}" onChange="{{ b.makePrimary }}" style="width: 14px; height: 14px; accent-color: #1a1a1a;" />
+                        Default for bank payments
+                      </label>
+                    </div>
+                  </div>
+                  <div style="text-align: right;">
+                    <div style="font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600;">Current balance</div>
+                    <div style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; color: {{ b.balanceColor }}; margin-top: 3px;">{{ b.balance }}</div>
+                    <div style="font-size: 11.5px; color: #5C5850; margin-top: 2px;">{{ b.movement }}</div>
+                    <button data-a="" disabled="{{ perm.noAdmin }}" onClick="{{ b.remove }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 5px 10px; font-size: 11.5px; cursor: pointer; color: #8A857C; margin-top: 8px;" style-hover="border-color: #9E3A26; color: #9E3A26;">{{ b.removeLabel }}</button>
+                  </div>
+                </div>
+              </div>
             </sc-for>
+
+            <button data-a="" disabled="{{ perm.noAdmin }}" onClick="{{ banks.add }}" style="border: 1px dashed #C9C3B7; background: #FCFBF8; border-radius: 6px; padding: 10px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer; width: 100%;" style-hover="border-color: #1a1a1a;">+ Add a bank account</button>
+          </div>
+
+          <div style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.04), 0 1px 3px rgba(19,19,19,.06); padding: 24px;">
+            <h2 style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 19px; font-weight: 600; margin: 0 0 6px;">Report branding</h2>
+            <p style="font-size: 12.5px; color: #5C5850; margin: 0 0 14px; line-height: 1.5;">Your logo appears at the top of every report Profitna produces. PNG, JPEG or WebP, under 400KB.</p>
+
+            <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+              <div style="width: 116px; height: 78px; border: 1px solid #E5E1D8; border-radius: 6px; background: #F7F5F0; display: flex; align-items: center; justify-content: center; overflow: hidden; flex: 0 0 auto;">
+                <sc-if value="{{ brand.hasLogo }}" hint-placeholder-val="{{ false }}">
+                  <div role="img" aria-label="Company logo" style="{{ brand.previewStyle }}"></div>
+                </sc-if>
+                <sc-if value="{{ brand.empty }}" hint-placeholder-val="{{ true }}">
+                  <span style="font-size: 11.5px; color: #8A857C;">No logo</span>
+                </sc-if>
+              </div>
+              <div style="flex: 1 1 160px;">
+                <label data-a="" style="display: inline-block; border: 1px solid #1a1a1a; background: #FFFFFF; border-radius: 6px; padding: 8px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer;" style-hover="background: #1a1a1a; color: #FFFFFF;">
+                  {{ brand.chooseLabel }}
+                  <input type="file" disabled="{{ perm.noAdmin }}" accept="image/png,image/jpeg,image/webp" onChange="{{ brand.choose }}" style="display: none;" />
+                </label>
+                <sc-if value="{{ brand.hasLogo }}" hint-placeholder-val="{{ false }}">
+                  <button data-a="" disabled="{{ perm.noAdmin }}" onClick="{{ brand.clear }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 12px; font-size: 12.5px; cursor: pointer; color: #8A857C; margin-left: 8px;" style-hover="border-color: #9E3A26; color: #9E3A26;">Remove</button>
+                </sc-if>
+                <div style="font-size: 11.5px; color: #5C5850; margin-top: 8px; line-height: 1.5;">{{ brand.note }}</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.04), 0 1px 3px rgba(19,19,19,.06); padding: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap;">
+              <h2 style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 19px; font-weight: 600; margin: 0;">Team &amp; access</h2>
+              <div style="font-size: 12.5px; color: #5C5850;">{{ team.seatLine }}</div>
+            </div>
+            <p style="font-size: 12.5px; color: #5C5850; margin: 6px 0 12px; line-height: 1.5;">{{ team.help }}</p>
+
+            <!-- Links from this session's invitations. They exist nowhere else
+                 — nothing stores the token — so they are surfaced prominently
+                 while they can still be copied. -->
+            <sc-if value="{{ team.hasFresh }}" hint-placeholder-val="{{ false }}">
+              <div style="background: #FAEEDA; border: 1px solid #EBD9A8; border-radius: 6px; padding: 13px 15px; margin-bottom: 14px;">
+                <div style="font-size: 12.5px; font-weight: 600; color: #412402;">Send these links</div>
+                <div style="font-size: 11.5px; color: #5C5850; margin-top: 2px; line-height: 1.5;">Each one lets that person set their own password and join. They are shown once — copy them now.</div>
+                <sc-for list="{{ team.fresh }}" as="f" hint-placeholder-count="2">
+                  <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap;">
+                    <div style="min-width: 0;">
+                      <div style="font-size: 12.5px; font-weight: 600;">{{ f.email }}</div>
+                      <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: #5C5850; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px;">{{ f.link }}</div>
+                    </div>
+                    <button onClick="{{ f.copy }}" style="border: 1px solid #1a1a1a; background: #FFFFFF; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;" style-hover="background: #1a1a1a; color: #FFFFFF;">{{ f.label }}</button>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <sc-for list="{{ team.members }}" as="m" hint-placeholder-count="2">
+              <div style="border: 1px solid #E7E3DA; border-radius: 6px; padding: 10px 13px; margin-bottom: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
+                  <div style="min-width: 0;">
+                    <div style="font-weight: 600; font-size: 14px;">{{ m.name }}</div>
+                    <div style="font-size: 12px; color: #5C5850; margin-top: 2px;">{{ m.sub }}</div>
+                  </div>
+                  <div style="display: flex; gap: 6px; align-items: center;">
+                    <sc-raw-select value="{{ m.role }}" onChange="{{ m.setRole }}" disabled="{{ m.locked }}" style="padding: 7px 9px; border: 1px solid #C9C3B7; border-radius: 6px; background: {{ m.selBg }}; font-size: 12.5px;">
+                      <option value="admin">Admin</option>
+                      <option value="accountant">Accountant</option>
+                      <option value="viewer">Viewer</option>
+                    </sc-raw-select>
+                    <sc-if value="{{ m.canRemove }}" hint-placeholder-val="{{ false }}">
+                      <button data-a="" disabled="{{ perm.noAdmin }}" onClick="{{ m.remove }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 7px 10px; font-size: 12px; cursor: pointer; color: #8A857C;" style-hover="border-color: #9E3A26; color: #9E3A26;">Remove</button>
+                    </sc-if>
+                  </div>
+                </div>
+              </div>
+            </sc-for>
+
+            <sc-for list="{{ team.invitations }}" as="i" hint-placeholder-count="1">
+              <div style="border: 1px dashed #D8D2C6; border-radius: 6px; padding: 10px 13px; margin-bottom: 8px; background: #FCFBF8;">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
+                  <div style="min-width: 0;">
+                    <div style="font-weight: 600; font-size: 13.5px;">{{ i.email }}</div>
+                    <div style="font-size: 12px; color: #5C5850; margin-top: 2px;">{{ i.sub }}</div>
+                  </div>
+                  <div style="display: flex; gap: 6px;">
+                    <button data-a="" disabled="{{ perm.noAdmin }}" onClick="{{ i.relink }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 7px 10px; font-size: 12px; cursor: pointer;" style-hover="border-color: #1a1a1a;">{{ i.relinkLabel }}</button>
+                    <button data-a="" disabled="{{ perm.noAdmin }}" onClick="{{ i.cancel }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 7px 10px; font-size: 12px; cursor: pointer; color: #8A857C;" style-hover="border-color: #9E3A26; color: #9E3A26;">Cancel</button>
+                  </div>
+                </div>
+              </div>
+            </sc-for>
+
+            <sc-if value="{{ team.canManage }}" hint-placeholder-val="{{ true }}">
+              <div style="border-top: 1px solid #E4DFD5; margin-top: 12px; padding-top: 12px;">
+                <div style="font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: #5C5850; margin-bottom: 7px;">Add someone</div>
+                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                  <input value="{{ team.newEmail }}" onChange="{{ team.setNewEmail }}" placeholder="name@company.com" style="flex: 2 1 160px; min-width: 0; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 10px; font-size: 13px; background: #FFFFFF;" />
+                  <sc-raw-select value="{{ team.newRole }}" onChange="{{ team.setNewRole }}" style="flex: 1 1 120px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 10px; font-size: 13px; background: #FFFFFF;">
+                    <option value="admin">Admin</option>
+                    <option value="accountant">Accountant</option>
+                    <option value="viewer">Viewer</option>
+                  </sc-raw-select>
+                  <button data-a="" disabled="{{ perm.noAdmin }}" onClick="{{ team.add }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); padding: 8px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap;" style-hover="background: #FAC775; color: #1a1a1a;">{{ team.addLabel }}</button>
+                </div>
+                <div style="font-size: 11.5px; color: #5C5850; margin-top: 7px; line-height: 1.5;">{{ team.roleNote }}</div>
+              </div>
+            </sc-if>
           </div>
 
           <div style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.04), 0 1px 3px rgba(19,19,19,.06); padding: 24px; grid-column: 1 / -1;">
@@ -1041,13 +1345,13 @@ window.__resources = {
                   <sc-for list="{{ incomeCatRows }}" as="c" hint-placeholder-count="5">
                     <span style="display: inline-flex; align-items: center; gap: 7px; border: 1px solid #EFECE4; background: #FFFFFF; border-radius: 6px; padding: 5px 8px 5px 10px; font-size: 12.5px;">
                       {{ c.name }}
-                      <button onClick="{{ c.remove }}" style="border: 0; background: transparent; cursor: pointer; color: #A89F8E; font-size: 14px; line-height: 1; padding: 0;" style-hover="color: #9E3A26;">×</button>
+                      <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ c.remove }}" style="border: 0; background: transparent; cursor: pointer; color: #A89F8E; font-size: 14px; line-height: 1; padding: 0;" style-hover="color: #9E3A26;">×</button>
                     </span>
                   </sc-for>
                 </div>
                 <div style="display: flex; gap: 6px; margin-top: 12px;">
-                  <input value="{{ newIncome }}" onChange="{{ onNewIncome }}" placeholder="e.g. Equipment Hire" style="flex: 1; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 10px; font-size: 13px; background: #FFFFFF;" />
-                  <button onClick="{{ addIncomeCat }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); transition: transform .16s cubic-bezier(.2,.6,.3,1), box-shadow .16s; padding: 8px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap;" style-hover="background: #FAC775; color: #1a1a1a;">Add account</button>
+                  <input data-w="" disabled="{{ perm.noWrite }}" value="{{ newIncome }}" onChange="{{ onNewIncome }}" placeholder="e.g. Equipment Hire" style="flex: 1; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 10px; font-size: 13px; background: #FFFFFF;" />
+                  <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ addIncomeCat }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); transition: transform .16s cubic-bezier(.2,.6,.3,1), box-shadow .16s; padding: 8px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap;" style-hover="background: #FAC775; color: #1a1a1a;">Add account</button>
                 </div>
               </div>
 
@@ -1055,12 +1359,12 @@ window.__resources = {
                 <div style="font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: #5C5850; font-weight: 600; border-bottom: 1px solid #EFECE4; padding-bottom: 6px;">New expense account</div>
                 <p style="font-size: 12.5px; color: #5C5850; margin: 11px 0 0; line-height: 1.5;">Set how much of it is allowable against tax. Anything you add here appears immediately in the transaction form and the tax summary.</p>
                 <div style="display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap;">
-                  <input value="{{ newExpense }}" onChange="{{ onNewExpense }}" placeholder="e.g. Security & Guards" style="flex: 1 1 150px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 10px; font-size: 13px; background: #FFFFFF;" />
+                  <input data-w="" disabled="{{ perm.noWrite }}" value="{{ newExpense }}" onChange="{{ onNewExpense }}" placeholder="e.g. Security & Guards" style="flex: 1 1 150px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 10px; font-size: 13px; background: #FFFFFF;" />
                   <span style="display: inline-flex; align-items: center; gap: 5px;">
-                    <input value="{{ newExpensePct }}" onChange="{{ onNewExpensePct }}" style="width: 58px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 8px; font-size: 13px; text-align: right; font-family: 'IBM Plex Mono', monospace; background: #FFFFFF;" />
+                    <input data-w="" disabled="{{ perm.noWrite }}" value="{{ newExpensePct }}" onChange="{{ onNewExpensePct }}" style="width: 58px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 8px; font-size: 13px; text-align: right; font-family: 'IBM Plex Mono', monospace; background: #FFFFFF;" />
                     <span style="font-size: 12.5px; color: #5C5850;">% allowable</span>
                   </span>
-                  <button onClick="{{ addExpenseCat }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); transition: transform .16s cubic-bezier(.2,.6,.3,1), box-shadow .16s; padding: 8px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap;" style-hover="background: #FAC775; color: #1a1a1a;">Add account</button>
+                  <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ addExpenseCat }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); transition: transform .16s cubic-bezier(.2,.6,.3,1), box-shadow .16s; padding: 8px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap;" style-hover="background: #FAC775; color: #1a1a1a;">Add account</button>
                 </div>
               </div>
 
@@ -1113,7 +1417,7 @@ window.__resources = {
                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1px solid #EFECE4; background: #FFFFFF; border-radius: 6px; padding: 8px 11px;">
                   <span style="font-size: 13px;">{{ c.name }}</span>
                   <span style="display: inline-flex; align-items: center; gap: 5px;">
-                    <input value="{{ c.pct }}" onChange="{{ c.onChange }}" style="width: 52px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 4px 6px; font-size: 12px; text-align: right; font-family: 'IBM Plex Mono', monospace; background: #FFFFFF;" />
+                    <input data-w="" disabled="{{ perm.noWrite }}" value="{{ c.pct }}" onChange="{{ c.onChange }}" style="width: 52px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 4px 6px; font-size: 12px; text-align: right; font-family: 'IBM Plex Mono', monospace; background: #FFFFFF;" />
                     <span style="font-size: 12px; color: #5C5850;">%</span>
                   </span>
                 </div>
@@ -1239,7 +1543,7 @@ window.__resources = {
         <div style="display: flex; justify-content: space-between; gap: 8px; padding: 14px 24px; border-top: 1px solid #E5E1D8; flex-wrap: wrap;">
           <button onClick="{{ imp.back }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 15px; font-size: 12.5px; cursor: pointer;" style-hover="background: #F4F3EE;">{{ imp.backLabel }}</button>
           <sc-if value="{{ imp.isReview }}" hint-placeholder-val="{{ false }}">
-            <button onClick="{{ imp.doImport }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); transition: transform .16s cubic-bezier(.2,.6,.3,1), box-shadow .16s; padding: 8px 18px; font-size: 12.5px; font-weight: 600; cursor: pointer;" style-hover="background: #FAC775; color: #1a1a1a;">{{ imp.importLabel }}</button>
+            <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ imp.doImport }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); transition: transform .16s cubic-bezier(.2,.6,.3,1), box-shadow .16s; padding: 8px 18px; font-size: 12.5px; font-weight: 600; cursor: pointer;" style-hover="background: #FAC775; color: #1a1a1a;">{{ imp.importLabel }}</button>
           </sc-if>
         </div>
       </div>
@@ -1275,7 +1579,7 @@ window.__resources = {
             <div style="background: #FAEEDA; border: 1px solid #EBD8B4; border-left: 3px solid #FAC775; border-radius: 6px; padding: 11px 14px; margin-bottom: 13px;">
               <div style="font-size: 10.5px; letter-spacing: 0.13em; text-transform: uppercase; color: #412402; font-weight: 600;">Profitna suggests</div>
               <div style="font-size: 13px; margin-top: 4px; line-height: 1.5;">{{ modal.suggestion }}</div>
-              <button onClick="{{ acceptSuggestion }}" style="margin-top: 8px; border: 1px solid #B8863A; background: #FFFFFF; color: #412402; border-radius: 6px; padding: 5px 11px; font-size: 12px; font-weight: 600; cursor: pointer;" style-hover="background: #0B6B4F; color: #FFFFFF;">Apply this category</button>
+              <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ acceptSuggestion }}" style="margin-top: 8px; border: 1px solid #B8863A; background: #FFFFFF; color: #412402; border-radius: 6px; padding: 5px 11px; font-size: 12px; font-weight: 600; cursor: pointer;" style-hover="background: #0B6B4F; color: #FFFFFF;">Apply this category</button>
             </div>
           </sc-if>
 
@@ -1292,7 +1596,7 @@ window.__resources = {
         </div>
         <div style="display: flex; justify-content: flex-end; gap: 8px; padding: 14px 22px; border-top: 1px solid #E5E1D8;">
           <button onClick="{{ closeModal }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 15px; font-size: 12.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Cancel</button>
-          <button onClick="{{ modal.submit }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); transition: transform .16s cubic-bezier(.2,.6,.3,1), box-shadow .16s; padding: 8px 17px; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap;" style-hover="background: #FAC775; color: #412402;">{{ modal.cta }}</button>
+          <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ modal.submit }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); transition: transform .16s cubic-bezier(.2,.6,.3,1), box-shadow .16s; padding: 8px 17px; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap;" style-hover="background: #FAC775; color: #412402;">{{ modal.cta }}</button>
         </div>
       </div>
     </div>
@@ -1367,10 +1671,25 @@ const fmtDate = (s) => {
 };
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+// The same three sentences the server sends back with an invitation, so the
+// signup form, the settings panel and the join screen all describe a role the
+// same way.
+// Stands in for an image that is not there, so no <img> ever points at a URL
+// that does not exist.
+const BLANK_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+
+const ROLE_LABEL = { admin: 'Admin', accountant: 'Accountant', viewer: 'Viewer' };
+const ROLE_NOTE = {
+  admin: 'Full access — books, settings, team and billing.',
+  accountant: 'Enter and edit transactions, invoices, bills and reports.',
+  viewer: 'Read-only access to the dashboard and reports.'
+};
+
 const NEW_CAT = '\u002B Create a new category\u2026';
 const NEW_PARTY = '\u002B Create a new record\u2026';
 
 const API = {
+  onPaywall: null,
   async call(method, path, body) {
     const res = await fetch('/api' + path, {
       method: method,
@@ -1380,7 +1699,15 @@ const API = {
     });
     const text = await res.text();
     const data = text ? JSON.parse(text) : {};
-    if (!res.ok) throw new Error(data.error || 'That did not go through. Try again.');
+    if (!res.ok) {
+      // 402 means the trial or the paid term has run out. Any call can come
+      // back with it — a tab left open overnight hits it on the next save —
+      // so it is handled once, here, rather than at every call site.
+      if (res.status === 402 && API.onPaywall) API.onPaywall(data.paywall || {});
+      const err = new Error(data.error || 'That did not go through. Try again.');
+      err.status = res.status;
+      throw err;
+    }
     return data;
   },
   get(path) { return API.call('GET', path); },
@@ -1389,7 +1716,7 @@ const API = {
   del(path) { return API.call('DELETE', path); }
 };
 
-const EMPTY_BOOK = () => ({ clients: [], vendors: [], tx: [], inv: [], bills: [], inventory: [], bank: [], imported: false, cats: [], income: [] });
+const EMPTY_BOOK = () => ({ clients: [], vendors: [], tx: [], inv: [], bills: [], inventory: [], bank: [], imported: false, cats: [], income: [], accounts: [] });
 
 class Component extends DCLogic {
   constructor(props) {
@@ -1397,11 +1724,18 @@ class Component extends DCLogic {
     this.state = {
       mode: 'sme', screen: 'dashboard', preset: 'ytd', role: 'Admin',
       session: null, account: null,
-      auth: { view: 'login', step: 1, name: '', org: '', email: '', pw: '', book: null, cycle: 'monthly', users: 1, agreed: false, err: '', cardName: '', cardNum: '', cardExp: '', cardCvc: '' },
+      auth: { view: 'login', step: 1, name: '', org: '', email: '', pw: '', book: null, cycle: 'monthly', users: 1, err: '', busy: false, seats: [] },
       search: '', txType: 'all', reportTab: 'pl', modal: null, form: {}, toast: null, aiQ: '', aiKey: null,
       newIncome: '', newExpense: '', newExpensePct: '100',
       imp: { open: false, step: 'source', source: 'csv', paste: '', url: '', fileName: '', rows: [] },
       booted: false, googleReady: false,
+      // Set from ?invite=… before anything else, so following a link never
+      // flashes the sign-in screen on the way past.
+      invite: null, inviteName: '', invitePassword: '', inviteErr: '', inviteBusy: false,
+      team: null, teamFresh: [], teamNewEmail: '', teamNewRole: 'accountant', teamBusy: false, copied: null,
+      // Everything typed into the settings panel lives here until Save is
+      // pressed. Null means "not editing" — the panel builds it on open.
+      draft: null, savingSettings: false,
       sme: EMPTY_BOOK(), church: EMPTY_BOOK(),
       org: { name: '', type: 'Limited Company', state: '', vatRate: '7.5', openingCash: '0', contributions: '0', fixedAssets: '0' },
       chOrg: { name: '', type: 'Registered Trustees', state: '', vatRate: '0', openingCash: '0', contributions: '0', fixedAssets: '0' }
@@ -1409,18 +1743,69 @@ class Component extends DCLogic {
   }
 
   componentDidMount() {
+    // The browser's own guard, for closing the tab or hitting reload — the
+    // in-app one only covers moving between screens.
+    this._beforeUnload = (e) => {
+      if (!this.settingsDirty()) return undefined;
+      e.preventDefault();
+      e.returnValue = '';
+      return '';
+    };
+    window.addEventListener('beforeunload', this._beforeUnload);
+
+    // Any call that comes back 402 flips the whole app to the payment screen.
+    API.onPaywall = (paywall) => this.setState((st) => st.session
+      ? { session: { ...st.session, access: 'locked', accessReason: paywall.reason || st.session.accessReason }, booted: true }
+      : null);
+
     API.get('/auth/config')
-      .then((c) => this.setState({ googleReady: Boolean(c.google), googleClientId: c.googleClientId }))
+      .then((c) => this.setState({
+        googleReady: Boolean(c.google), googleClientId: c.googleClientId,
+        paystackReady: Boolean(c.paystack && c.paystackPublicKey),
+        paystackKey: c.paystackPublicKey
+      }))
       .catch(() => {});
+
+    // An invitation link takes precedence over whatever session this browser
+    // happens to hold: the point of following it is to join those books.
+    const token = new URLSearchParams(window.location.search).get('invite');
+    if (token) {
+      this._inviteToken = token;
+      return API.get('/invitations/' + encodeURIComponent(token))
+        .then((r) => this.setState({
+          invite: r.invitation,
+          inviteName: r.invitation.suggestedName || '',
+          booted: true
+        }))
+        .catch((err) => this.setState({
+          invite: { state: 'unknown', error: err.message }, booted: true
+        }));
+    }
+
     API.get('/auth/me')
       .then((r) => this.applySession(r.session))
       .catch(() => this.setState({ booted: true }));
+  }
+
+  // Drops ?invite=… once it has been dealt with, so a refresh does not try to
+  // accept an invitation that has already been used.
+  clearInviteFromUrl() {
+    this._inviteToken = null;
+    if (window.history && window.history.replaceState) {
+      window.history.replaceState({}, '', window.location.pathname);
+    }
   }
 
   // Everything the signed-in account can see comes from the server; the two
   // book slots stay, but only the one this account keeps is ever filled.
   applySession(session) {
     this.setState({ session, account: session, mode: session.book, screen: 'dashboard' });
+    // A locked account has no readable book — asking for it would only answer
+    // 402 — so the payment screen is shown straight away instead.
+    if (session.access === 'locked') {
+      this.setState({ booted: true });
+      return Promise.resolve();
+    }
     return this.loadBook(session);
   }
 
@@ -1432,6 +1817,9 @@ class Component extends DCLogic {
         role: d.role === 'admin' ? 'Admin' : d.role === 'viewer' ? 'Viewer' : 'Accountant',
         booted: true
       }))
+      // Who else is on these books, loaded once with them. Cheap — a handful
+      // of rows — and it keeps the settings screen from opening empty.
+      .then(() => this.loadTeam())
       .catch((err) => { this.setState({ booted: true }); this.flash(err.message); });
   }
 
@@ -1457,6 +1845,48 @@ class Component extends DCLogic {
       gid.prompt((n) => {
         if (n.isNotDisplayed() || n.isSkippedMoment()) reject(new Error('Google sign-in was dismissed. Use your email and password instead.'));
       });
+    }));
+  }
+
+  // Paystack Inline. The card is typed into Paystack's own window, so the
+  // number and CVV never enter this page or reach our server; what comes back
+  // is a transaction reference the server verifies before trusting anything.
+  paystackAuthorise(email, amountNaira) {
+    if (!this._paystack) {
+      this._paystack = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://js.paystack.co/v2/inline.js';
+        s.async = true;
+        s.onload = () => resolve(window.PaystackPop);
+        s.onerror = () => reject(new Error('Could not reach Paystack. Check your connection and try again.'));
+        document.head.appendChild(s);
+      });
+    }
+
+    const amountKobo = Math.round(Number(amountNaira) * 100);
+    const reference = 'profitna-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+
+    return this._paystack.then((Pop) => new Promise((resolve, reject) => {
+      const done = (r) => (r && (r.reference || r.trxref)) ? resolve(r.reference || r.trxref)
+        : reject(new Error('Paystack did not confirm the card. Nothing has been charged.'));
+      const cancelled = () => reject(new Error('Card authorisation was cancelled.'));
+
+      // v2 exposes a constructor; v1 exposed PaystackPop.setup. Both are in the
+      // wild depending on which script a deployment ends up with.
+      if (typeof Pop === 'function') {
+        new Pop().newTransaction({
+          key: this.state.paystackKey, email, amount: amountKobo, currency: 'NGN', reference,
+          onSuccess: done, onCancel: cancelled,
+          onError: (e) => reject(new Error((e && e.message) || 'Paystack could not process that card.'))
+        });
+      } else if (Pop && Pop.setup) {
+        Pop.setup({
+          key: this.state.paystackKey, email, amount: amountKobo, currency: 'NGN', ref: reference,
+          callback: done, onClose: cancelled
+        }).openIframe();
+      } else {
+        reject(new Error('Paystack loaded but did not expose a checkout.'));
+      }
     }));
   }
 
@@ -1634,7 +2064,128 @@ class Component extends DCLogic {
   }
 
   // ---------------- actions ----------------
-  go(screen) { return () => this.setState({ screen, search: '', txType: 'all' }); }
+  go(screen) {
+    return () => {
+      // Leaving settings with unsaved edits asks first. This is the only
+      // route between screens, so there is nowhere else for them to leak out.
+      if (this.state.screen === 'settings' && screen !== 'settings' && this.settingsDirty()) {
+        if (!window.confirm('You have unsaved changes in Settings. Leave without saving?')) return;
+        this.setState({ draft: null });
+      }
+      this.setState({ screen, search: '', txType: 'all' });
+    };
+  }
+
+  // The panel's working copy. Built from what the server last sent, so
+  // discarding is simply throwing it away.
+  settingsDraft() {
+    const st = this.state;
+    if (st.draft) return st.draft;
+    const o = this.o();
+    return {
+      org: {
+        name: o.name, type: o.type, state: o.state, vatRate: o.vatRate,
+        contributions: o.contributions, fixedAssets: o.fixedAssets
+      },
+      accounts: (this.d().accounts || []).map((a) => ({
+        id: a.id,
+        name: a.name || '',
+        bankName: a.bankName || '',
+        accountNumber: a.accountNumber || '',
+        openingBalance: String(a.openingBalance),
+        openingDate: String(a.openingDate || '').slice(0, 10),
+        isPrimary: Boolean(a.isPrimary),
+        balance: Number(a.balance),
+        received: Number(a.received),
+        paid: Number(a.paid),
+        entries: Number(a.entries)
+      })),
+      removed: [],
+      logo: null,
+      clearLogo: false
+    };
+  }
+
+  setDraft(patch) {
+    const base = this.settingsDraft();
+    this.setState({ draft: Object.assign({}, base, typeof patch === 'function' ? patch(base) : patch) });
+  }
+
+  settingsDirty() {
+    const d = this.state.draft;
+    if (!d) return false;
+    const o = this.o();
+    if (d.clearLogo || d.logo) return true;
+    if (d.removed.length) return true;
+    for (const k of ['name', 'type', 'state', 'vatRate', 'contributions', 'fixedAssets']) {
+      if (String(d.org[k] || '') !== String(o[k] || '')) return true;
+    }
+    const live = this.d().accounts || [];
+    if (d.accounts.length !== live.length) return true;
+    return d.accounts.some((a) => {
+      const was = live.find((x) => x.id === a.id);
+      if (!was) return true;
+      return a.name !== (was.name || '') ||
+        a.bankName !== (was.bankName || '') ||
+        a.accountNumber !== (was.accountNumber || '') ||
+        Number(String(a.openingBalance).replace(/,/g, '')) !== Number(was.openingBalance) ||
+        a.openingDate !== String(was.openingDate || '').slice(0, 10) ||
+        a.isPrimary !== Boolean(was.isPrimary);
+    });
+  }
+
+  // One button, one pass: the profile, then each account that moved, then the
+  // logo, then a reload so every screen sees the same figures.
+  async saveSettings() {
+    const d = this.state.draft;
+    if (!d || this.state.savingSettings) return;
+
+    for (const a of d.accounts) {
+      if (!String(a.name || '').trim()) return this.flash('Every bank account needs a name.');
+      if (!Number.isFinite(Number(String(a.openingBalance).replace(/,/g, '')))) {
+        return this.flash('Opening balances have to be numbers.');
+      }
+    }
+
+    this.setState({ savingSettings: true });
+    try {
+      await API.patch(this.orgPath(), d.org);
+
+      const live = this.d().accounts || [];
+      for (const id of d.removed) await API.del(this.orgPath('/bank-accounts/' + id));
+
+      for (const a of d.accounts) {
+        const body = {
+          name: a.name.trim(),
+          bankName: a.bankName,
+          accountNumber: a.accountNumber,
+          openingBalance: String(a.openingBalance).replace(/,/g, ''),
+          openingDate: a.openingDate || undefined,
+          isPrimary: a.isPrimary
+        };
+        const was = live.find((x) => x.id === a.id);
+        if (!was) await API.post(this.orgPath('/bank-accounts'), body);
+        else await API.patch(this.orgPath('/bank-accounts/' + a.id), body);
+      }
+
+      if (d.clearLogo) await API.del(this.orgPath('/logo'));
+      else if (d.logo) await API.post(this.orgPath('/logo'), { data: d.logo.dataUrl });
+
+      const fresh = await API.get(this.orgPath('/data'));
+      const session = this.state.session;
+      this.setState({
+        [session.book === 'church' ? 'church' : 'sme']: Object.assign(EMPTY_BOOK(), fresh.book),
+        [session.book === 'church' ? 'chOrg' : 'org']: fresh.org,
+        draft: null,
+        savingSettings: false,
+        logoVersion: Date.now()
+      });
+      this.flash('Settings saved successfully.');
+    } catch (err) {
+      this.setState({ savingSettings: false });
+      this.flash(err.message);
+    }
+  }
   drill(type) { return () => this.setState({ screen: 'transactions', txType: type || 'all', search: '' }); }
 
   openTxModal(prefill) {
@@ -2063,7 +2614,7 @@ class Component extends DCLogic {
       pick: () => this.setAuth({ cycle: p[0], err: '' })
     }));
 
-    const steps = [[1, 'Account'], [2, 'Books'], [3, 'Plan'], [4, 'Card']].map((s) => ({
+    const steps = [[1, 'Account'], [2, 'Books'], [3, 'Plan']].map((s) => ({
       label: s[1], bar: A.step >= s[0] ? '#FAC775' : '#DDD8CE', fg: A.step >= s[0] ? '#403D37' : '#A8A296'
     }));
 
@@ -2074,52 +2625,68 @@ class Component extends DCLogic {
         if (A.provider !== 'google' && A.pw.length < 8) return this.setAuth({ err: 'Password must be at least 8 characters.' });
         return this.setAuth({ step: 2, err: '' });
       }
-      if (A.step === 2) {
-        if (!A.book) return this.setAuth({ err: 'Choose the set of books you will keep.' });
-        return this.setAuth({ step: 3, err: '' });
-      }
-      return this.setAuth({ step: 4, err: '' });
+      if (!A.book) return this.setAuth({ err: 'Choose the set of books you will keep.' });
+      return this.setAuth({ step: 3, err: '' });
     };
 
-    const digits = (s) => (s || '').replace(/[^0-9]/g, '');
-    const luhn = (num) => {
-      let sum = 0, alt = false;
-      for (let i = num.length - 1; i >= 0; i--) {
-        let n = parseInt(num[i], 10);
-        if (alt) { n *= 2; if (n > 9) n -= 9; }
-        sum += n; alt = !alt;
-      }
-      return num.length >= 13 && sum % 10 === 0;
-    };
-    const brandOf = (num) => num[0] === '4' ? 'Visa' : /^5[1-5]/.test(num) ? 'Mastercard' : /^(50|5[6-9]|6)/.test(num) ? 'Verve / Maestro' : num.length >= 2 ? 'Card' : '';
+    // Creating an account costs nothing and asks for nothing to pay with.
+    // Payment is collected once, at the end of the trial, on the screen the
+    // server puts up when the books stop opening.
+    // One row per seat beyond the subscriber's own, each carrying an email and
+    // the role that person will have.
+    const seatRows = [];
+    for (let i = 0; i < A.users - 1; i++) {
+      seatRows.push(Object.assign({ email: '', role: 'accountant' }, A.seats[i] || {}));
+    }
+    const setSeat = (i, patch) => this.setState((st2) => {
+      const seats = [];
+      for (let k = 0; k < 24; k++) seats[k] = Object.assign({ email: '', role: 'accountant' }, st2.auth.seats[k] || {});
+      seats[i] = Object.assign(seats[i], patch);
+      return { auth: { ...st2.auth, seats, err: '' } };
+    });
 
     const finish = () => {
-      const num = digits(A.cardNum);
-      if (!A.cardName.trim()) return this.setAuth({ err: 'Enter the name printed on the card.' });
-      if (!luhn(num)) return this.setAuth({ err: 'That card number does not look valid. Check the digits and try again.' });
-      const exp = digits(A.cardExp);
-      const mm = parseInt(exp.slice(0, 2), 10), yy = parseInt(exp.slice(2, 4), 10);
-      if (exp.length !== 4 || !(mm >= 1 && mm <= 12)) return this.setAuth({ err: 'Enter the expiry as MM/YY.' });
-      const expEnd = new Date(2000 + yy, mm, 0);
-      if (expEnd < TODAY) return this.setAuth({ err: 'That card has expired. Use a card valid past ' + longDate(shift(14)) + '.' });
-      if (digits(A.cardCvc).length < 3) return this.setAuth({ err: 'Enter the 3-digit CVV from the back of the card.' });
-      if (!A.agreed) return this.setAuth({ err: 'Please authorise the charge to continue.' });
+      if (A.busy) return;
+      const invited = seatRows
+        .map((r) => ({ email: r.email.trim().toLowerCase(), role: r.role }))
+        .filter((r) => r.email);
 
-      // The card number and CVV stay in the browser: only the brand, last four
-      // digits and expiry — what the app displays back — are ever sent.
-      API.post('/auth/signup', {
+      if (invited.length !== seatRows.length) {
+        return this.setAuth({ err: 'Add an email address for each of the other ' + seatRows.length + (seatRows.length === 1 ? ' user' : ' users') + ', or reduce the user count.' });
+      }
+      for (const r of invited) {
+        if (!/.+@.+\..+/.test(r.email)) return this.setAuth({ err: r.email + ' is not a valid email address.' });
+        if (r.email === A.email.trim().toLowerCase()) return this.setAuth({ err: 'You already have a seat — invite the other people on your team.' });
+      }
+      if (new Set(invited.map((r) => r.email)).size !== invited.length) {
+        return this.setAuth({ err: 'Each person needs a different email address.' });
+      }
+
+      this.setAuth({ busy: true, err: '' });
+      return API.post('/auth/signup', {
         name: A.name.trim(), org: A.org.trim(), email: A.email.trim(),
         password: A.provider === 'google' ? undefined : A.pw,
         googleCredential: A.googleCredential,
         book: A.book, cycle: A.cycle, users: A.users,
-        card: { brand: brandOf(num), last4: num.slice(-4), exp: A.cardExp }
+        team: invited
       })
         .then((r) => {
-          this.setState((s) => ({ auth: { ...s.auth, pw: '', err: '', cardNum: '', cardCvc: '', googleCredential: null } }));
+          this.setState((s) => ({
+            auth: { ...s.auth, pw: '', err: '', busy: false, googleCredential: null },
+            // Held only in memory: the server stores a hash, so this response
+            // is the one and only time these links exist.
+            teamFresh: (r.invites || []).map((i) => ({ email: i.email, role: i.role, link: i.link }))
+          }));
           return this.applySession(r.session);
         })
-        .then(() => this.setState({ reportTab: 'pl', search: '', toast: 'Trial started — free until ' + longDate(shift(14)) + '.' }))
-        .catch((err) => this.setAuth({ err: err.message }));
+        .then(() => this.setState({
+          reportTab: 'pl', search: '',
+          screen: (this.state.teamFresh || []).length ? 'settings' : 'dashboard',
+          toast: (this.state.teamFresh || []).length
+            ? 'Books ready. Send your team their invite links below.'
+            : 'Trial started — free until ' + longDate(shift(14)) + ', no card needed.'
+        }))
+        .catch((err) => this.setAuth({ err: err.message, busy: false }));
     };
 
     const google = () => {
@@ -2152,20 +2719,35 @@ class Component extends DCLogic {
 
     const nm = ses ? ses.name || 'Account owner' : '';
     const initials = nm.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('') || 'LG';
+    // Days left are counted on the server and travel with the session, so the
+    // chrome, the banner and the paywall can never disagree about the date.
     let pill = '';
     if (ses) {
-      const start = new Date(ses.trialStart + 'T00:00:00');
-      const left = 14 - Math.round((TODAY - start) / 86400000);
-      pill = left > 0 ? 'Trial · ' + left + ' days left' : (ses.cycle === 'monthly' ? 'Monthly plan · active' : 'Yearly plan · active');
+      pill = ses.onTrial
+        ? (ses.daysLeft > 0 ? 'Trial · ' + ses.daysLeft + (ses.daysLeft === 1 ? ' day left' : ' days left') : 'Trial · last day')
+        : (ses.cycle === 'monthly' ? 'Monthly plan · active' : 'Yearly plan · active');
     }
 
+    const locked = Boolean(ses) && ses.access === 'locked';
+    const joining = Boolean(st.invite);
+
     return {
-      showAuth: !ses && st.booted, authed: !!ses,
+      showInvite: joining && st.booted,
+      inv: this.inviteVals(),
+      team: this.teamVals(ses),
+      showAuth: !ses && st.booted && !joining,
+      // Locked accounts get the payment screen instead of the app — not the
+      // app with a dialog over it, because there is nothing behind it to read.
+      showPaywall: locked && !joining,
+      authed: !!ses && !locked && !joining,
+      pay: this.payVals(ses, longDate),
+      trial: this.trialVals(ses, longDate),
       userName: nm, userInitials: initials, trialPill: pill,
       goBilling: () => this.setState({ screen: 'settings' }),
       signOut: () => API.post('/auth/signout').catch(() => {}).then(() => this.setState({
         session: null, account: null, sme: EMPTY_BOOK(), church: EMPTY_BOOK(),
-        auth: { view: 'login', step: 1, name: '', org: '', email: '', pw: '', book: null, cycle: 'monthly', users: 1, agreed: false, err: '', cardName: '', cardNum: '', cardExp: '', cardCvc: '' }
+        auth: { view: 'login', step: 1, name: '', org: '', email: '', pw: '', book: null, cycle: 'monthly', users: 1, err: '', busy: false, seats: [] },
+        team: null, teamFresh: []
       })),
       au: {
         isLogin: A.view === 'login', isSignup: A.view === 'signup',
@@ -2173,22 +2755,29 @@ class Component extends DCLogic {
         signupBg: A.view === 'signup' ? '#1a1a1a' : '#FFFFFF', signupFg: A.view === 'signup' ? '#FFFFFF' : '#403D37',
         toLogin: () => this.setAuth({ view: 'login', err: '' }),
         toSignup: () => this.setAuth({ view: 'signup', step: 1, err: '' }),
-        step1: A.step === 1, step2: A.step === 2, step3: A.step === 3, step4: A.step === 4, steps,
-        cardName: A.cardName, cardNum: A.cardNum, cardExp: A.cardExp, cardCvc: A.cardCvc,
-        cardBrand: brandOf(digits(A.cardNum)),
-        cardPlanLine: (monthly ? 'Monthly plan' : 'Yearly plan') + ' \u00b7 ' + A.users + (A.users === 1 ? ' user' : ' users'),
-        setCardName: (e) => this.setAuth({ cardName: e.target.value }),
-        setCardNum: (e) => this.setAuth({ cardNum: digits(e.target.value).slice(0, 19).replace(/(.{4})/g, '$1 ').trim() }),
-        setCardExp: (e) => { const v = digits(e.target.value).slice(0, 4); this.setAuth({ cardExp: v.length > 2 ? v.slice(0, 2) + '/' + v.slice(2) : v }); },
-        setCardCvc: (e) => this.setAuth({ cardCvc: digits(e.target.value).slice(0, 4) }),
-        name: A.name, org: A.org, email: A.email, pw: A.pw, err: A.err, agreed: A.agreed, users: A.users,
+        step1: A.step === 1, step2: A.step === 2, step3: A.step === 3, steps,
+        name: A.name, org: A.org, email: A.email, pw: A.pw, err: A.err, users: A.users,
         setName: (e) => this.setAuth({ name: e.target.value }),
         setOrg: (e) => this.setAuth({ org: e.target.value }),
         setEmail: (e) => this.setAuth({ email: e.target.value }),
         setPw: (e) => this.setAuth({ pw: e.target.value }),
-        toggleAgree: () => this.setState((s) => ({ auth: { ...s.auth, agreed: !s.auth.agreed, err: '' } })),
         inc: () => this.setState((s) => ({ auth: { ...s.auth, users: Math.min(25, s.auth.users + 1) } })),
         dec: () => this.setState((s) => ({ auth: { ...s.auth, users: Math.max(1, s.auth.users - 1) } })),
+        // Hides the Google buttons on a deployment without GOOGLE_CLIENT_ID,
+        // rather than offering a control that cannot complete.
+        googleReady: st.googleReady,
+        finishLabel: A.busy ? 'Setting up your books\u2026' : 'Start my 14-day free trial',
+        hasTeam: seatRows.length > 0,
+        teamNote: 'You chose ' + A.users + ' users, so ' + seatRows.length +
+          (seatRows.length === 1 ? ' other person' : ' other people') +
+          ' can join. Each gets a link to set their own password.',
+        team: seatRows.map((r, i) => ({
+          email: r.email,
+          role: r.role,
+          note: ROLE_NOTE[r.role],
+          setEmail: (e) => setSeat(i, { email: e.target.value }),
+          setRole: (e) => setSeat(i, { role: e.target.value })
+        })),
         isGoogle: A.provider === 'google',
         noProvider: A.provider !== 'google',
         dropGoogle: (e) => { if (e && e.preventDefault) e.preventDefault(); this.setAuth({ provider: null, pw: '' }); },
@@ -2202,22 +2791,426 @@ class Component extends DCLogic {
     };
   }
 
+  // The screen somebody lands on after following an invitation link. They may
+  // have no Profitna account at all, or one already — the server says which,
+  // and the form asks for a new password or their existing one accordingly.
+  inviteVals() {
+    const st = this.state;
+    const i = st.invite;
+    if (!i) return { open: false, closed: false };
+
+    const open = i.state === 'pending';
+    const closedNote = {
+      accepted: 'That invitation has already been used. Sign in with the email it was sent to.',
+      cancelled: 'That invitation was cancelled. Ask whoever invited you for a new link.',
+      expired: 'That invitation has expired. Ask whoever invited you for a new link.',
+      unknown: i.error || 'That invitation link is not valid.'
+    }[i.state] || '';
+
+    const accept = () => {
+      if (st.inviteBusy) return;
+      const name = String(st.inviteName || '').trim();
+      const password = String(st.invitePassword || '');
+      if (!i.hasAccount && !name) return this.setState({ inviteErr: 'Enter your full name.' });
+      if (!password) {
+        return this.setState({ inviteErr: i.hasAccount
+          ? 'Enter the password you use on Profitna.'
+          : 'Choose a password of at least 8 characters.' });
+      }
+      if (!i.hasAccount && password.length < 8) {
+        return this.setState({ inviteErr: 'Choose a password of at least 8 characters.' });
+      }
+
+      this.setState({ inviteBusy: true, inviteErr: '' });
+      API.post('/invitations/' + encodeURIComponent(this._inviteToken) + '/accept', { name, password })
+        .then((r) => {
+          this.clearInviteFromUrl();
+          this.setState({ invite: null, inviteBusy: false, invitePassword: '', inviteName: '' });
+          return this.applySession(r.session);
+        })
+        .then(() => this.flash('You are on ' + i.orgName + ' as ' + (ROLE_LABEL[i.role] || i.role) + '.'))
+        .catch((err) => this.setState({ inviteErr: err.message, inviteBusy: false }));
+    };
+
+    return {
+      open,
+      closed: !open,
+      closedNote,
+      title: open ? 'Join ' + i.orgName : 'This link cannot be used',
+      blurb: open
+        ? (i.invitedBy ? i.invitedBy + ' invited you to ' : 'You have been invited to ') +
+          (i.book === 'church' ? "keep this organisation's books on Profitna." : "keep this business's books on Profitna.")
+        : '',
+      role: ROLE_LABEL[i.role] || i.role,
+      roleNote: i.roleNote || ROLE_NOTE[i.role] || '',
+      email: i.email || '',
+      name: st.inviteName,
+      password: st.invitePassword,
+      needsName: !i.hasAccount,
+      passwordLabel: i.hasAccount ? 'Your Profitna password' : 'Choose a password',
+      footnote: i.hasAccount
+        ? 'This email already has a Profitna account — sign in with its password to join these books as well.'
+        : 'This creates your own Profitna sign-in. Only you will know the password.',
+      buttonLabel: st.inviteBusy ? 'Joining\u2026' : 'Join ' + i.orgName,
+      err: st.inviteErr || '',
+      setName: (e) => this.setState({ inviteName: e.target.value, inviteErr: '' }),
+      setPassword: (e) => this.setState({ invitePassword: e.target.value, inviteErr: '' }),
+      accept
+    };
+  }
+
+  // Said once, at the top of the page, so the greyed-out controls elsewhere
+  // read as deliberate rather than broken.
+  readOnlyVals() {
+    const role = this.state.role;
+    if (role === 'Admin') return { show: false };
+    return {
+      show: true,
+      headline: role === 'Viewer' ? 'You have view-only access.' : 'You are an accountant on these books.',
+      detail: role === 'Viewer'
+        ? 'You can read everything here. Anything that would change the books is greyed out.'
+        : 'You can enter and edit the books. Settings, billing and the team are greyed out — an admin handles those.',
+      bg: role === 'Viewer' ? '#F1F1EE' : '#FBF7EE',
+      border: role === 'Viewer' ? '#DCD9D1' : '#E9E2D2',
+      rule: role === 'Viewer' ? '#A8A296' : '#FAC775'
+    };
+  }
+
+  // The three cards the Save button governs, plus the button itself.
+  settingsVals(o, d, money) {
+    const st = this.state;
+    const draft = this.settingsDraft();
+    const dirty = this.settingsDirty();
+    const saving = st.savingSettings;
+    const canManage = st.role === 'Admin';
+
+    const setOrgField = (key) => (e) => {
+      const v = e.target.value;
+      this.setDraft((base) => ({ org: Object.assign({}, base.org, { [key]: v }) }));
+    };
+
+    const setAccount = (index, patch) => this.setDraft((base) => ({
+      accounts: base.accounts.map((a, i) => (i === index ? Object.assign({}, a, patch) : a))
+    }));
+
+    const settingsFields = [
+      { label: 'Organisation name', value: draft.org.name, onChange: setOrgField('name') },
+      { label: 'Entity type', value: draft.org.type, onChange: setOrgField('type') },
+      { label: 'State', value: draft.org.state, onChange: setOrgField('state') },
+      { label: 'VAT rate (%)', value: draft.org.vatRate, onChange: setOrgField('vatRate') },
+      { label: o.book === 'church' ? 'Accumulated fund b/f' : 'Owner contributions', value: draft.org.contributions, onChange: setOrgField('contributions') },
+      { label: 'Property and equipment', value: draft.org.fixedAssets, onChange: setOrgField('fixedAssets') }
+    ];
+
+    // opening balance as typed, plus what has already moved through it
+    const draftBalance = (a) =>
+      (Number(String(a.openingBalance).replace(/,/g, '')) || 0) + Number(a.received || 0) - Number(a.paid || 0);
+
+    const openingTotal = draft.accounts.reduce((sum, a) => sum + (Number(String(a.openingBalance).replace(/,/g, '')) || 0), 0);
+    const balanceTotal = draft.accounts.reduce((sum, a) => sum + draftBalance(a), 0);
+
+    const banks = {
+      summary: draft.accounts.length + (draft.accounts.length === 1 ? ' account · ' : ' accounts · ') +
+        money(balanceTotal) + ' held · opening ' + money(openingTotal),
+      accounts: draft.accounts.map((a, i) => ({
+        name: a.name,
+        bankName: a.bankName,
+        accountNumber: a.accountNumber,
+        openingBalance: a.openingBalance,
+        openingDate: a.openingDate,
+        isPrimary: a.isPrimary,
+        // Shown against the opening balance as typed, not as last saved, so
+        // editing one shows what the account would come to. The bar above
+        // says plainly that none of it has been saved.
+        balance: money(draftBalance(a)),
+        balanceColor: draftBalance(a) < 0 ? '#9E3A26' : '#1a1a1a',
+        movement: a.id
+          ? money(a.received) + ' in · ' + money(a.paid) + ' out · ' + a.entries + (a.entries === 1 ? ' entry' : ' entries')
+          : 'Not saved yet',
+        bg: a.isPrimary ? '#FCFBF8' : '#FFFFFF',
+        border: '#E7E3DA',
+        rule: a.isPrimary ? '#FAC775' : '#E7E3DA',
+        removeLabel: draft.accounts.length === 1 ? 'Last account' : 'Remove',
+        setName: (e) => setAccount(i, { name: e.target.value }),
+        setBankName: (e) => setAccount(i, { bankName: e.target.value }),
+        setAccountNumber: (e) => setAccount(i, { accountNumber: e.target.value.replace(/[^0-9]/g, '').slice(0, 20) }),
+        setOpening: (e) => setAccount(i, { openingBalance: e.target.value.replace(/[^0-9.\-]/g, '') }),
+        setOpeningDate: (e) => setAccount(i, { openingDate: e.target.value }),
+        makePrimary: () => this.setDraft((base) => ({
+          accounts: base.accounts.map((x, j) => Object.assign({}, x, { isPrimary: j === i }))
+        })),
+        remove: () => {
+          if (draft.accounts.length === 1) return this.flash('These books need at least one account.');
+          if (a.id && Number(a.entries) > 0 &&
+              !window.confirm(a.name + ' has ' + a.entries + ' entries against it. Remove the account? The entries stay in the books.')) return;
+          this.setDraft((base) => ({
+            accounts: base.accounts.filter((_, j) => j !== i),
+            removed: a.id ? base.removed.concat([a.id]) : base.removed
+          }));
+        }
+      })),
+      add: () => this.setDraft((base) => ({
+        accounts: base.accounts.concat([{
+          id: null, name: '', bankName: '', accountNumber: '', openingBalance: '0',
+          openingDate: iso(TODAY), isPrimary: base.accounts.length === 0,
+          balance: 0, received: 0, paid: 0, entries: 0
+        }])
+      }))
+    };
+
+    // A logo just chosen is previewed from the data URL; a saved one is
+    // fetched, with the save time on the query so a replacement is not served
+    // from cache.
+    const savedSrc = o.hasLogo && st.session
+      ? '/api/orgs/' + st.session.orgId + '/logo?v=' +
+        (st.logoVersion || new Date(o.logoUpdatedAt || 0).getTime())
+      : null;
+    const showing = draft.logo ? draft.logo.dataUrl : (draft.clearLogo ? null : savedSrc);
+
+    const brand = {
+      hasLogo: Boolean(showing),
+      empty: !showing,
+      src: showing || BLANK_PIXEL,
+      // Complete declarations, so the markup carries no half-written url().
+      reportStyle: 'height: 76px; margin: 0 auto 14px; background-image: url("' + (showing || BLANK_PIXEL) +
+        '"); background-size: contain; background-repeat: no-repeat; background-position: center;',
+      previewStyle: 'width: 100px; height: 64px; background-image: url("' + (showing || BLANK_PIXEL) +
+        '"); background-size: contain; background-repeat: no-repeat; background-position: center;',
+      chooseLabel: showing ? 'Replace logo' : 'Upload logo',
+      note: draft.logo ? draft.logo.name + ' — not saved yet'
+        : draft.clearLogo ? 'Will be removed when you save'
+        : showing ? 'Appears on every report you generate.'
+        : 'Reports use your organisation name until you add one.',
+      choose: (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        if (file.size > 400 * 1024) return this.flash('That image is ' + Math.round(file.size / 1024) + 'KB. Use one under 400KB.');
+        const reader = new FileReader();
+        reader.onload = () => this.setDraft({ logo: { dataUrl: String(reader.result), name: file.name }, clearLogo: false });
+        reader.onerror = () => this.flash('That file could not be read.');
+        reader.readAsDataURL(file);
+      },
+      clear: () => this.setDraft({ logo: null, clearLogo: true })
+    };
+
+    const save = {
+      dirty,
+      disabled: !dirty || saving || !canManage,
+      cursor: !dirty || saving || !canManage ? 'default' : 'pointer',
+      label: saving ? 'Saving…' : 'Save changes',
+      buttonBg: dirty && canManage && !saving ? '#1a1a1a' : '#C9C3B7',
+      buttonFg: '#FFFFFF',
+      bg: dirty ? '#FDF6E7' : '#FFFFFF',
+      border: dirty ? '#EBD9A8' : '#E5E1D8',
+      fg: dirty ? '#412402' : '#1a1a1a',
+      headline: !canManage ? 'Settings are read-only for your role'
+        : dirty ? 'You have unsaved changes' : 'Everything here is saved',
+      detail: !canManage ? 'Ask an admin to change them.'
+        : dirty ? 'Nothing below reaches your books until you save.'
+        : 'Edit anything below, then save.',
+      go: () => this.saveSettings(),
+      discard: () => { this.setState({ draft: null }); this.flash('Changes discarded.'); }
+    };
+
+    return { settingsFields, banks, brand, save };
+  }
+
+  // Who is on these books. Loaded the first time the settings screen is
+  // opened, and reloaded after every change rather than patched locally —
+  // seats and the last-admin rule are the server's to decide.
+  loadTeam() {
+    if (!this.state.session) return Promise.resolve();
+    return API.get(this.orgPath('/members'))
+      .then((r) => this.setState({ team: r }))
+      .catch(() => {});
+  }
+
+  teamVals(ses) {
+    const st = this.state;
+    if (!ses) return { members: [], invitations: [], fresh: [] };
+    const t = st.team;
+    const canManage = Boolean(t && t.canManage);
+    const fresh = st.teamFresh || [];
+
+    const after = (promise, done) => promise
+      .then((r) => { this.loadTeam(); if (done) done(r); })
+      .catch((err) => this.flash(err.message));
+
+    const add = () => {
+      if (st.teamBusy) return;
+      const email = String(st.teamNewEmail || '').trim().toLowerCase();
+      if (!/.+@.+\..+/.test(email)) return this.flash('Enter a valid email address.');
+      this.setState({ teamBusy: true });
+      API.post(this.orgPath('/members'), { email, role: st.teamNewRole })
+        .then((r) => {
+          this.setState((s2) => ({
+            teamBusy: false,
+            teamNewEmail: '',
+            teamFresh: [...(s2.teamFresh || []), { email: r.invitation.email, role: r.invitation.role, link: r.link }]
+          }));
+          this.loadTeam();
+          this.flash('Invitation ready — copy the link and send it to ' + email + '.');
+        })
+        .catch((err) => { this.setState({ teamBusy: false }); this.flash(err.message); });
+    };
+
+    const copy = (link, key) => {
+      const done = () => { this.setState({ copied: key }); setTimeout(() => this.setState({ copied: null }), 2000); };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(link).then(done).catch(() => this.flash(link));
+      } else {
+        this.flash(link);
+      }
+    };
+
+    return {
+      canManage,
+      help: canManage
+        ? 'Everyone here shares one set of books. What each person may do is set by their role, and you can change it at any time.'
+        : 'What you may do on these books is set by your role. Ask an admin to change it.',
+      seatLine: t ? t.seats.members + ' of ' + t.seats.seats + ' seats used' +
+        (t.seats.pending ? ' · ' + t.seats.pending + ' invited' : '') : '',
+      roleNote: ROLE_NOTE[st.teamNewRole],
+      newEmail: st.teamNewEmail,
+      newRole: st.teamNewRole,
+      addLabel: st.teamBusy ? 'Inviting\u2026' : 'Invite',
+      setNewEmail: (e) => this.setState({ teamNewEmail: e.target.value }),
+      setNewRole: (e) => this.setState({ teamNewRole: e.target.value }),
+      add,
+
+      hasFresh: fresh.length > 0,
+      fresh: fresh.map((f, idx) => ({
+        email: f.email,
+        link: f.link,
+        label: st.copied === 'fresh' + idx ? 'Copied' : 'Copy link',
+        copy: () => copy(f.link, 'fresh' + idx)
+      })),
+
+      members: ((t && t.members) || []).map((m) => ({
+        name: (m.name || m.email) + (m.you ? ' (you)' : ''),
+        sub: m.email + ' · ' + (m.lastLoginAt ? 'last in ' + fmtDate(String(m.lastLoginAt).slice(0, 10)) : 'not signed in yet'),
+        role: m.role,
+        // An admin may change anyone's role, including their own — the server
+        // is what refuses to leave the books without one.
+        locked: !canManage,
+        selBg: canManage ? '#FFFFFF' : '#F7F5F0',
+        canRemove: canManage && !m.you,
+        setRole: (e) => after(API.patch(this.orgPath('/members/' + m.id), { role: e.target.value }),
+          () => this.flash((m.name || m.email) + ' is now ' + (ROLE_LABEL[e.target.value] || e.target.value).toLowerCase() + '.')),
+        remove: () => {
+          if (!window.confirm('Remove ' + (m.name || m.email) + ' from these books? What they entered stays.')) return;
+          after(API.del(this.orgPath('/members/' + m.id)), () => this.flash('Removed. Their seat is free again.'));
+        }
+      })),
+
+      invitations: ((t && t.invitations) || []).map((i) => ({
+        email: i.email,
+        sub: 'Invited as ' + (ROLE_LABEL[i.role] || i.role).toLowerCase() + ' · waiting to join',
+        relinkLabel: st.copied === 'inv' + i.id ? 'Copied' : 'New link',
+        relink: () => API.post(this.orgPath('/members/invitations/' + i.id + '/link'))
+          .then((r) => copy(r.link, 'inv' + i.id))
+          .catch((err) => this.flash(err.message)),
+        cancel: () => {
+          if (!window.confirm('Cancel the invitation to ' + i.email + '?')) return;
+          after(API.del(this.orgPath('/members/invitations/' + i.id)), () => this.flash('Invitation cancelled.'));
+        }
+      }))
+    };
+  }
+
+  // The screen a customer sees once the trial — or a paid term — has run out.
+  payVals(ses, longDate) {
+    if (!ses) return {};
+    const st = this.state;
+    const trialEnded = ses.accessReason === 'trial_ended';
+    const suspended = ses.accessReason === 'suspended';
+
+    const subscribe = () => {
+      if (st.payBusy) return;
+      this.setState({ payBusy: true, payErr: '' });
+      this.paystackAuthorise(ses.email, ses.amount)
+        .then((reference) => API.post(this.orgPath('/subscription/activate'), { paymentReference: reference }))
+        // Re-read the session rather than guessing: the server decides what
+        // access the payment just bought.
+        .then(() => API.get('/auth/me'))
+        .then((r) => {
+          this.setState({ payBusy: false, payErr: '' });
+          return this.applySession(r.session);
+        })
+        .then(() => this.flash('Subscription active. Welcome back.'))
+        .catch((err) => this.setState({ payBusy: false, payErr: err.message }));
+    };
+
+    return {
+      title: suspended ? 'This account is on hold'
+        : trialEnded ? 'Your 14-day free trial has ended'
+        : 'Your subscription is not active',
+      blurb: suspended
+        ? 'Contact support@profitna.com and we will sort it out.'
+        : trialEnded
+          ? 'To continue using Profitna, activate your subscription below.'
+          : 'The last payment did not go through. Pay now to open your books again.',
+      planLine: (ses.cycle === 'monthly' ? 'Monthly plan' : 'Yearly plan') + ' \u00b7 ' +
+        ses.users + (ses.users === 1 ? ' user' : ' users'),
+      cadence: ses.cycle === 'monthly' ? 'Renews every month' : 'Renews every year',
+      amount: money(ses.amount || 0),
+      canPay: Boolean(st.paystackReady) && !suspended,
+      noProcessor: !st.paystackReady && !suspended,
+      buttonLabel: st.payBusy ? 'Opening Paystack\u2026' : 'Subscribe now',
+      err: st.payErr || '',
+      who: ses.email,
+      subscribe,
+      signOut: (e) => {
+        if (e && e.preventDefault) e.preventDefault();
+        return API.post('/auth/signout').catch(() => {}).then(() => this.setState({
+          session: null, account: null, payErr: '', payBusy: false,
+          sme: EMPTY_BOOK(), church: EMPTY_BOOK(),
+          auth: { view: 'login', step: 1, name: '', org: '', email: '', pw: '', book: null, cycle: 'monthly', users: 1, err: '', busy: false, seats: [] },
+          team: null, teamFresh: []
+        }));
+      }
+    };
+  }
+
+  // The reminder inside the app while the trial is still running.
+  trialVals(ses, longDate) {
+    if (!ses || !ses.onTrial || ses.access === 'locked') return { show: false };
+    const left = ses.daysLeft;
+    const urgent = left <= 3;
+    return {
+      show: true,
+      headline: left > 1 ? 'You have ' + left + ' days remaining in your free trial.'
+        : left === 1 ? 'One day left in your free trial.'
+        : 'Your free trial ends today.',
+      detail: 'Add payment any time — your books keep running from ' +
+        longDate(new Date(ses.trialEndsOn + 'T00:00:00')) + '.',
+      cta: left > 3 ? 'View plan' : 'Subscribe now',
+      go: () => this.setState({ screen: 'settings' }),
+      bg: urgent ? '#FDF1E4' : '#FBF7EE',
+      border: urgent ? '#EBD2A8' : '#E9E2D2',
+      rule: urgent ? '#E39B3C' : '#FAC775'
+    };
+  }
+
   subVals(ses, longDate, shift) {
     const PU = 5000, ANN = 57000;
     if (!ses) return {};
     const monthly = ses.cycle === 'monthly', users = ses.users;
     const rate = monthly ? PU : ANN, amount = rate * users;
-    const start = new Date(ses.trialStart + 'T00:00:00');
-    const left = 14 - Math.round((TODAY - start) / 86400000);
-    const nextD = new Date(start); nextD.setDate(nextD.getDate() + 14);
+    // The date the term runs to, and the count of days left, both come from
+    // the server with the session rather than being recomputed here.
+    const onTrial = Boolean(ses.onTrial), left = ses.daysLeft;
+    const nextD = new Date((ses.periodEnd || ses.trialEndsOn) + 'T00:00:00');
     const setSes = (patch) => this.save(API.patch(this.orgPath('/subscription'), patch), (r) => {
       const applied = { cycle: r.subscription.cycle, users: r.subscription.users };
       this.setState((s) => ({ session: { ...s.session, ...applied }, account: { ...s.account, ...applied } }));
     });
     return {
-      status: left > 0 ? 'Free trial · ' + left + ' days remaining' : 'Active',
-      help: left > 0
-        ? 'Nothing has been charged yet. Your plan starts automatically when the trial ends, and changes below take effect from that first charge.'
+      status: onTrial
+        ? (left > 0 ? 'Free trial · ' + left + (left === 1 ? ' day remaining' : ' days remaining') : 'Free trial · last day')
+        : 'Active',
+      help: onTrial
+        ? 'Nothing has been charged and no card is on file. When the trial ends we will ask you to pay for the plan below; your books stay exactly as you left them until you do.'
         : 'Your plan renews automatically. Changes to cycle or user count are applied on the next charge.',
       cycles: [['monthly', 'Monthly'], ['annual', 'Yearly — 5% off']].map((c) => ({
         label: c[1], go: () => setSes({ cycle: c[0] }),
@@ -2227,7 +3220,9 @@ class Component extends DCLogic {
       inc: () => setSes({ users: Math.min(25, users + 1) }),
       dec: () => setSes({ users: Math.max(1, users - 1) }),
       card: ses.card ? '\u2022\u2022\u2022\u2022 ' + ses.card.last4 : 'No card on file',
-      cardSub: ses.card ? ses.card.brand + ' \u00b7 expires ' + ses.card.exp : 'Add one before the trial ends',
+      cardSub: ses.card
+        ? ses.card.brand + ' \u00b7 expires ' + ses.card.exp
+        : 'None needed during the trial — you pay when it ends',
       nextDate: longDate(nextD),
       cadenceNote: monthly ? 'Then every month' : 'Then every year',
       amount: money(amount),
@@ -2562,26 +3557,10 @@ class Component extends DCLogic {
     // settings
     // Typing updates the field immediately and saves once the user pauses, so
     // a keystroke never costs a round trip.
-    const setField = (key) => (e) => {
-      const v = e.target.value, k = st.mode === 'sme' ? 'org' : 'chOrg';
-      this.setState((s) => ({ [k]: Object.assign({}, s[k], { [key]: v }) }), () => {
-        clearTimeout(this._orgSave);
-        this._orgSave = setTimeout(() => {
-          this.save(API.patch(this.orgPath(), this.o()), () => {});
-        }, 700);
-      });
-    };
-    const settingsFields = [
-      { label: 'Organisation name', value: o.name, onChange: setField('name') },
-      { label: 'Entity type', value: o.type, onChange: setField('type') },
-      { label: 'State', value: o.state, onChange: setField('state') },
-      { label: 'VAT rate (%)', value: o.vatRate, onChange: setField('vatRate') },
-      { label: 'Opening cash balance', value: o.openingCash, onChange: setField('openingCash') },
-      { label: church ? 'Accumulated fund b/f' : 'Owner contributions', value: o.contributions, onChange: setField('contributions') },
-      { label: 'Property and equipment', value: o.fixedAssets, onChange: setField('fixedAssets') }
-    ];
-    const roles = [['Admin', 'Full access — books, settings, team and exports'], ['Accountant', 'Enter and edit transactions, reconcile, run reports'], ['Viewer', 'Read-only access to dashboard and reports']]
-      .map((x) => ({ name: x[0], desc: x[1], go: () => this.setState({ role: x[0] }), bg: st.role === x[0] ? '#EFEDE6' : '#FFFFFF', border: st.role === x[0] ? '#0B6B4F' : '#E7E3DA' }));
+    // The profile, the accounts, the logo and the Save button that governs
+    // all three. Opening cash is no longer a field here: it is the sum of the
+    // bank accounts' opening balances, which are edited below.
+    const settings = this.settingsVals(o, d, money);
     const catRows = d.cats.map((c, i) => ({
       name: c.name, pct: String(c.pct),
       onChange: (e) => {
@@ -2686,6 +3665,11 @@ class Component extends DCLogic {
       isLedgerDoc: st.screen === 'invoices' || st.screen === 'bills', isContacts: st.screen === 'contacts',
       isInventory: st.screen === 'inventory', isReconcile: st.screen === 'reconcile',
       isReports: st.screen === 'reports', isSettings: st.screen === 'settings',
+      // Drives the stylesheet that greys out what this role cannot reach, and
+      // the disabled state that stops the keyboard reaching it either.
+      roleKey: st.role === 'Admin' ? 'admin' : st.role === 'Viewer' ? 'viewer' : 'accountant',
+      perm: { noWrite: st.role === 'Viewer', noAdmin: st.role !== 'Admin' },
+      readOnly: this.readOnlyVals(),
       ...this.aiVals(d, o, months, catTotals, forecast, cash),
       kpis, kpisMain: kpis.slice(0, 4),
       kpisMini: kpis.slice(4).map((k, i) => Object.assign({}, k, { label: (church ? ['Pledges due', 'Payable', 'Restricted', 'Uncoded'] : ['Receivable', 'Payable', 'Stock value', 'Uncoded'])[i] || k.label })), chart, forecast, topIncome: catTotals('income'), topExpense: catTotals('expense'),
@@ -2706,8 +3690,17 @@ class Component extends DCLogic {
       contactPanes, invRows, lowStock,
       bankRows, recTiles, recVerify, refreshBank: this.refreshBank, autoMatch: this.autoMatch,
       openImport: this.openImport, imp: this.impVals(church, d),
-      reportTabs, report,
-      settingsFields, roles, catRows,
+      reportTabs,
+      // Every report carries when it was produced and out of which books,
+      // alongside the "Powered by Profitna" mark in the same footer.
+      report: Object.assign({}, report, {
+        stamp: o.name + ' · generated ' + this.longDate()
+      }),
+      settingsFields: settings.settingsFields,
+      banks: settings.banks,
+      brand: settings.brand,
+      save: settings.save,
+      catRows,
       coaHelp: church
         ? 'Your giving and expenditure accounts. Add anything your church tracks that is not here — a new project fund line, a departmental budget — and it appears in the giving form and every report straight away.'
         : 'Your income and expense accounts. Add anything specific to your trade that is not here, and it appears in the transaction form and every report straight away.',
@@ -2731,7 +3724,9 @@ class Component extends DCLogic {
       openTx: () => this.openTxModal(),
       runAI: this.runAI,
       exportCsv: () => this.flash('Exported to CSV — copied to clipboard.'),
-      printReport: () => this.flash('Report sent to print / PDF.'),
+      // The print stylesheet strips the app around it, so what comes out is
+      // the report, branded, with the footer.
+      printReport: () => { window.print(); },
       modalOpen: !!modal, modal: modal || { title: '', fields: [], body: null, suggestion: null, cta: '', submit: () => {} },
       closeModal: () => this.setState({ modal: null }),
       acceptSuggestion: () => { const s = this.suggest(st.form); this.setState((x) => ({ form: Object.assign({}, x.form, { category: s }) })); },

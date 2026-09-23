@@ -24,7 +24,7 @@ both the API and the interface, so one service is all it needs.
 ### 1. Create the services
 
 In Render: **New → Blueprint**, connect this repository, and select the
-`backend-for-profitna` branch. It reads `render.yaml` and creates the web
+`main` branch. It reads `render.yaml` and creates the web
 service and the database. `JWT_SECRET` is generated for you; `DATABASE_URL` is
 wired from the database automatically.
 
@@ -52,8 +52,9 @@ minutes.
 
 ### 3. First account
 
-Open `https://profitna.com` and create the account — it becomes the admin of
-its organisation. The books start **empty** by design; `SEED_DEMO_DATA` is
+Open `https://profitna.com` and create the account — no card is asked for — and
+it becomes the admin of its organisation on a 14-day trial. The books start
+**empty** by design; `SEED_DEMO_DATA` is
 deliberately not set, so you get the designed empty states rather than
 somebody else's sample data. To demo with populated books instead, add
 `SEED_DEMO_DATA=true` in the Render dashboard, redeploy, and create a *new*
@@ -61,7 +62,7 @@ account — then remove it before real customers sign up.
 
 ### Afterwards
 
-Pushing to `backend-for-profitna` redeploys. Render backs the database up on
+Pushing to `main` redeploys. Render backs the database up on
 paid plans; confirm what your plan actually retains rather than assuming.
 
 ---
@@ -99,7 +100,7 @@ document for that.
 On a VPS that already has the DNS records from step 2 pointing at it:
 
 ```bash
-git clone -b backend-for-profitna git@github.com:tosynogunniyi-ux/claude.git /opt/profitna
+git clone git@github.com:tosynogunniyi-ux/claude.git /opt/profitna
 cd /opt/profitna
 bash deploy/bootstrap.sh profitna.com
 ```
@@ -186,14 +187,14 @@ Copy that key into GitHub → the repo → **Settings → Deploy keys → Add de
 key** (read access is enough), then:
 
 ```bash
-git clone -b backend-for-profitna git@github.com:tosynogunniyi-ux/claude.git /opt/profitna
+git clone git@github.com:tosynogunniyi-ux/claude.git /opt/profitna
 cd /opt/profitna
 ```
 
 ### 5. Configure secrets
 
 ```bash
-cp .env.deploy.example .env
+cp deploy/.env.example .env
 nano .env
 ```
 
@@ -231,14 +232,65 @@ First HTTPS request can take a few seconds while Caddy gets the certificate.
 
 ### 7. First account
 
-Open `https://profitna.com`, create the account, and it becomes the admin of
-its organisation. The books start **empty** — `SEED_DEMO_DATA` is deliberately
+Open `https://profitna.com`, create the account — no card is asked for — and
+it becomes the admin of its organisation on a 14-day trial. The books start
+**empty** — `SEED_DEMO_DATA` is deliberately
 not set in production, so you get the designed empty states rather than
 somebody else's sample data.
 
 To show the populated demo instead, uncomment `SEED_DEMO_DATA: "true"` in
 `docker-compose.yml`, `docker compose up -d`, and create a *new* account.
 Turn it back off before real customers sign up.
+
+### 8. Your Control Center account
+
+The owner's console at `https://profitna.com/admin` does not exist until you
+create an account for it. Nothing on the site links to it, and no form can
+create one — it is made on the server:
+
+```bash
+docker compose exec app node src/create-admin.js \
+  --email you@example.com --name "Your Name"
+```
+
+That prints a generated password and a two-factor secret, **once**. Add the
+secret to an authenticator app (Google Authenticator, 1Password, Authy) before
+you close the terminal, then sign in with the email, password and a six-digit
+code, and change the password from the console's Security tab.
+
+If you lose the authenticator:
+
+```bash
+docker compose exec app node src/create-admin.js --email you@example.com --rotate-totp
+```
+
+On Easypanel or another panel, run the same command from the service's
+console — the working directory is already `/app/server`.
+
+### 9. Billing
+
+Signing up never asks for a card. When a trial runs out, the customer is shown
+a payment screen inside the app and pays there; nothing of theirs is deleted
+while they decide. After that first payment the server renews the term by
+itself, checking every hour.
+
+Both halves need `PAYSTACK_SECRET_KEY` and `PAYSTACK_PUBLIC_KEY`. Without
+them, trials still run, but an expired account cannot be paid for and the
+payment screen says so plainly rather than offering a button that cannot
+work.
+
+Two things to do once that key is in place:
+
+- Point the Paystack webhook at `https://profitna.com/api/webhooks/paystack`
+  (Paystack dashboard → Settings → API Keys & Webhooks).
+- Open the Control Center's **Subscriptions** page. The card at the top says
+  whether billing is on, when it last ran and what it charged, lists any
+  subscription being retried after a declined card, and has a **Run now**
+  button.
+
+A declined card is retried after 1, 3, 5 and 7 days. After the fourth failure
+the subscription is left **past due** rather than cancelled — that decision
+stays yours, in the console.
 
 ---
 

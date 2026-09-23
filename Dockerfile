@@ -1,5 +1,5 @@
-# Build context is the repository root: the server serves the app's two files
-# from ../../project, so both directories have to be in the image.
+# Build context is the repository root: the server serves the front end from
+# ../../web, so both directories have to be in the image.
 FROM node:22-alpine
 
 ENV NODE_ENV=production
@@ -10,17 +10,25 @@ COPY server/package.json server/package-lock.json ./server/
 RUN cd server && npm ci --omit=dev
 
 COPY server ./server
-COPY project/Profitna.dc.html project/support.js ./project/
-COPY project/vendor ./project/vendor
+COPY web/Profitna.dc.html web/support.js web/admin.html ./web/
+COPY web/vendor ./web/vendor
 
 # Runs unprivileged; node:alpine ships a "node" user for exactly this.
 RUN chown -R node:node /app
 USER node
 
+ENV PORT=4000
 EXPOSE 4000
 
+# Follows PORT, so a host that routes to a different port (Easypanel defaults
+# to 3000) does not end up with a working app reporting itself unhealthy.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD node -e "fetch('http://127.0.0.1:4000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||4000)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 WORKDIR /app/server
-CMD ["node", "src/index.js"]
+
+# Migrations run before the server starts, as part of the image's own default
+# command. A host that cannot express a custom start command — or an operator
+# who forgets to set one — still gets a schema that matches the code, and the
+# server refuses to start if they fail.
+CMD ["sh", "-c", "node src/migrate.js && node src/index.js"]

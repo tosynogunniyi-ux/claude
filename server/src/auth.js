@@ -10,23 +10,27 @@ function secret() {
   return s;
 }
 
-function issue(res, user) {
-  const token = jwt.sign({ sub: user.id, email: user.email }, secret(), { expiresIn: '7d' });
-  res.cookie(COOKIE, token, {
+// Marked secure whenever the request actually arrived over HTTPS, rather than
+// relying on NODE_ENV being set correctly. Behind a reverse proxy the TLS ends
+// at the proxy, so this reads the forwarded protocol — app.set('trust proxy')
+// makes req.secure honour it. A deployment that forgets NODE_ENV still gets a
+// cookie that only travels over HTTPS.
+function cookieOptions(req) {
+  return {
     httpOnly: true,
     sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: MAX_AGE_MS
-  });
+    secure: Boolean(req && (req.secure || req.get('x-forwarded-proto') === 'https'))
+  };
+}
+
+function issue(req, res, user) {
+  const token = jwt.sign({ sub: user.id, email: user.email }, secret(), { expiresIn: '7d' });
+  res.cookie(COOKIE, token, Object.assign(cookieOptions(req), { maxAge: MAX_AGE_MS }));
   return token;
 }
 
-function clear(res) {
-  res.clearCookie(COOKIE, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production'
-  });
+function clear(req, res) {
+  res.clearCookie(COOKIE, cookieOptions(req));
 }
 
 function readToken(req) {
@@ -34,6 +38,13 @@ function readToken(req) {
   if (header && header.startsWith('Bearer ')) return header.slice(7);
   return req.cookies ? req.cookies[COOKIE] : null;
 }
+
+// Said to the account holder, so it explains rather than accuses, and points
+// somewhere they can actually go.
+const SUSPENDED_MESSAGE = {
+  suspended: 'This account is suspended. Contact support@profitna.com to restore access.',
+  deactivated: 'This account has been closed. Contact support@profitna.com if that is unexpected.'
+};
 
 // Populates req.user. 401s rather than falling through, so no handler can
 // accidentally run unauthenticated.
@@ -43,10 +54,17 @@ async function requireAuth(req, res, next) {
     if (!token) return res.status(401).json({ error: 'Not signed in.' });
     const payload = jwt.verify(token, secret());
     const user = await one(
-      'SELECT id, email, full_name, auth_provider FROM users WHERE id = $1',
+      'SELECT id, email, full_name, auth_provider, status FROM users WHERE id = $1',
       [payload.sub]
     );
     if (!user) return res.status(401).json({ error: 'Not signed in.' });
+    // Checked on every request, not only at sign-in: suspending an account in
+    // the Control Center has to end the sessions it already has open, and the
+    // session token itself is self-contained and cannot be revoked.
+    if (user.status !== 'active') {
+      clear(req, res);
+      return res.status(403).json({ error: SUSPENDED_MESSAGE[user.status] || SUSPENDED_MESSAGE.suspended });
+    }
     req.user = user;
     next();
   } catch (err) {
@@ -83,6 +101,19 @@ function requireOrg(minRole) {
   };
 }
 
+// Written on every successful sign-in. "Last login and account activity" is
+// one of the things the Control Center exists to show, and nothing else in
+// the product was recording it.
+async function recordLogin(req, userId) {
+  const { query } = require('./db');
+  await query(
+    `UPDATE users
+        SET last_login_at = now(), last_login_ip = $2, login_count = login_count + 1
+      WHERE id = $1`,
+    [userId, String(req.ip || '').slice(0, 64)]
+  );
+}
+
 async function audit(orgId, userId, action, entityType, entityId, detail) {
   const { query } = require('./db');
   await query(
@@ -92,4 +123,4 @@ async function audit(orgId, userId, action, entityType, entityId, detail) {
   );
 }
 
-module.exports = { issue, clear, requireAuth, requireOrg, audit, COOKIE };
+module.exports = { issue, clear, requireAuth, requireOrg, audit, recordLogin, SUSPENDED_MESSAGE, COOKIE };

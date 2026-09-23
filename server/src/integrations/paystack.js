@@ -35,6 +35,13 @@ async function verify(reference, email) {
     provider: 'paystack',
     customerId: data.customer ? String(data.customer.customer_code) : null,
     authorizationCode: auth.authorization_code || null,
+    // Kept so the charge appears in the owner's payment history rather than
+    // only as a card on file. Paystack works in kobo.
+    reference: data.reference || reference,
+    amount: Number(data.amount || 0) / 100,
+    currency: data.currency || 'NGN',
+    channel: data.channel || null,
+    paidAt: data.paid_at || data.paidAt || null,
     card: auth.last4
       ? { brand: auth.brand || 'Card', last4: auth.last4, exp: auth.exp_month + '/' + String(auth.exp_year).slice(-2) }
       : null

@@ -3,6 +3,7 @@ const { many, one, query, tx: transaction } = require('../db');
 const { requireOrg, audit } = require('../auth');
 const shape = require('../shape');
 const { byKeyword } = require('../categorize');
+const banking = require('./banking');
 const anthropic = require('../integrations/anthropic');
 
 const router = express.Router({ mergeParams: true });
@@ -29,17 +30,24 @@ router.post('/transactions', requireOrg('accountant'), async (req, res, next) =>
     if (!b.description) return res.status(400).json({ error: 'Add a description.' });
     if (!amount) return res.status(400).json({ error: 'Add an amount.' });
     const type = b.type === 'income' ? 'income' : 'expense';
+    const method = String(b.method || 'Bank transfer');
 
     const row = await one(
       `INSERT INTO transactions
-         (organization_id, type, date, amount, category, fund, party, description, method, source, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'manual', $10)
+         (organization_id, type, date, amount, category, fund, party, description, method,
+          bank_account_id, source, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'manual', $11)
        RETURNING *`,
       [
         req.orgId, type, b.date || today(), amount,
         String(b.category || ''), b.fund || null,
         String(b.party || ''), String(b.description || ''),
-        String(b.method || 'Bank transfer'), req.user.id
+        method,
+        // Which account the money moved through. Named if the entry says so,
+        // otherwise the primary one for a bank method and nothing at all for
+        // cash — a cash sale must not inflate a bank balance.
+        await banking.resolveAccount(req.orgId, b.bankAccountId, method),
+        req.user.id
       ]
     );
     await audit(req.orgId, req.user.id, 'transaction.created', 'transaction', row.id, { amount, type });
@@ -254,9 +262,9 @@ function documentRoutes({ path, table, contactTable, contactColumn, nameColumn, 
         const church = req.bookType === 'church';
         const ledger = (await client.query(
           `INSERT INTO transactions
-             (organization_id, type, date, amount, category, fund, party, description, method, source,
-              ${isBill ? 'ref_bill_id' : 'ref_invoice_id'}, ref_payment_id, created_by)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+             (organization_id, type, date, amount, category, fund, party, description, method, bank_account_id,
+              source, ${isBill ? 'ref_bill_id' : 'ref_invoice_id'}, ref_payment_id, created_by)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
            RETURNING *`,
           [
             req.orgId,
@@ -267,6 +275,7 @@ function documentRoutes({ path, table, contactTable, contactColumn, nameColumn, 
             doc[nameColumn],
             'Payment against ' + doc.number,
             payment.method,
+            await banking.resolveAccount(req.orgId, (req.body || {}).bankAccountId, payment.method),
             isBill ? 'bill' : 'invoice',
             doc.id, payment.id, req.user.id
           ]
@@ -363,15 +372,20 @@ router.post('/inventory/:id/move', requireOrg('accountant'), async (req, res, ne
         [req.orgId, item.id, qty]
       )).rows[0];
 
+      const bankAccountId = dir === 'buy'
+        ? await banking.resolveAccount(req.orgId, null, 'Bank transfer')
+        : null;
       const ledger = (await client.query(
         `INSERT INTO transactions
-           (organization_id, type, date, amount, category, party, description, method, source, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'stock', $9) RETURNING *`,
+           (organization_id, type, date, amount, category, party, description, method, bank_account_id,
+            source, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'stock', $10) RETURNING *`,
         dir === 'buy'
           ? [req.orgId, 'expense', today(), qty * item.cost, 'Inventory Purchases', item.supplier || '',
-             'Received ' + qty + ' × ' + item.name, 'Bank transfer', req.user.id]
+             'Received ' + qty + ' × ' + item.name, 'Bank transfer', bankAccountId, req.user.id]
+          // A counter sale is cash, so it deliberately lands on no account.
           : [req.orgId, 'income', today(), qty * item.price, 'Product Sales', 'Counter sale',
-             'Sold ' + qty + ' × ' + item.name, 'Cash', req.user.id]
+             'Sold ' + qty + ' × ' + item.name, 'Cash', null, req.user.id]
       )).rows[0];
 
       return { item: shape.itemShape(updated), tx: shape.txShape(ledger) };

@@ -1,7 +1,9 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { one, tx } = require('../db');
-const { issue, clear, requireAuth } = require('../auth');
+const { issue, clear, requireAuth, recordLogin, SUSPENDED_MESSAGE } = require('../auth');
+const { accessFor } = require('../access');
+const team = require('../team');
 const { seedChartOfAccounts } = require('../defaults');
 const { seedDemoBooks } = require('../demo');
 const paystack = require('../integrations/paystack');
@@ -18,13 +20,15 @@ function bad(res, message) {
 }
 
 // The session object the UI keeps in state: same shape the prototype built
-// locally at signup, plus the ids it now needs to talk to the API.
-async function sessionFor(userId) {
-  return one(
+// locally at signup, plus the ids it now needs to talk to the API and the
+// derived trial facts the banner and the paywall are drawn from.
+async function sessionFor(userId, preferOrgId) {
+  const row = await one(
     `SELECT u.id            AS "userId",
             u.full_name     AS name,
             u.email,
             u.auth_provider AS provider,
+            u.status,
             m.role,
             o.id            AS "orgId",
             o.name          AS "orgName",
@@ -33,6 +37,8 @@ async function sessionFor(userId) {
             s.seats         AS users,
             s.trial_start   AS "trialStart",
             s.status        AS "subStatus",
+            s.current_period_end,
+            s.card_last4,
             CASE WHEN s.card_last4 IS NULL THEN NULL
                  ELSE json_build_object('brand', s.card_brand, 'last4', s.card_last4, 'exp', s.card_exp)
             END AS card
@@ -41,13 +47,44 @@ async function sessionFor(userId) {
        JOIN organizations o ON o.id = m.organization_id
        LEFT JOIN subscriptions s ON s.organization_id = o.id
       WHERE u.id = $1
-      ORDER BY m.created_at
+      -- Someone can be on more than one set of books. Without a preference
+      -- this is the oldest membership, which is their own.
+      ORDER BY (o.id = $2) DESC, m.created_at
       LIMIT 1`,
-    [userId]
+    [userId, preferOrgId || null]
   );
+  if (!row) return null;
+
+  // Whether the books open, how long is left and what it costs are all read
+  // from the dates rather than stored, so the answer cannot go stale.
+  const access = accessFor(
+    row.cycle
+      ? {
+          cycle: row.cycle,
+          seats: row.users,
+          trial_start: row.trialStart,
+          current_period_end: row.current_period_end,
+          status: row.subStatus,
+          card_last4: row.card_last4
+        }
+      : null
+  );
+
+  delete row.current_period_end;
+  delete row.card_last4;
+
+  return Object.assign(row, {
+    access: access.state,
+    accessReason: access.reason,
+    onTrial: access.onTrial,
+    daysLeft: access.daysLeft,
+    trialEndsOn: access.trialEndsOn,
+    periodEnd: access.periodEnd,
+    amount: access.amount
+  });
 }
 
-async function createAccount({ name, orgName, email, password, googleSub, book, cycle, seats, card, payment }) {
+async function createAccount({ name, orgName, email, password, googleSub, book, cycle, seats, invites }) {
   const passwordHash = password ? await bcrypt.hash(password, 12) : null;
 
   return tx(async (client) => {
@@ -81,25 +118,41 @@ async function createAccount({ name, orgName, email, password, googleSub, book, 
       [user.id, org.id]
     );
 
+    // No card, no processor, no charge. trial_start defaults to today and the
+    // status to 'trialing', which is the whole of what a new account owes us.
     await client.query(
-      `INSERT INTO subscriptions
-         (organization_id, cycle, seats, card_brand, card_last4, card_exp, provider,
-          provider_customer_id, provider_authorization_code)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-      [
-        org.id, cycle, seats,
-        card ? card.brand : null,
-        card ? card.last4 : null,
-        card ? card.exp : null,
-        payment ? payment.provider : null,
-        payment ? payment.customerId : null,
-        payment ? payment.authorizationCode : null
-      ]
+      'INSERT INTO subscriptions (organization_id, cycle, seats) VALUES ($1, $2, $3)',
+      [org.id, cycle, seats]
+    );
+
+    // One account to start with, so the first bank payment has somewhere to
+    // land and the opening balance has somewhere to be entered.
+    await client.query(
+      `INSERT INTO bank_accounts (organization_id, name, opening_balance, is_primary)
+       VALUES ($1, 'Main account', 0, true)`,
+      [org.id]
     );
 
     await seedChartOfAccounts(client, org.id, book);
     if (process.env.SEED_DEMO_DATA === 'true') {
       await seedDemoBooks(client, org.id, book);
+    }
+
+    // Seats beyond the first are assigned here, in the same transaction that
+    // creates the books: a signup for three users ends with one member and
+    // two invitations waiting, not three unexplained empty seats.
+    const issued = [];
+    for (const person of invites || []) {
+      const result = await team.invite(
+        { organizationId: org.id, email: person.email, name: person.name, role: person.role, invitedBy: user.id },
+        client
+      );
+      if (result.error) {
+        const err = new Error(result.error);
+        err.status = 400;
+        throw err;
+      }
+      issued.push({ email: result.invitation.email, name: result.invitation.full_name, role: result.invitation.role, token: result.token });
     }
 
     await client.query(
@@ -108,7 +161,7 @@ async function createAccount({ name, orgName, email, password, googleSub, book, 
       [org.id, user.id, org.id]
     );
 
-    return user.id;
+    return { userId: user.id, orgId: org.id, issued };
   });
 }
 
@@ -140,29 +193,41 @@ router.post('/signup', async (req, res, next) => {
       if (password.length < 8) return bad(res, 'Choose a password of at least 8 characters.');
     }
 
-    // Card details are captured by the payment processor, never by this
-    // server: the client sends back only what the UI displays.
-    const card = body.card
-      ? {
-          brand: String(body.card.brand || '').slice(0, 32),
-          last4: String(body.card.last4 || '').replace(/\D/g, '').slice(-4),
-          exp: String(body.card.exp || '').slice(0, 7)
-        }
-      : null;
-    if (card && card.last4.length !== 4) return bad(res, 'Add a payment card before starting the trial.');
-    if (!card) return bad(res, 'Add a payment card before starting the trial.');
-
-    // With Paystack configured the client charges through their SDK first and
-    // passes the reference here for server-side verification.
-    let payment = null;
-    if (body.paymentReference) {
-      payment = await paystack.verify(body.paymentReference, email);
-      if (!payment) return bad(res, 'We could not verify that card with the payment processor.');
+    // One seat means one person, and that person is the admin of their own
+    // books. More than one, and the extra seats are named and given a role
+    // here — an empty seat helps nobody.
+    const invites = [];
+    const wanted = Array.isArray(body.team) ? body.team : [];
+    if (wanted.length > seats - 1) {
+      return bad(res, 'You chose ' + seats + ' users, so you can invite ' + (seats - 1) + ' besides yourself.');
+    }
+    for (const person of wanted) {
+      const address = String((person && person.email) || '').trim().toLowerCase();
+      if (!address) continue;
+      if (!EMAIL_RE.test(address)) return bad(res, 'Enter a valid email address for each person you are inviting.');
+      if (address === email) return bad(res, 'You already have a seat — invite the other people on your team.');
+      if (invites.some((i) => i.email === address)) return bad(res, 'Each person needs a different email address.');
+      invites.push({ email: address, name: person.name, role: team.normaliseRole(person.role, 'viewer') });
     }
 
-    const userId = await createAccount({ name, orgName, email, password, googleSub, book, cycle, seats, card, payment });
-    issue(res, { id: userId, email });
-    res.status(201).json({ session: await sessionFor(userId) });
+    // Signing up costs nothing and asks for nothing to pay with. The account
+    // opens on a 14-day trial with no card on file; payment is collected at
+    // the end of it, through /subscription/activate. Anything card-shaped in
+    // the body is ignored rather than trusted.
+    const created = await createAccount({
+      name, orgName, email, password, googleSub, book, cycle, seats, invites
+    });
+    await recordLogin(req, created.userId);
+    issue(req, res, { id: created.userId, email });
+
+    res.status(201).json({
+      session: await sessionFor(created.userId),
+      // Shown once, for the subscriber to copy and send. Nothing stores the
+      // raw token, so this response is the only place these links exist.
+      invites: created.issued.map((i) => ({
+        email: i.email, name: i.name, role: i.role, link: team.inviteLink(req, i.token)
+      }))
+    });
   } catch (err) {
     if (err.status === 409) return res.status(409).json({ error: err.message });
     next(err);
@@ -176,13 +241,19 @@ router.post('/login', async (req, res, next) => {
     if (!EMAIL_RE.test(email)) return bad(res, 'Enter a valid email address.');
     if (!password) return bad(res, 'Enter your password.');
 
-    const user = await one('SELECT id, email, password_hash FROM users WHERE email = $1', [email]);
+    const user = await one('SELECT id, email, password_hash, status FROM users WHERE email = $1', [email]);
     // Same message either way, so the response cannot be used to enumerate
     // which emails have accounts.
     const ok = user && user.password_hash && (await bcrypt.compare(password, user.password_hash));
     if (!ok) return res.status(401).json({ error: 'That email and password do not match an account.' });
+    // Told only once the password is right: whether an account is suspended
+    // is the account holder's business, not a probe's.
+    if (user.status !== 'active') {
+      return res.status(403).json({ error: SUSPENDED_MESSAGE[user.status] || SUSPENDED_MESSAGE.suspended });
+    }
 
-    issue(res, user);
+    await recordLogin(req, user.id);
+    issue(req, res, user);
     res.json({ session: await sessionFor(user.id) });
   } catch (err) {
     next(err);
@@ -196,15 +267,19 @@ router.post('/google', async (req, res, next) => {
     const profile = await google.verify((req.body || {}).credential);
     if (!profile) return res.status(501).json({ error: 'Google sign-in is not configured on this server.' });
 
-    const user = await one('SELECT id, email, google_sub FROM users WHERE email = $1', [profile.email]);
+    const user = await one('SELECT id, email, google_sub, status FROM users WHERE email = $1', [profile.email]);
     if (!user) {
       return res.status(404).json({ error: 'No Profitna account uses that Google address. Create one first.' });
+    }
+    if (user.status !== 'active') {
+      return res.status(403).json({ error: SUSPENDED_MESSAGE[user.status] || SUSPENDED_MESSAGE.suspended });
     }
     if (!user.google_sub) {
       const { query } = require('../db');
       await query("UPDATE users SET google_sub = $1, auth_provider = 'google' WHERE id = $2", [profile.sub, user.id]);
     }
-    issue(res, user);
+    await recordLogin(req, user.id);
+    issue(req, res, user);
     res.json({ session: await sessionFor(user.id) });
   } catch (err) {
     next(err);
@@ -220,7 +295,7 @@ router.get('/me', requireAuth, async (req, res, next) => {
 });
 
 router.post('/signout', (req, res) => {
-  clear(res);
+  clear(req, res);
   res.json({ ok: true });
 });
 

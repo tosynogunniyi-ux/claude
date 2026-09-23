@@ -38,6 +38,15 @@ services:
       ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-opus-5}
       MONO_SECRET_KEY: ${MONO_SECRET_KEY:-}
       MONO_WEBHOOK_SECRET: ${MONO_WEBHOOK_SECRET:-}
+      # The owner's console. It answers 404 until an account is created with
+      #   docker compose exec app node src/create-admin.js --email you@…
+      # Where invitation links point; the request is used when unset.
+      PUBLIC_URL: ${PUBLIC_URL:-}
+      ADMIN_PATH: ${ADMIN_PATH:-/admin}
+      ADMIN_IP_ALLOWLIST: ${ADMIN_IP_ALLOWLIST:-}
+      # Ends trials and renews terms. Idle until PAYSTACK_SECRET_KEY is set.
+      BILLING_SCHEDULER: ${BILLING_SCHEDULER:-}
+      BILLING_INTERVAL_MINUTES: ${BILLING_INTERVAL_MINUTES:-60}
       # Deliberately not set in production: real accounts start empty.
       # SEED_DEMO_DATA: "true"
     # Migrations run to completion before the server accepts traffic.
@@ -53,7 +62,7 @@ services:
     environment:
       SITE_DOMAIN: ${SITE_DOMAIN:?set SITE_DOMAIN in .env}
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data      # certificates — keep this volume or you re-issue
       - caddy-config:/config
 
