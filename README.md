@@ -31,7 +31,7 @@ web/            The application interface
   vendor/             React and the spreadsheet reader, served locally
 
 server/         The API and the database
-  src/routes/         auth, ledger, bank, org, subscription, members, admin
+  src/routes/         auth, ledger, bank, banking, org, subscription, members, admin
   src/sql/            schema migrations
   src/integrations/   Paystack, Google, Anthropic
   src/create-admin.js the only way a Control Center account is created
@@ -82,6 +82,22 @@ disappearing: **nothing is deleted**. The organisation, the ledger, the
 invoices and every figure entered stay exactly where they were, and come back
 the moment payment goes through. A failed payment leaves the customer on that
 screen, free to try again.
+
+## Settings
+
+- **Bank accounts.** Every account the business holds money in, each with the
+  opening balance it had before Profitna and the date that balance was true.
+  The current balance is that figure plus everything recorded against the
+  account — never a stored number that can drift. Cash entries stay off bank
+  balances. One account is the default for bank payments; removing an account
+  leaves everything it paid for in the books.
+- **Your logo on your reports.** Upload it once and it heads every report
+  Profitna produces, with the organisation's name and the date underneath.
+- **Powered by Profitna** sits quietly at the foot of every report.
+- **Save changes.** Nothing typed into the panel reaches the books until it is
+  pressed. The bar at the top says which state you are in, Discard throws the
+  edits away, and leaving the screen — or the tab — with unsaved changes asks
+  first.
 
 ## Roles and the team
 

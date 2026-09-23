@@ -2,6 +2,7 @@ const express = require('express');
 const { many, one, query } = require('../db');
 const { requireOrg, audit } = require('../auth');
 const shape = require('../shape');
+const banking = require('./banking');
 
 const router = express.Router({ mergeParams: true });
 
@@ -26,7 +27,7 @@ const BILL_SELECT = `
 router.get('/data', requireOrg(), async (req, res, next) => {
   try {
     const id = req.orgId;
-    const [org, clients, vendors, tx, inv, bills, inventory, bank, expenseCats, incomeCats, funds] =
+    const [org, clients, vendors, tx, inv, bills, inventory, bank, expenseCats, incomeCats, funds, accounts] =
       await Promise.all([
         one('SELECT * FROM organizations WHERE id = $1', [id]),
         many('SELECT * FROM clients WHERE organization_id = $1 ORDER BY name', [id]),
@@ -38,7 +39,8 @@ router.get('/data', requireOrg(), async (req, res, next) => {
         many('SELECT * FROM bank_statement_lines WHERE organization_id = $1 ORDER BY date DESC', [id]),
         many('SELECT name, deductible_pct FROM expense_categories WHERE organization_id = $1 ORDER BY sort_order, name', [id]),
         many('SELECT name FROM income_categories WHERE organization_id = $1 ORDER BY sort_order, name', [id]),
-        many('SELECT name FROM funds WHERE organization_id = $1 ORDER BY sort_order, name', [id])
+        many('SELECT name FROM funds WHERE organization_id = $1 ORDER BY sort_order, name', [id]),
+        banking.accountsWithBalances(id)
       ]);
 
     res.json({
@@ -54,7 +56,10 @@ router.get('/data', requireOrg(), async (req, res, next) => {
         bank: bank.map(shape.bankShape),
         cats: expenseCats.map((c) => ({ name: c.name, pct: Number(c.deductible_pct) })),
         income: incomeCats.map((c) => c.name),
-        funds: funds.map((f) => f.name)
+        funds: funds.map((f) => f.name),
+        // Balances come with the book so the settings panel and the
+        // transaction form do not each have to ask for them.
+        accounts
       }
     });
   } catch (err) {
@@ -74,9 +79,12 @@ router.patch('/', requireOrg('admin'), async (req, res, next) => {
     const current = await one('SELECT * FROM organizations WHERE id = $1', [req.orgId]);
 
     const updated = await one(
+      // opening_cash is deliberately absent: it is the sum of the bank
+      // accounts' opening balances now, kept in step by src/routes/banking.js.
+      // Accepting it here would let the profile form quietly overwrite them.
       `UPDATE organizations
           SET name = $2, business_type = $3, state = $4, vat_rate = $5,
-              opening_cash = $6, owner_contributions = $7, fixed_assets = $8
+              owner_contributions = $6, fixed_assets = $7
         WHERE id = $1
         RETURNING *`,
       [
@@ -85,7 +93,6 @@ router.patch('/', requireOrg('admin'), async (req, res, next) => {
         String(b.type || current.business_type),
         b.state === undefined ? current.state : String(b.state),
         num(b.vatRate, current.vat_rate),
-        num(b.openingCash, current.opening_cash),
         num(b.contributions, current.owner_contributions),
         num(b.fixedAssets, current.fixed_assets)
       ]

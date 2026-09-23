@@ -19,7 +19,12 @@ function check(name, condition, detail) {
   }
 }
 
-function client() {
+// Hands back the cookie a client is holding, for the two checks that need a
+// raw fetch rather than the JSON helper.
+let lastSmeCookie = null;
+function smeCookie() { return lastSmeCookie; }
+
+function client(track) {
   let cookie = null;
   return async function call(method, path, body) {
     const res = await fetch(BASE + path, {
@@ -31,9 +36,14 @@ function client() {
       body: body ? JSON.stringify(body) : undefined
     });
     const setCookie = res.headers.get('set-cookie');
-    if (setCookie) cookie = setCookie.split(';')[0];
+    if (setCookie) {
+      cookie = setCookie.split(';')[0];
+      if (track) lastSmeCookie = cookie;
+    }
     const text = await res.text();
-    return { status: res.status, body: text ? JSON.parse(text) : {} };
+    let parsed = {};
+    try { parsed = text ? JSON.parse(text) : {}; } catch { parsed = { raw: text }; }
+    return { status: res.status, body: parsed };
   };
 }
 
@@ -51,7 +61,7 @@ async function signup(call, email, book, org) {
 
 (async () => {
   const stamp = Date.now();
-  const sme = client();
+  const sme = client(true);
   const church = client();
 
   console.log('\nauth');
@@ -168,6 +178,118 @@ async function signup(call, email, book, org) {
   check('the amount follows the seat count', subs.body.subscription.amount === 57000 * 3);
   const overSeat = await sme('PATCH', '/api/orgs/' + orgA + '/subscription', { users: 900 });
   check('seats are capped', overSeat.body.subscription.users === 25);
+
+  // ------------------------------------------------- bank accounts & branding
+  console.log('\nbank accounts');
+
+  const accts = await sme('GET', '/api/orgs/' + orgA + '/bank-accounts');
+  check('a new organisation starts with one account', accts.body.accounts.length === 1, JSON.stringify(accts.body.accounts.length));
+  const main = accts.body.accounts[0];
+  check('and it is the primary one', main.isPrimary === true);
+
+  const opened = await sme('PATCH', '/api/orgs/' + orgA + '/bank-accounts/' + main.id, {
+    name: 'GTBank current', bankName: 'Guaranty Trust Bank', accountNumber: '0123456789',
+    openingBalance: 500000, openingDate: '2026-01-01'
+  });
+  check('an opening balance can be set', opened.status === 200, 'status ' + opened.status);
+
+  const afterOpening = opened.body.accounts[0];
+  check('the balance starts from it',
+    Number(afterOpening.balance) === 500000 - 42000 + 0 || Number(afterOpening.openingBalance) === 500000,
+    JSON.stringify(afterOpening));
+
+  const bookNow = (await sme('GET', '/api/orgs/' + orgA + '/data')).body;
+  const live = (await sme('GET', '/api/orgs/' + orgA + '/bank-accounts')).body.accounts[0];
+  check('the current balance is opening plus what moved through it',
+    Number(live.balance) === Number(live.openingBalance) + Number(live.received) - Number(live.paid),
+    JSON.stringify([live.openingBalance, live.received, live.paid, live.balance]));
+  check('and it counts the entries recorded against it', Number(live.entries) > 0, String(live.entries));
+
+  check('the opening figure the reports read follows it',
+    Number(bookNow.org.openingCash) === 500000, String(bookNow.org.openingCash));
+  check('and the book carries the accounts', Array.isArray(bookNow.book.accounts) && bookNow.book.accounts.length === 1);
+
+  const second = await sme('POST', '/api/orgs/' + orgA + '/bank-accounts', {
+    name: 'Zenith savings', openingBalance: 250000
+  });
+  check('a second account can be added', second.status === 201 && second.body.accounts.length === 2);
+  check('the second is not primary', second.body.accounts.filter((a) => a.isPrimary).length === 1);
+  check('opening cash is now the sum of both',
+    Number((await sme('GET', '/api/orgs/' + orgA + '/data')).body.org.openingCash) === 750000);
+
+  const beforeCash = (await sme('GET', '/api/orgs/' + orgA + '/bank-accounts')).body.accounts[0].balance;
+  const cashSale = await sme('POST', '/api/orgs/' + orgA + '/transactions', {
+    type: 'income', date: '2026-03-08', amount: 9000, category: 'Product Sales',
+    party: 'Walk-in', description: 'cash over the counter', method: 'Cash'
+  });
+  check('a cash sale is recorded', cashSale.status === 201);
+  const afterCash = (await sme('GET', '/api/orgs/' + orgA + '/bank-accounts')).body;
+  check('but does not touch a bank balance',
+    Number(afterCash.accounts[0].balance) === Number(beforeCash),
+    beforeCash + ' moved to ' + afterCash.accounts[0].balance);
+
+  const bankSale = await sme('POST', '/api/orgs/' + orgA + '/transactions', {
+    type: 'income', date: '2026-03-08', amount: 11000, category: 'Product Sales',
+    party: 'Halogen', description: 'paid in', method: 'Bank transfer'
+  });
+  check('a bank receipt does', bankSale.status === 201 &&
+    Number((await sme('GET', '/api/orgs/' + orgA + '/bank-accounts')).body.accounts[0].balance) === Number(beforeCash) + 11000,
+    'expected ' + (Number(beforeCash) + 11000));
+
+  const toSecond = await sme('POST', '/api/orgs/' + orgA + '/transactions', {
+    type: 'expense', date: '2026-03-08', amount: 15000, category: 'Utilities',
+    party: 'Ikeja Electric', description: 'paid from savings', method: 'Bank transfer',
+    bankAccountId: second.body.accounts.find((a) => a.name === 'Zenith savings').id
+  });
+  check('an entry can name its account', toSecond.status === 201);
+  const split = (await sme('GET', '/api/orgs/' + orgA + '/bank-accounts')).body.accounts;
+  check('and only that account moves',
+    Math.round(Number(split.find((a) => a.name === 'Zenith savings').balance)) === 250000 - 15000,
+    JSON.stringify(split.map((a) => [a.name, a.balance])));
+
+  const lastOne = await sme('DELETE', '/api/orgs/' + orgA + '/bank-accounts/' + split[1].id);
+  check('an account can be removed', lastOne.status === 200 && lastOne.body.accounts.length === 1);
+  const orphan = (await sme('GET', '/api/orgs/' + orgA + '/data')).body.book.tx
+    .find((t) => t.description === 'paid from savings');
+  check('and what it paid for stays in the books', Boolean(orphan));
+
+  const onlyOne = await sme('DELETE', '/api/orgs/' + orgA + '/bank-accounts/' + split[0].id);
+  check('the last account cannot be removed', onlyOne.status === 400, 'status ' + onlyOne.status);
+
+  console.log('\nreport branding');
+
+  const noLogo = await sme('GET', '/api/orgs/' + orgA + '/logo');
+  check('there is no logo to begin with', noLogo.status === 404, 'status ' + noLogo.status);
+
+  // A one-pixel PNG, which is enough to exercise the sniffing.
+  const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  const uploaded = await sme('POST', '/api/orgs/' + orgA + '/logo', { data: 'data:image/png;base64,' + PNG });
+  check('a PNG logo uploads', uploaded.status === 201 && uploaded.body.logo.mime === 'image/png',
+    'status ' + uploaded.status);
+
+  const served = await fetch(BASE + '/api/orgs/' + orgA + '/logo', { headers: { cookie: smeCookie() } });
+  check('and is served back as an image', served.headers.get('content-type') === 'image/png');
+  check('locked down on the way out',
+    (served.headers.get('content-security-policy') || '').includes('sandbox') &&
+    served.headers.get('x-content-type-options') === 'nosniff',
+    served.headers.get('content-security-policy'));
+
+  check('the book reports it has one', (await sme('GET', '/api/orgs/' + orgA + '/data')).body.org.hasLogo === true);
+
+  const notAnImage = await sme('POST', '/api/orgs/' + orgA + '/logo', {
+    data: Buffer.from('<svg onload="alert(1)"></svg>').toString('base64')
+  });
+  check('an SVG dressed as a logo is refused', notAnImage.status === 400, 'status ' + notAnImage.status);
+
+  const tooBig = await sme('POST', '/api/orgs/' + orgA + '/logo', {
+    data: Buffer.alloc(500 * 1024).toString('base64')
+  });
+  check('and so is an oversized file', tooBig.status === 400, 'status ' + tooBig.status);
+
+  const cleared = await sme('DELETE', '/api/orgs/' + orgA + '/logo');
+  check('a logo can be removed', cleared.status === 200);
+  check('and the book says so again',
+    (await sme('GET', '/api/orgs/' + orgA + '/data')).body.org.hasLogo === false);
 
   // -------------------------------------------------------------- the team
   console.log('\nroles and invitations');

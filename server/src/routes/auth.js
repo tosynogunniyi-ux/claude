@@ -125,6 +125,14 @@ async function createAccount({ name, orgName, email, password, googleSub, book, 
       [org.id, cycle, seats]
     );
 
+    // One account to start with, so the first bank payment has somewhere to
+    // land and the opening balance has somewhere to be entered.
+    await client.query(
+      `INSERT INTO bank_accounts (organization_id, name, opening_balance, is_primary)
+       VALUES ($1, 'Main account', 0, true)`,
+      [org.id]
+    );
+
     await seedChartOfAccounts(client, org.id, book);
     if (process.env.SEED_DEMO_DATA === 'true') {
       await seedDemoBooks(client, org.id, book);

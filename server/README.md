@@ -71,6 +71,8 @@ what it can honestly do:
   mounted in front of the book and never in front of the subscription routes.
 - `src/team.js`, `src/routes/members.js`, `src/routes/invitations.js` — who is
   on a set of books, what they may do, and how a second person gets there.
+- `src/routes/banking.js` — the company's own accounts and their balances,
+  and the logo its reports carry.
 
 Two rules the schema enforces by design, carried over from the build spec:
 document status is **derived** from payments and due date rather than stored,
@@ -137,6 +139,38 @@ than a defence.
 - `expired` is **derived** from the period end and today's date, never stored —
   the same rule invoices follow. `suspended` is stored, because it is an act
   rather than a consequence.
+
+## Bank accounts and report branding
+
+**A bank balance is derived, never stored**: opening balance, plus everything
+recorded against that account. `bank_accounts` holds the opening figure and
+the date it was the balance at; `transactions.bank_account_id` says which
+account a payment moved through. Cash entries deliberately carry no account,
+so a counter sale does not inflate a bank balance.
+
+`organizations.opening_cash` was one figure for the whole business. It is now
+**the sum of the accounts' opening balances**, kept in step by this module, so
+the dashboard, the cash series and every report carry on reading one number
+without knowing it is made of several. The organisation PATCH no longer
+accepts it — the profile form cannot quietly overwrite the accounts.
+
+Where a payment lands when the entry does not say: the account it names if it
+names one, otherwise the primary account for a bank method, otherwise nowhere.
+`resolveAccount()` is that rule, and the manual ledger, invoice and bill
+payments, stock movements and statement imports all go through it.
+
+Removing an account **archives** it. Entries already recorded against it keep
+pointing at something real, and the last account cannot be removed.
+
+**The logo** lives in Postgres as bytes, not on disk: the app runs in a
+container with no persistent volume, and a logo that vanishes on the next
+deploy is worse than none. Uploads are capped at 400KB and accepted only if
+the bytes really are a PNG, JPEG or WebP — the declared type is not trusted,
+and SVG is refused outright because it is a document that can carry script.
+It is served back with `nosniff` and a sandboxing CSP.
+
+Reports carry that logo at the head and **Powered by Profitna** at the foot,
+next to the organisation's name and the date the report was produced.
 
 ## Roles, seats and invitations
 

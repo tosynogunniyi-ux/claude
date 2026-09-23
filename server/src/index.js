@@ -11,6 +11,7 @@ const invitationRoutes = require('./routes/invitations');
 const adminRoutes = require('./routes/admin');
 const memberRoutes = require('./routes/members');
 const orgRoutes = require('./routes/org');
+const bankingRoutes = require('./routes/banking');
 const ledgerRoutes = require('./routes/ledger');
 const bankRoutes = require('./routes/bank');
 const subscriptionRoutes = require('./routes/subscription');
@@ -48,6 +49,7 @@ orgScoped.use(memberRoutes.router);
 // what the paywall needs. Nothing is deleted; it opens again on payment.
 orgScoped.use(requireSubscription);
 orgScoped.use(orgRoutes.router);
+orgScoped.use(bankingRoutes.router);
 orgScoped.use(ledgerRoutes.router);
 orgScoped.use(bankRoutes.router);
 app.use('/api/orgs/:orgId', requireAuth, orgScoped);
