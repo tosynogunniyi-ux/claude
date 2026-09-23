@@ -113,6 +113,13 @@ Buy more and the extra seats are named at signup, each with a role:
 An active subscriber can add, re-role or remove people at any time from
 **Settings → Team & access**, within the seats they pay for.
 
+The interface matches the role rather than offering things it will refuse: an
+accountant sees settings, billing and the team greyed out, a viewer sees
+everything that would change the books greyed out, and a line at the top of
+the page says why. Every figure stays fully readable — it is the controls
+that go quiet, not the numbers. The API is still the authority; this only
+stops the screen promising what it will not deliver.
+
 There is no email delivery in this product and none is pretended: inviting
 somebody produces a link to copy and send. It lets them set their own
 password and join with the role they were given, and it works once. An
@@ -170,6 +177,3 @@ Not finished yet:
 - Mono's bank-connect widget is not in the front end; the exchange, webhook and
   storage are ready behind it.
 - WhatsApp and email delivery are interface only, and say so in the product.
-- Roles are enforced by the API and assignable in the product, but the
-  interface does not yet grey out what a viewer cannot do — they see the
-  buttons and are told no when they use one.

@@ -34,11 +34,30 @@ window.__resources = {
   a:hover { color: #8A5A10; }
   table { border-collapse: collapse; }
   input, select, textarea, button { font-family: inherit; font-size: inherit; color: inherit; }
+  /* What a role cannot do is shown as unavailable rather than offered and
+     then refused. data-w marks a control that needs write access, data-a one
+     that needs admin. The API is still the authority — this only stops the
+     interface promising something it will not deliver. */
+  [data-role="viewer"] [data-w],
+  [data-role="viewer"] [data-a],
+  [data-role="accountant"] [data-a] {
+    opacity: 0.4;
+    pointer-events: none;
+    cursor: not-allowed;
+  }
+  [data-role="viewer"] [data-w] input, [data-role="viewer"] [data-w] select,
+  [data-role="viewer"] [data-a] input, [data-role="viewer"] [data-a] select,
+  [data-role="accountant"] [data-a] input, [data-role="accountant"] [data-a] select {
+    background: #F4F3EE !important;
+    box-shadow: none !important;
+  }
+
   /* Print / PDF puts the report on the page and nothing else — no sidebar,
      no toolbar, no buttons that mean nothing on paper. */
   @media print {
     body { background: #FFFFFF !important; }
-    aside[data-om="sidebar"], header[data-om="topbar"], div[data-om="page"] > div > div:first-child { display: none !important; }
+    aside[data-om="sidebar"], header[data-om="topbar"],
+    div[data-om="reporttools"], div[data-om="banner"] { display: none !important; }
     div[data-om="page"] { padding: 0 !important; }
     div[data-om="report"] { border: 0 !important; max-width: none !important; padding: 0 !important; }
     @page { margin: 14mm; }
@@ -431,7 +450,7 @@ window.__resources = {
 </sc-if>
 
 <sc-if value="{{ authed }}" hint-placeholder-val="{{ false }}">
-<div style="display: flex; min-height: 100vh; align-items: stretch; flex-wrap: wrap; background: #F4F3EE;">
+<div data-role="{{ roleKey }}" style="display: flex; min-height: 100vh; align-items: stretch; flex-wrap: wrap; background: #F4F3EE;">
 
   <!-- ======================= SIDEBAR ======================= -->
   <aside data-om="sidebar" style="flex: 0 0 {{ navWidth }}; min-width: 0; background: #1a1a1a; color: #E8EAEF; display: flex; flex-direction: column; padding: 0 0 20px; overflow: hidden; transition: flex-basis .18s cubic-bezier(.2,.6,.3,1);">
@@ -529,7 +548,7 @@ window.__resources = {
           </sc-for>
         </div>
         <button onClick="{{ goBilling }}" style="border: 1px solid #EBD8B4; background: #FAEEDA; color: #412402; border-radius: 6px; padding: 7px 12px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;" style-hover="background: #F5E2C2;">{{ trialPill }}</button>
-        <button onClick="{{ openTx }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); transition: transform .16s cubic-bezier(.2,.6,.3,1), box-shadow .16s; padding: 8px 15px; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap;" style-hover="background: #FAC775; color: #1a1a1a;">+ {{ newTxLabel }}</button>
+        <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ openTx }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); transition: transform .16s cubic-bezier(.2,.6,.3,1), box-shadow .16s; padding: 8px 15px; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap;" style-hover="background: #FAC775; color: #1a1a1a;">+ {{ newTxLabel }}</button>
       </div>
     </header>
 
@@ -538,8 +557,20 @@ window.__resources = {
       <!-- Quiet while the trial has room, warmer as it runs out. Shown on
            every screen, because the day it matters is not the day you happen
            to be looking at the dashboard. -->
+      <sc-if value="{{ readOnly.show }}" hint-placeholder-val="{{ false }}">
+        <div data-om="banner" style="display: flex; align-items: center; gap: 10px; background: {{ readOnly.bg }}; border: 1px solid {{ readOnly.border }}; border-left: 3px solid {{ readOnly.rule }}; border-radius: 6px; padding: 11px 15px; margin-bottom: 14px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5C5850" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex: 0 0 14px;">
+            <path d="M5 11h14v10H5V11zm3 0V7a4 4 0 0 1 8 0v4"></path>
+          </svg>
+          <div style="font-size: 13px; color: #412402;">
+            <span style="font-weight: 600;">{{ readOnly.headline }}</span>
+            <span style="color: #5C5850;"> {{ readOnly.detail }}</span>
+          </div>
+        </div>
+      </sc-if>
+
       <sc-if value="{{ trial.show }}" hint-placeholder-val="{{ false }}">
-        <div style="display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; background: {{ trial.bg }}; border: 1px solid {{ trial.border }}; border-left: 3px solid {{ trial.rule }}; border-radius: 6px; padding: 11px 15px; margin-bottom: 18px;">
+        <div data-om="banner" style="display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; background: {{ trial.bg }}; border: 1px solid {{ trial.border }}; border-left: 3px solid {{ trial.rule }}; border-radius: 6px; padding: 11px 15px; margin-bottom: 18px;">
           <div style="font-size: 13px; color: #412402;">
             <span style="font-weight: 600;">{{ trial.headline }}</span>
             <span style="color: #5C5850;"> {{ trial.detail }}</span>
@@ -789,8 +820,8 @@ window.__resources = {
               <option value="expense">Expenses only</option>
               <option value="uncoded">Needs a category</option>
             </sc-raw-select>
-            <button onClick="{{ runAI }}" style="border: 1px solid #B8863A; background: #FAEEDA; color: #412402; border-radius: 6px; padding: 8px 13px; font-size: 12.5px; font-weight: 600; cursor: pointer;" style-hover="background: #FAC775;">Suggest categories with AI</button>
-            <button onClick="{{ openImport }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 13px; font-size: 12.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Import statement</button>
+            <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ runAI }}" style="border: 1px solid #B8863A; background: #FAEEDA; color: #412402; border-radius: 6px; padding: 8px 13px; font-size: 12.5px; font-weight: 600; cursor: pointer;" style-hover="background: #FAC775;">Suggest categories with AI</button>
+            <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ openImport }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 13px; font-size: 12.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Import statement</button>
             <button onClick="{{ exportCsv }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 13px; font-size: 12.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Export CSV</button>
           </div>
 
@@ -826,7 +857,7 @@ window.__resources = {
             <div style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.04), 0 1px 3px rgba(19,19,19,.06); padding: 48px 24px; text-align: center; margin-top: -1px;">
               <div style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 19px; font-weight: 600;">Nothing here for this filter</div>
               <div style="font-size: 13px; color: #5C5850; margin: 8px 0 20px;">Widen the date range, clear the search, or import a bank statement to bring entries in.</div>
-              <button onClick="{{ openImport }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); padding: 12px 20px; font-size: 13px; font-weight: 600; cursor: pointer;" style-hover="background: #FAC775; color: #1a1a1a;">Import statement</button>
+              <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ openImport }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); padding: 12px 20px; font-size: 13px; font-weight: 600; cursor: pointer;" style-hover="background: #FAC775; color: #1a1a1a;">Import statement</button>
             </div>
           </sc-if>
           <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; font-size: 12.5px; color: #5C5850; padding: 16px 2px 0;">
@@ -857,8 +888,8 @@ window.__resources = {
           </div>
 
           <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
-            <button onClick="{{ openDoc }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); transition: transform .16s cubic-bezier(.2,.6,.3,1), box-shadow .16s; padding: 8px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer;" style-hover="background: #FAC775; color: #1a1a1a;">+ New {{ docWord }}</button>
-            <button onClick="{{ sendReminders }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 14px; font-size: 12.5px; cursor: pointer;" style-hover="background: #F4F3EE;">{{ reminderLabel }}</button>
+            <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ openDoc }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); transition: transform .16s cubic-bezier(.2,.6,.3,1), box-shadow .16s; padding: 8px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer;" style-hover="background: #FAC775; color: #1a1a1a;">+ New {{ docWord }}</button>
+            <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ sendReminders }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 14px; font-size: 12.5px; cursor: pointer;" style-hover="background: #F4F3EE;">{{ reminderLabel }}</button>
           </div>
 
           <div style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.04), 0 1px 3px rgba(19,19,19,.06); overflow: hidden; overflow-x: auto;">
@@ -962,8 +993,8 @@ window.__resources = {
                     <sc-raw-td style="padding: 12px 16px; text-align: right; font-family: 'IBM Plex Mono', monospace;">{{ i.value }}</sc-raw-td>
                     <sc-raw-td style="padding: 12px 16px; text-align: right; white-space: nowrap;">
                       <span style="display: inline-flex; gap: 6px;">
-                        <button onClick="{{ i.buy }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 4px 9px; font-size: 11.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Receive</button>
-                        <button onClick="{{ i.sell }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 4px 9px; font-size: 11.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Sell</button>
+                        <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ i.buy }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 4px 9px; font-size: 11.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Receive</button>
+                        <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ i.sell }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 4px 9px; font-size: 11.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Sell</button>
                       </span>
                     </sc-raw-td>
                   </sc-raw-tr>
@@ -987,9 +1018,9 @@ window.__resources = {
           </div>
 
           <div style="display: flex; gap: 8px; margin: 14px 0; flex-wrap: wrap;">
-            <button onClick="{{ openImport }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 14px; font-size: 12.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Import statement — CSV, Excel or Google Sheets</button>
-            <button onClick="{{ refreshBank }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 14px; font-size: 12.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Refresh bank lines</button>
-            <button onClick="{{ autoMatch }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); transition: transform .16s cubic-bezier(.2,.6,.3,1), box-shadow .16s; padding: 8px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer;" style-hover="background: #FAC775; color: #1a1a1a;">Run AI auto-match</button>
+            <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ openImport }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 14px; font-size: 12.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Import statement — CSV, Excel or Google Sheets</button>
+            <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ refreshBank }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 14px; font-size: 12.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Refresh bank lines</button>
+            <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ autoMatch }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); transition: transform .16s cubic-bezier(.2,.6,.3,1), box-shadow .16s; padding: 8px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer;" style-hover="background: #FAC775; color: #1a1a1a;">Run AI auto-match</button>
           </div>
 
           <div style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.04), 0 1px 3px rgba(19,19,19,.06); overflow: hidden; overflow-x: auto;">
@@ -1011,7 +1042,7 @@ window.__resources = {
                     <sc-raw-td style="padding: 12px 16px; text-align: right; font-family: 'IBM Plex Mono', monospace; color: {{ b.amountColor }};">{{ b.amount }}</sc-raw-td>
                     <sc-raw-td style="padding: 12px 16px; font-size: 12.5px; color: {{ b.matchColor }};">{{ b.match }}</sc-raw-td>
                     <sc-raw-td style="padding: 12px 16px; text-align: right; white-space: nowrap;">
-                      <button onClick="{{ b.action }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 4px 10px; font-size: 11.5px; cursor: pointer;" style-hover="background: #1a1a1a; color: #FFFFFF;">{{ b.actionLabel }}</button>
+                      <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ b.action }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 4px 10px; font-size: 11.5px; cursor: pointer;" style-hover="background: #1a1a1a; color: #FFFFFF;">{{ b.actionLabel }}</button>
                     </sc-raw-td>
                   </sc-raw-tr>
                 </sc-for>
@@ -1027,7 +1058,7 @@ window.__resources = {
       <!-- ============ REPORTS ============ -->
       <sc-if value="{{ isReports }}" hint-placeholder-val="{{ false }}">
         <div>
-          <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px;">
+          <div data-om="reporttools" style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px;">
             <sc-for list="{{ reportTabs }}" as="r" hint-placeholder-count="5">
               <button onClick="{{ r.go }}" style="border: 1px solid #C9C3B7; border-radius: 6px; padding: 7px 13px; font-size: 12.5px; font-weight: 500; cursor: pointer; background: {{ r.bg }}; color: {{ r.fg }};" style-hover="border-color: #1a1a1a;">{{ r.label }}</button>
             </sc-for>
@@ -1093,9 +1124,9 @@ window.__resources = {
             </div>
             <div style="display: flex; gap: 8px;">
               <sc-if value="{{ save.dirty }}" hint-placeholder-val="{{ false }}">
-                <button onClick="{{ save.discard }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 9px 14px; font-size: 13px; font-weight: 500; cursor: pointer;" style-hover="border-color: #9E3A26; color: #9E3A26;">Discard</button>
+                <button data-a="" disabled="{{ perm.noAdmin }}" onClick="{{ save.discard }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 9px 14px; font-size: 13px; font-weight: 500; cursor: pointer;" style-hover="border-color: #9E3A26; color: #9E3A26;">Discard</button>
               </sc-if>
-              <button onClick="{{ save.go }}" disabled="{{ save.disabled }}" style="border: 0; background: {{ save.buttonBg }}; color: {{ save.buttonFg }}; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); padding: 9px 18px; font-size: 13px; font-weight: 600; cursor: {{ save.cursor }};" style-hover="background: #FAC775; color: #1a1a1a;">{{ save.label }}</button>
+              <button data-a="" disabled="{{ perm.noAdmin }}" onClick="{{ save.go }}" disabled="{{ save.disabled }}" style="border: 0; background: {{ save.buttonBg }}; color: {{ save.buttonFg }}; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); padding: 9px 18px; font-size: 13px; font-weight: 600; cursor: {{ save.cursor }};" style-hover="background: #FAC775; color: #1a1a1a;">{{ save.label }}</button>
             </div>
           </div>
 
@@ -1110,16 +1141,16 @@ window.__resources = {
                 <div style="font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: #5C5850; margin-bottom: 7px;">Billing cycle</div>
                 <div style="display: flex; border: 1px solid #C9C3B7; border-radius: 6px; overflow: hidden; background: #FFFFFF;">
                   <sc-for list="{{ sub.cycles }}" as="c" hint-placeholder-count="2">
-                    <button onClick="{{ c.go }}" style="flex: 1; border: 0; border-right: 1px solid #E4DFD5; padding: 9px 10px; font-size: 12.5px; font-weight: 500; cursor: pointer; background: {{ c.bg }}; color: {{ c.fg }};">{{ c.label }}</button>
+                    <button data-a="" disabled="{{ perm.noAdmin }}" onClick="{{ c.go }}" style="flex: 1; border: 0; border-right: 1px solid #E4DFD5; padding: 9px 10px; font-size: 12.5px; font-weight: 500; cursor: pointer; background: {{ c.bg }}; color: {{ c.fg }};">{{ c.label }}</button>
                   </sc-for>
                 </div>
               </div>
               <div>
                 <div style="font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: #5C5850; margin-bottom: 7px;">Users</div>
                 <div style="display: flex; align-items: center; border: 1px solid #C9C3B7; border-radius: 6px; overflow: hidden; background: #FFFFFF; width: fit-content;">
-                  <button onClick="{{ sub.dec }}" style="border: 0; border-right: 1px solid #E4DFD5; background: #F7F5F0; padding: 10px 16px; font-size: 15px; cursor: pointer;" style-hover="background: #F4F3EE;">−</button>
+                  <button data-a="" disabled="{{ perm.noAdmin }}" onClick="{{ sub.dec }}" style="border: 0; border-right: 1px solid #E4DFD5; background: #F7F5F0; padding: 10px 16px; font-size: 15px; cursor: pointer;" style-hover="background: #F4F3EE;">−</button>
                   <div style="padding: 8px 16px; font-family: 'IBM Plex Mono', monospace; font-size: 14px; font-weight: 500;">{{ sub.users }}</div>
-                  <button onClick="{{ sub.inc }}" style="border: 0; border-left: 1px solid #E4DFD5; background: #F7F5F0; padding: 10px 16px; font-size: 15px; cursor: pointer;" style-hover="background: #F4F3EE;">+</button>
+                  <button data-a="" disabled="{{ perm.noAdmin }}" onClick="{{ sub.inc }}" style="border: 0; border-left: 1px solid #E4DFD5; background: #F7F5F0; padding: 10px 16px; font-size: 15px; cursor: pointer;" style-hover="background: #F4F3EE;">+</button>
                 </div>
               </div>
               <div>
@@ -1140,16 +1171,16 @@ window.__resources = {
             </div>
             <div style="border-top: 1px solid #E4DFD5; margin-top: 15px; padding-top: 12px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
               <div style="font-size: 12px; color: #5C5850;">{{ sub.booksNote }}</div>
-              <button onClick="{{ sub.cancel }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 14px; font-size: 12.5px; font-weight: 500; cursor: pointer;" style-hover="border-color: #9E3A26; color: #9E3A26;">Cancel subscription</button>
+              <button data-a="" disabled="{{ perm.noAdmin }}" onClick="{{ sub.cancel }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 14px; font-size: 12.5px; font-weight: 500; cursor: pointer;" style-hover="border-color: #9E3A26; color: #9E3A26;">Cancel subscription</button>
             </div>
           </div>
 
           <div style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.04), 0 1px 3px rgba(19,19,19,.06); padding: 24px;">
             <h2 style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 19px; font-weight: 600; margin: 0 0 14px;">Organisation profile</h2>
             <sc-for list="{{ settingsFields }}" as="f" hint-placeholder-count="6">
-              <label style="display: block; margin-bottom: 11px;">
+              <label data-a="" style="display: block; margin-bottom: 11px;">
                 <span style="display: block; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #5C5850; margin-bottom: 4px;">{{ f.label }}</span>
-                <input value="{{ f.value }}" onChange="{{ f.onChange }}" style="width: 100%; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 10px; font-size: 13px; background: #FFFFFF;" />
+                <input disabled="{{ perm.noAdmin }}" value="{{ f.value }}" onChange="{{ f.onChange }}" style="width: 100%; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 10px; font-size: 13px; background: #FFFFFF;" />
               </label>
             </sc-for>
           </div>
@@ -1164,23 +1195,23 @@ window.__resources = {
             <sc-for list="{{ banks.accounts }}" as="b" hint-placeholder-count="2">
               <div style="border: 1px solid {{ b.border }}; border-left: 3px solid {{ b.rule }}; border-radius: 6px; padding: 14px 16px; margin-bottom: 10px; background: {{ b.bg }};">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; flex-wrap: wrap;">
-                  <div style="flex: 1 1 260px; min-width: 0;">
+                  <div data-a="" style="flex: 1 1 260px; min-width: 0;">
                     <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                      <input value="{{ b.name }}" onChange="{{ b.setName }}" placeholder="Account name" style="flex: 2 1 150px; min-width: 0; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 10px; font-size: 13px; background: #FFFFFF;" />
-                      <input value="{{ b.bankName }}" onChange="{{ b.setBankName }}" placeholder="Bank" style="flex: 2 1 130px; min-width: 0; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 10px; font-size: 13px; background: #FFFFFF;" />
-                      <input value="{{ b.accountNumber }}" onChange="{{ b.setAccountNumber }}" placeholder="0123456789" inputMode="numeric" style="flex: 1 1 120px; min-width: 0; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 10px; font-size: 13px; font-family: 'IBM Plex Mono', monospace; background: #FFFFFF;" />
+                      <input disabled="{{ perm.noAdmin }}" value="{{ b.name }}" onChange="{{ b.setName }}" placeholder="Account name" style="flex: 2 1 150px; min-width: 0; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 10px; font-size: 13px; background: #FFFFFF;" />
+                      <input disabled="{{ perm.noAdmin }}" value="{{ b.bankName }}" onChange="{{ b.setBankName }}" placeholder="Bank" style="flex: 2 1 130px; min-width: 0; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 10px; font-size: 13px; background: #FFFFFF;" />
+                      <input disabled="{{ perm.noAdmin }}" value="{{ b.accountNumber }}" onChange="{{ b.setAccountNumber }}" placeholder="0123456789" inputMode="numeric" style="flex: 1 1 120px; min-width: 0; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 10px; font-size: 13px; font-family: 'IBM Plex Mono', monospace; background: #FFFFFF;" />
                     </div>
                     <div style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; align-items: center;">
                       <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #5C5850;">
                         Opening balance
-                        <input value="{{ b.openingBalance }}" onChange="{{ b.setOpening }}" inputMode="numeric" placeholder="0.00" style="width: 130px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 7px 9px; font-size: 13px; text-align: right; font-family: 'IBM Plex Mono', monospace; background: #FFFFFF;" />
+                        <input disabled="{{ perm.noAdmin }}" value="{{ b.openingBalance }}" onChange="{{ b.setOpening }}" inputMode="numeric" placeholder="0.00" style="width: 130px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 7px 9px; font-size: 13px; text-align: right; font-family: 'IBM Plex Mono', monospace; background: #FFFFFF;" />
                       </label>
                       <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #5C5850;">
                         as at
-                        <input type="date" value="{{ b.openingDate }}" onChange="{{ b.setOpeningDate }}" style="border: 1px solid #C9C3B7; border-radius: 6px; padding: 7px 9px; font-size: 12.5px; background: #FFFFFF;" />
+                        <input type="date" disabled="{{ perm.noAdmin }}" value="{{ b.openingDate }}" onChange="{{ b.setOpeningDate }}" style="border: 1px solid #C9C3B7; border-radius: 6px; padding: 7px 9px; font-size: 12.5px; background: #FFFFFF;" />
                       </label>
                       <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #5C5850; cursor: pointer;">
-                        <input type="radio" checked="{{ b.isPrimary }}" onChange="{{ b.makePrimary }}" style="width: 14px; height: 14px; accent-color: #1a1a1a;" />
+                        <input type="radio" disabled="{{ perm.noAdmin }}" checked="{{ b.isPrimary }}" onChange="{{ b.makePrimary }}" style="width: 14px; height: 14px; accent-color: #1a1a1a;" />
                         Default for bank payments
                       </label>
                     </div>
@@ -1189,13 +1220,13 @@ window.__resources = {
                     <div style="font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600;">Current balance</div>
                     <div style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; color: {{ b.balanceColor }}; margin-top: 3px;">{{ b.balance }}</div>
                     <div style="font-size: 11.5px; color: #5C5850; margin-top: 2px;">{{ b.movement }}</div>
-                    <button onClick="{{ b.remove }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 5px 10px; font-size: 11.5px; cursor: pointer; color: #8A857C; margin-top: 8px;" style-hover="border-color: #9E3A26; color: #9E3A26;">{{ b.removeLabel }}</button>
+                    <button data-a="" disabled="{{ perm.noAdmin }}" onClick="{{ b.remove }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 5px 10px; font-size: 11.5px; cursor: pointer; color: #8A857C; margin-top: 8px;" style-hover="border-color: #9E3A26; color: #9E3A26;">{{ b.removeLabel }}</button>
                   </div>
                 </div>
               </div>
             </sc-for>
 
-            <button onClick="{{ banks.add }}" style="border: 1px dashed #C9C3B7; background: #FCFBF8; border-radius: 6px; padding: 10px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer; width: 100%;" style-hover="border-color: #1a1a1a;">+ Add a bank account</button>
+            <button data-a="" disabled="{{ perm.noAdmin }}" onClick="{{ banks.add }}" style="border: 1px dashed #C9C3B7; background: #FCFBF8; border-radius: 6px; padding: 10px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer; width: 100%;" style-hover="border-color: #1a1a1a;">+ Add a bank account</button>
           </div>
 
           <div style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.04), 0 1px 3px rgba(19,19,19,.06); padding: 24px;">
@@ -1212,12 +1243,12 @@ window.__resources = {
                 </sc-if>
               </div>
               <div style="flex: 1 1 160px;">
-                <label style="display: inline-block; border: 1px solid #1a1a1a; background: #FFFFFF; border-radius: 6px; padding: 8px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer;" style-hover="background: #1a1a1a; color: #FFFFFF;">
+                <label data-a="" style="display: inline-block; border: 1px solid #1a1a1a; background: #FFFFFF; border-radius: 6px; padding: 8px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer;" style-hover="background: #1a1a1a; color: #FFFFFF;">
                   {{ brand.chooseLabel }}
-                  <input type="file" accept="image/png,image/jpeg,image/webp" onChange="{{ brand.choose }}" style="display: none;" />
+                  <input type="file" disabled="{{ perm.noAdmin }}" accept="image/png,image/jpeg,image/webp" onChange="{{ brand.choose }}" style="display: none;" />
                 </label>
                 <sc-if value="{{ brand.hasLogo }}" hint-placeholder-val="{{ false }}">
-                  <button onClick="{{ brand.clear }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 12px; font-size: 12.5px; cursor: pointer; color: #8A857C; margin-left: 8px;" style-hover="border-color: #9E3A26; color: #9E3A26;">Remove</button>
+                  <button data-a="" disabled="{{ perm.noAdmin }}" onClick="{{ brand.clear }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 12px; font-size: 12.5px; cursor: pointer; color: #8A857C; margin-left: 8px;" style-hover="border-color: #9E3A26; color: #9E3A26;">Remove</button>
                 </sc-if>
                 <div style="font-size: 11.5px; color: #5C5850; margin-top: 8px; line-height: 1.5;">{{ brand.note }}</div>
               </div>
@@ -1264,7 +1295,7 @@ window.__resources = {
                       <option value="viewer">Viewer</option>
                     </sc-raw-select>
                     <sc-if value="{{ m.canRemove }}" hint-placeholder-val="{{ false }}">
-                      <button onClick="{{ m.remove }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 7px 10px; font-size: 12px; cursor: pointer; color: #8A857C;" style-hover="border-color: #9E3A26; color: #9E3A26;">Remove</button>
+                      <button data-a="" disabled="{{ perm.noAdmin }}" onClick="{{ m.remove }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 7px 10px; font-size: 12px; cursor: pointer; color: #8A857C;" style-hover="border-color: #9E3A26; color: #9E3A26;">Remove</button>
                     </sc-if>
                   </div>
                 </div>
@@ -1279,8 +1310,8 @@ window.__resources = {
                     <div style="font-size: 12px; color: #5C5850; margin-top: 2px;">{{ i.sub }}</div>
                   </div>
                   <div style="display: flex; gap: 6px;">
-                    <button onClick="{{ i.relink }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 7px 10px; font-size: 12px; cursor: pointer;" style-hover="border-color: #1a1a1a;">{{ i.relinkLabel }}</button>
-                    <button onClick="{{ i.cancel }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 7px 10px; font-size: 12px; cursor: pointer; color: #8A857C;" style-hover="border-color: #9E3A26; color: #9E3A26;">Cancel</button>
+                    <button data-a="" disabled="{{ perm.noAdmin }}" onClick="{{ i.relink }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 7px 10px; font-size: 12px; cursor: pointer;" style-hover="border-color: #1a1a1a;">{{ i.relinkLabel }}</button>
+                    <button data-a="" disabled="{{ perm.noAdmin }}" onClick="{{ i.cancel }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 7px 10px; font-size: 12px; cursor: pointer; color: #8A857C;" style-hover="border-color: #9E3A26; color: #9E3A26;">Cancel</button>
                   </div>
                 </div>
               </div>
@@ -1296,7 +1327,7 @@ window.__resources = {
                     <option value="accountant">Accountant</option>
                     <option value="viewer">Viewer</option>
                   </sc-raw-select>
-                  <button onClick="{{ team.add }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); padding: 8px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap;" style-hover="background: #FAC775; color: #1a1a1a;">{{ team.addLabel }}</button>
+                  <button data-a="" disabled="{{ perm.noAdmin }}" onClick="{{ team.add }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); padding: 8px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap;" style-hover="background: #FAC775; color: #1a1a1a;">{{ team.addLabel }}</button>
                 </div>
                 <div style="font-size: 11.5px; color: #5C5850; margin-top: 7px; line-height: 1.5;">{{ team.roleNote }}</div>
               </div>
@@ -1314,13 +1345,13 @@ window.__resources = {
                   <sc-for list="{{ incomeCatRows }}" as="c" hint-placeholder-count="5">
                     <span style="display: inline-flex; align-items: center; gap: 7px; border: 1px solid #EFECE4; background: #FFFFFF; border-radius: 6px; padding: 5px 8px 5px 10px; font-size: 12.5px;">
                       {{ c.name }}
-                      <button onClick="{{ c.remove }}" style="border: 0; background: transparent; cursor: pointer; color: #A89F8E; font-size: 14px; line-height: 1; padding: 0;" style-hover="color: #9E3A26;">×</button>
+                      <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ c.remove }}" style="border: 0; background: transparent; cursor: pointer; color: #A89F8E; font-size: 14px; line-height: 1; padding: 0;" style-hover="color: #9E3A26;">×</button>
                     </span>
                   </sc-for>
                 </div>
                 <div style="display: flex; gap: 6px; margin-top: 12px;">
-                  <input value="{{ newIncome }}" onChange="{{ onNewIncome }}" placeholder="e.g. Equipment Hire" style="flex: 1; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 10px; font-size: 13px; background: #FFFFFF;" />
-                  <button onClick="{{ addIncomeCat }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); transition: transform .16s cubic-bezier(.2,.6,.3,1), box-shadow .16s; padding: 8px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap;" style-hover="background: #FAC775; color: #1a1a1a;">Add account</button>
+                  <input data-w="" disabled="{{ perm.noWrite }}" value="{{ newIncome }}" onChange="{{ onNewIncome }}" placeholder="e.g. Equipment Hire" style="flex: 1; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 10px; font-size: 13px; background: #FFFFFF;" />
+                  <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ addIncomeCat }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); transition: transform .16s cubic-bezier(.2,.6,.3,1), box-shadow .16s; padding: 8px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap;" style-hover="background: #FAC775; color: #1a1a1a;">Add account</button>
                 </div>
               </div>
 
@@ -1328,12 +1359,12 @@ window.__resources = {
                 <div style="font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: #5C5850; font-weight: 600; border-bottom: 1px solid #EFECE4; padding-bottom: 6px;">New expense account</div>
                 <p style="font-size: 12.5px; color: #5C5850; margin: 11px 0 0; line-height: 1.5;">Set how much of it is allowable against tax. Anything you add here appears immediately in the transaction form and the tax summary.</p>
                 <div style="display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap;">
-                  <input value="{{ newExpense }}" onChange="{{ onNewExpense }}" placeholder="e.g. Security & Guards" style="flex: 1 1 150px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 10px; font-size: 13px; background: #FFFFFF;" />
+                  <input data-w="" disabled="{{ perm.noWrite }}" value="{{ newExpense }}" onChange="{{ onNewExpense }}" placeholder="e.g. Security & Guards" style="flex: 1 1 150px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 10px; font-size: 13px; background: #FFFFFF;" />
                   <span style="display: inline-flex; align-items: center; gap: 5px;">
-                    <input value="{{ newExpensePct }}" onChange="{{ onNewExpensePct }}" style="width: 58px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 8px; font-size: 13px; text-align: right; font-family: 'IBM Plex Mono', monospace; background: #FFFFFF;" />
+                    <input data-w="" disabled="{{ perm.noWrite }}" value="{{ newExpensePct }}" onChange="{{ onNewExpensePct }}" style="width: 58px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 8px; font-size: 13px; text-align: right; font-family: 'IBM Plex Mono', monospace; background: #FFFFFF;" />
                     <span style="font-size: 12.5px; color: #5C5850;">% allowable</span>
                   </span>
-                  <button onClick="{{ addExpenseCat }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); transition: transform .16s cubic-bezier(.2,.6,.3,1), box-shadow .16s; padding: 8px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap;" style-hover="background: #FAC775; color: #1a1a1a;">Add account</button>
+                  <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ addExpenseCat }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); transition: transform .16s cubic-bezier(.2,.6,.3,1), box-shadow .16s; padding: 8px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap;" style-hover="background: #FAC775; color: #1a1a1a;">Add account</button>
                 </div>
               </div>
 
@@ -1386,7 +1417,7 @@ window.__resources = {
                 <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1px solid #EFECE4; background: #FFFFFF; border-radius: 6px; padding: 8px 11px;">
                   <span style="font-size: 13px;">{{ c.name }}</span>
                   <span style="display: inline-flex; align-items: center; gap: 5px;">
-                    <input value="{{ c.pct }}" onChange="{{ c.onChange }}" style="width: 52px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 4px 6px; font-size: 12px; text-align: right; font-family: 'IBM Plex Mono', monospace; background: #FFFFFF;" />
+                    <input data-w="" disabled="{{ perm.noWrite }}" value="{{ c.pct }}" onChange="{{ c.onChange }}" style="width: 52px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 4px 6px; font-size: 12px; text-align: right; font-family: 'IBM Plex Mono', monospace; background: #FFFFFF;" />
                     <span style="font-size: 12px; color: #5C5850;">%</span>
                   </span>
                 </div>
@@ -1512,7 +1543,7 @@ window.__resources = {
         <div style="display: flex; justify-content: space-between; gap: 8px; padding: 14px 24px; border-top: 1px solid #E5E1D8; flex-wrap: wrap;">
           <button onClick="{{ imp.back }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 15px; font-size: 12.5px; cursor: pointer;" style-hover="background: #F4F3EE;">{{ imp.backLabel }}</button>
           <sc-if value="{{ imp.isReview }}" hint-placeholder-val="{{ false }}">
-            <button onClick="{{ imp.doImport }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); transition: transform .16s cubic-bezier(.2,.6,.3,1), box-shadow .16s; padding: 8px 18px; font-size: 12.5px; font-weight: 600; cursor: pointer;" style-hover="background: #FAC775; color: #1a1a1a;">{{ imp.importLabel }}</button>
+            <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ imp.doImport }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); transition: transform .16s cubic-bezier(.2,.6,.3,1), box-shadow .16s; padding: 8px 18px; font-size: 12.5px; font-weight: 600; cursor: pointer;" style-hover="background: #FAC775; color: #1a1a1a;">{{ imp.importLabel }}</button>
           </sc-if>
         </div>
       </div>
@@ -1548,7 +1579,7 @@ window.__resources = {
             <div style="background: #FAEEDA; border: 1px solid #EBD8B4; border-left: 3px solid #FAC775; border-radius: 6px; padding: 11px 14px; margin-bottom: 13px;">
               <div style="font-size: 10.5px; letter-spacing: 0.13em; text-transform: uppercase; color: #412402; font-weight: 600;">Profitna suggests</div>
               <div style="font-size: 13px; margin-top: 4px; line-height: 1.5;">{{ modal.suggestion }}</div>
-              <button onClick="{{ acceptSuggestion }}" style="margin-top: 8px; border: 1px solid #B8863A; background: #FFFFFF; color: #412402; border-radius: 6px; padding: 5px 11px; font-size: 12px; font-weight: 600; cursor: pointer;" style-hover="background: #0B6B4F; color: #FFFFFF;">Apply this category</button>
+              <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ acceptSuggestion }}" style="margin-top: 8px; border: 1px solid #B8863A; background: #FFFFFF; color: #412402; border-radius: 6px; padding: 5px 11px; font-size: 12px; font-weight: 600; cursor: pointer;" style-hover="background: #0B6B4F; color: #FFFFFF;">Apply this category</button>
             </div>
           </sc-if>
 
@@ -1565,7 +1596,7 @@ window.__resources = {
         </div>
         <div style="display: flex; justify-content: flex-end; gap: 8px; padding: 14px 22px; border-top: 1px solid #E5E1D8;">
           <button onClick="{{ closeModal }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 15px; font-size: 12.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Cancel</button>
-          <button onClick="{{ modal.submit }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); transition: transform .16s cubic-bezier(.2,.6,.3,1), box-shadow .16s; padding: 8px 17px; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap;" style-hover="background: #FAC775; color: #412402;">{{ modal.cta }}</button>
+          <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ modal.submit }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); transition: transform .16s cubic-bezier(.2,.6,.3,1), box-shadow .16s; padding: 8px 17px; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap;" style-hover="background: #FAC775; color: #412402;">{{ modal.cta }}</button>
         </div>
       </div>
     </div>
@@ -2828,6 +2859,23 @@ class Component extends DCLogic {
     };
   }
 
+  // Said once, at the top of the page, so the greyed-out controls elsewhere
+  // read as deliberate rather than broken.
+  readOnlyVals() {
+    const role = this.state.role;
+    if (role === 'Admin') return { show: false };
+    return {
+      show: true,
+      headline: role === 'Viewer' ? 'You have view-only access.' : 'You are an accountant on these books.',
+      detail: role === 'Viewer'
+        ? 'You can read everything here. Anything that would change the books is greyed out.'
+        : 'You can enter and edit the books. Settings, billing and the team are greyed out — an admin handles those.',
+      bg: role === 'Viewer' ? '#F1F1EE' : '#FBF7EE',
+      border: role === 'Viewer' ? '#DCD9D1' : '#E9E2D2',
+      rule: role === 'Viewer' ? '#A8A296' : '#FAC775'
+    };
+  }
+
   // The three cards the Save button governs, plus the button itself.
   settingsVals(o, d, money) {
     const st = this.state;
@@ -3617,6 +3665,11 @@ class Component extends DCLogic {
       isLedgerDoc: st.screen === 'invoices' || st.screen === 'bills', isContacts: st.screen === 'contacts',
       isInventory: st.screen === 'inventory', isReconcile: st.screen === 'reconcile',
       isReports: st.screen === 'reports', isSettings: st.screen === 'settings',
+      // Drives the stylesheet that greys out what this role cannot reach, and
+      // the disabled state that stops the keyboard reaching it either.
+      roleKey: st.role === 'Admin' ? 'admin' : st.role === 'Viewer' ? 'viewer' : 'accountant',
+      perm: { noWrite: st.role === 'Viewer', noAdmin: st.role !== 'Admin' },
+      readOnly: this.readOnlyVals(),
       ...this.aiVals(d, o, months, catTotals, forecast, cash),
       kpis, kpisMain: kpis.slice(0, 4),
       kpisMini: kpis.slice(4).map((k, i) => Object.assign({}, k, { label: (church ? ['Pledges due', 'Payable', 'Restricted', 'Uncoded'] : ['Receivable', 'Payable', 'Stock value', 'Uncoded'])[i] || k.label })), chart, forecast, topIncome: catTotals('income'), topExpense: catTotals('expense'),

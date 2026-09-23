@@ -213,6 +213,14 @@ Profitna account it must prove itself with that account's password first: an
 invitation is a way onto somebody's books, never a way into somebody's
 account.
 
+**The interface follows the role.** The app shell carries `data-role`, and
+controls are tagged `data-w` (needs write) or `data-a` (needs admin); one
+stylesheet rule greys them and takes them out of the click path, and the same
+controls are `disabled`, so the keyboard cannot reach them either and a screen
+reader announces them correctly. Read-only content is never touched — a viewer
+sees every figure, just none of the controls that would change one. The API
+remains the authority; this only stops the screen offering what it will refuse.
+
 An organisation always keeps at least one admin — the last one cannot be
 demoted or removed. Removing somebody frees their seat and ends their access
 at their next request; it does not touch anything they entered, which belongs
@@ -318,10 +326,8 @@ if it is unavailable.
   and storage are in place behind `MONO_SECRET_KEY`.
 - WhatsApp and email delivery are UI-only, as the design intends — no
   integration claims are made anywhere in the product.
-- Roles are enforced on the API and assignable in the product, but the UI does
-  not yet grey out what a viewer cannot do — a viewer sees the buttons and is
-  refused when they use one. The refusal is clear; the absence would be
-  clearer.
+- Nothing outstanding on roles: the API enforces them, the product assigns
+  them, and the interface greys out what a role cannot reach.
 - Control Center accounts are created at the command line only — there is no
   invite flow and no "add another owner" screen, on purpose. A console that
   can mint its own administrators is a console one stolen session can keep.
