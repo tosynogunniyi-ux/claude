@@ -3,6 +3,7 @@ const { one, query } = require('../db');
 const { requireOrg, audit } = require('../auth');
 const paystack = require('../integrations/paystack');
 const { PER_USER_MONTHLY, PER_USER_ANNUAL, amountFor } = require('../pricing');
+const team = require('../team');
 
 const router = express.Router({ mergeParams: true });
 
@@ -38,6 +39,19 @@ router.patch('/subscription', requireOrg('admin'), async (req, res, next) => {
     const seats = b.users === undefined
       ? current.seats
       : Math.min(25, Math.max(1, parseInt(b.users, 10) || 1));
+
+    // Seats are people. Dropping below the number already on the books would
+    // leave someone paying for nothing or, worse, silently locked out.
+    if (seats < current.seats) {
+      const use = await team.seatUse(req.orgId);
+      if (seats < use.used) {
+        return res.status(409).json({
+          error: 'These books already use ' + use.used +
+            (use.pending ? ' seats, counting ' + use.pending + ' invitation' + (use.pending === 1 ? '' : 's') : ' seats') +
+            '. Remove someone first.'
+        });
+      }
+    }
 
     const updated = await one(
       'UPDATE subscriptions SET cycle = $2, seats = $3 WHERE organization_id = $1 RETURNING *',

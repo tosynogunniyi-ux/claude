@@ -258,6 +258,28 @@ window.__resources = {
                 </div>
               </div>
 
+              <!-- A seat nobody is named for helps nobody, so the extra ones
+                   are filled in here, with the role each person gets. -->
+              <sc-if value="{{ au.hasTeam }}" hint-placeholder-val="{{ false }}">
+                <div style="border: 1px solid #E5E1D8; border-radius: 6px; background: #FFFFFF; padding: 14px 16px; margin-top: 12px;">
+                  <div style="font-size: 13px; font-weight: 600;">Who else is on the account?</div>
+                  <div style="font-size: 12.5px; color: #5C5850; margin-top: 3px;">{{ au.teamNote }}</div>
+                  <sc-for list="{{ au.team }}" as="t" hint-placeholder-count="2">
+                    <div style="border-top: 1px solid #E4DFD5; margin-top: 12px; padding-top: 12px;">
+                      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <input value="{{ t.email }}" onChange="{{ t.setEmail }}" placeholder="name@company.com" style="flex: 2 1 190px; min-width: 0; padding: 9px 11px; border: 1px solid #C9C3B7; border-radius: 6px; background: #FFFFFF; font-size: 13px;" />
+                        <sc-raw-select value="{{ t.role }}" onChange="{{ t.setRole }}" style="flex: 1 1 130px; padding: 9px 10px; border: 1px solid #C9C3B7; border-radius: 6px; background: #FFFFFF; font-size: 13px;">
+                          <option value="admin">Admin</option>
+                          <option value="accountant">Accountant</option>
+                          <option value="viewer">Viewer</option>
+                        </sc-raw-select>
+                      </div>
+                      <div style="font-size: 11.5px; color: #5C5850; margin-top: 6px;">{{ t.note }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+
               <sc-if value="{{ au.err }}" hint-placeholder-val="{{ false }}">
                 <div style="background: #FBEEEA; border: 1px solid #E3C4BA; border-radius: 6px; padding: 9px 11px; font-size: 12.5px; color: #8A2F1D; margin-top: 14px;">{{ au.err }}</div>
               </sc-if>
@@ -283,6 +305,65 @@ window.__resources = {
     </div>
   </section>
 
+</div>
+</sc-if>
+
+<sc-if value="{{ showInvite }}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; min-height: 100vh; align-items: center; justify-content: center; background: #1a1a1a; padding: 28px 20px;">
+  <div style="width: 100%; max-width: 440px;">
+
+    <div style="display: flex; align-items: flex-end; gap: 9px; justify-content: center;">
+      <div style="font-size: 26px; font-weight: 700; letter-spacing: 0.09em; line-height: 1; color: #FAEEDA;">PROFIT<span style="color: #FAC775;">NA</span></div>
+      <svg width="22" height="18" viewBox="0 0 20 16" fill="none" style="flex: 0 0 22px; margin-bottom: 1px;"><polyline points="1,13.4 6.6,7.9 10.1,11 16.9,3.4" stroke="#FAC775" stroke-width="2.6" stroke-linecap="square"></polyline><polygon points="18.9,1.1 11.8,2.1 17.9,8.2" fill="#FAC775"></polygon></svg>
+    </div>
+
+    <div style="background: #FFFFFF; border-radius: 10px; padding: 28px; margin-top: 26px;">
+      <h1 style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 22px; font-weight: 700; margin: 0 0 6px; letter-spacing: -0.015em;">{{ inv.title }}</h1>
+      <div style="font-size: 13.5px; color: #403D37; line-height: 1.55;">{{ inv.blurb }}</div>
+
+      <sc-if value="{{ inv.open }}" hint-placeholder-val="{{ true }}">
+        <div>
+          <div style="background: #F7F5F0; border: 1px solid #E5E1D8; border-radius: 6px; padding: 13px 15px; margin-top: 16px;">
+            <div style="font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #5C5850; font-weight: 600;">Your role</div>
+            <div style="font-size: 15px; font-weight: 600; margin-top: 4px;">{{ inv.role }}</div>
+            <div style="font-size: 12.5px; color: #5C5850; margin-top: 3px; line-height: 1.5;">{{ inv.roleNote }}</div>
+          </div>
+
+          <label style="display: block; margin-top: 14px;">
+            <span style="display: block; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: #5C5850; margin-bottom: 5px;">Email</span>
+            <input value="{{ inv.email }}" disabled="{{ true }}" style="width: 100%; padding: 10px 12px; border: 1px solid #E4DFD5; border-radius: 6px; background: #F7F5F0; font-size: 14px; color: #5C5850;" />
+          </label>
+
+          <sc-if value="{{ inv.needsName }}" hint-placeholder-val="{{ true }}">
+            <label style="display: block; margin-top: 12px;">
+              <span style="display: block; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: #5C5850; margin-bottom: 5px;">Your full name</span>
+              <input value="{{ inv.name }}" onChange="{{ inv.setName }}" placeholder="Segun Ade" style="width: 100%; padding: 10px 12px; border: 1px solid #C9C3B7; border-radius: 6px; background: #FFFFFF; font-size: 14px;" />
+            </label>
+          </sc-if>
+
+          <label style="display: block; margin-top: 12px;">
+            <span style="display: block; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: #5C5850; margin-bottom: 5px;">{{ inv.passwordLabel }}</span>
+            <input type="password" value="{{ inv.password }}" onChange="{{ inv.setPassword }}" placeholder="At least 8 characters" style="width: 100%; padding: 10px 12px; border: 1px solid #C9C3B7; border-radius: 6px; background: #FFFFFF; font-size: 14px;" />
+          </label>
+
+          <sc-if value="{{ inv.err }}" hint-placeholder-val="{{ false }}">
+            <div style="background: #FBEEEA; border: 1px solid #E3C4BA; border-radius: 6px; padding: 9px 11px; font-size: 12.5px; color: #8A2F1D; margin-top: 14px;">{{ inv.err }}</div>
+          </sc-if>
+
+          <button onClick="{{ inv.accept }}" style="width: 100%; margin-top: 16px; border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); padding: 13px; font-size: 14px; font-weight: 600; cursor: pointer;" style-hover="background: #FAC775; color: #1a1a1a;">{{ inv.buttonLabel }}</button>
+          <div style="font-size: 11.5px; color: #5C5850; margin-top: 10px; line-height: 1.5;">{{ inv.footnote }}</div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ inv.closed }}" hint-placeholder-val="{{ false }}">
+        <div>
+          <div style="background: #FAEEDA; border: 1px solid #EBD9A8; border-radius: 6px; padding: 14px 16px; font-size: 12.5px; line-height: 1.55; color: #412402; margin-top: 16px;">{{ inv.closedNote }}</div>
+          <a href="/" style="display: block; text-align: center; margin-top: 16px; font-size: 13px;">Go to Profitna</a>
+        </div>
+      </sc-if>
+    </div>
+
+  </div>
 </div>
 </sc-if>
 
@@ -1039,14 +1120,82 @@ window.__resources = {
           </div>
 
           <div style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.04), 0 1px 3px rgba(19,19,19,.06); padding: 24px;">
-            <h2 style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 19px; font-weight: 600; margin: 0 0 6px;">Team &amp; access</h2>
-            <p style="font-size: 12.5px; color: #5C5850; margin: 0 0 12px; line-height: 1.5;">Switch your own role to preview what each permission level sees.</p>
-            <sc-for list="{{ roles }}" as="r" hint-placeholder-count="3">
-              <button onClick="{{ r.go }}" style="display: block; width: 100%; text-align: left; border: 1px solid {{ r.border }}; background: {{ r.bg }}; border-radius: 6px; padding: 10px 13px; margin-bottom: 8px; cursor: pointer;" style-hover="border-color: #1a1a1a;">
-                <div style="font-weight: 600; font-size: 14px;">{{ r.name }}</div>
-                <div style="font-size: 12px; color: #5C5850; margin-top: 2px;">{{ r.desc }}</div>
-              </button>
+            <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap;">
+              <h2 style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 19px; font-weight: 600; margin: 0;">Team &amp; access</h2>
+              <div style="font-size: 12.5px; color: #5C5850;">{{ team.seatLine }}</div>
+            </div>
+            <p style="font-size: 12.5px; color: #5C5850; margin: 6px 0 12px; line-height: 1.5;">{{ team.help }}</p>
+
+            <!-- Links from this session's invitations. They exist nowhere else
+                 — nothing stores the token — so they are surfaced prominently
+                 while they can still be copied. -->
+            <sc-if value="{{ team.hasFresh }}" hint-placeholder-val="{{ false }}">
+              <div style="background: #FAEEDA; border: 1px solid #EBD9A8; border-radius: 6px; padding: 13px 15px; margin-bottom: 14px;">
+                <div style="font-size: 12.5px; font-weight: 600; color: #412402;">Send these links</div>
+                <div style="font-size: 11.5px; color: #5C5850; margin-top: 2px; line-height: 1.5;">Each one lets that person set their own password and join. They are shown once — copy them now.</div>
+                <sc-for list="{{ team.fresh }}" as="f" hint-placeholder-count="2">
+                  <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap;">
+                    <div style="min-width: 0;">
+                      <div style="font-size: 12.5px; font-weight: 600;">{{ f.email }}</div>
+                      <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: #5C5850; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px;">{{ f.link }}</div>
+                    </div>
+                    <button onClick="{{ f.copy }}" style="border: 1px solid #1a1a1a; background: #FFFFFF; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;" style-hover="background: #1a1a1a; color: #FFFFFF;">{{ f.label }}</button>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <sc-for list="{{ team.members }}" as="m" hint-placeholder-count="2">
+              <div style="border: 1px solid #E7E3DA; border-radius: 6px; padding: 10px 13px; margin-bottom: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
+                  <div style="min-width: 0;">
+                    <div style="font-weight: 600; font-size: 14px;">{{ m.name }}</div>
+                    <div style="font-size: 12px; color: #5C5850; margin-top: 2px;">{{ m.sub }}</div>
+                  </div>
+                  <div style="display: flex; gap: 6px; align-items: center;">
+                    <sc-raw-select value="{{ m.role }}" onChange="{{ m.setRole }}" disabled="{{ m.locked }}" style="padding: 7px 9px; border: 1px solid #C9C3B7; border-radius: 6px; background: {{ m.selBg }}; font-size: 12.5px;">
+                      <option value="admin">Admin</option>
+                      <option value="accountant">Accountant</option>
+                      <option value="viewer">Viewer</option>
+                    </sc-raw-select>
+                    <sc-if value="{{ m.canRemove }}" hint-placeholder-val="{{ false }}">
+                      <button onClick="{{ m.remove }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 7px 10px; font-size: 12px; cursor: pointer; color: #8A857C;" style-hover="border-color: #9E3A26; color: #9E3A26;">Remove</button>
+                    </sc-if>
+                  </div>
+                </div>
+              </div>
             </sc-for>
+
+            <sc-for list="{{ team.invitations }}" as="i" hint-placeholder-count="1">
+              <div style="border: 1px dashed #D8D2C6; border-radius: 6px; padding: 10px 13px; margin-bottom: 8px; background: #FCFBF8;">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;">
+                  <div style="min-width: 0;">
+                    <div style="font-weight: 600; font-size: 13.5px;">{{ i.email }}</div>
+                    <div style="font-size: 12px; color: #5C5850; margin-top: 2px;">{{ i.sub }}</div>
+                  </div>
+                  <div style="display: flex; gap: 6px;">
+                    <button onClick="{{ i.relink }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 7px 10px; font-size: 12px; cursor: pointer;" style-hover="border-color: #1a1a1a;">{{ i.relinkLabel }}</button>
+                    <button onClick="{{ i.cancel }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 7px 10px; font-size: 12px; cursor: pointer; color: #8A857C;" style-hover="border-color: #9E3A26; color: #9E3A26;">Cancel</button>
+                  </div>
+                </div>
+              </div>
+            </sc-for>
+
+            <sc-if value="{{ team.canManage }}" hint-placeholder-val="{{ true }}">
+              <div style="border-top: 1px solid #E4DFD5; margin-top: 12px; padding-top: 12px;">
+                <div style="font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: #5C5850; margin-bottom: 7px;">Add someone</div>
+                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                  <input value="{{ team.newEmail }}" onChange="{{ team.setNewEmail }}" placeholder="name@company.com" style="flex: 2 1 160px; min-width: 0; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 10px; font-size: 13px; background: #FFFFFF;" />
+                  <sc-raw-select value="{{ team.newRole }}" onChange="{{ team.setNewRole }}" style="flex: 1 1 120px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 10px; font-size: 13px; background: #FFFFFF;">
+                    <option value="admin">Admin</option>
+                    <option value="accountant">Accountant</option>
+                    <option value="viewer">Viewer</option>
+                  </sc-raw-select>
+                  <button onClick="{{ team.add }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); padding: 8px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap;" style-hover="background: #FAC775; color: #1a1a1a;">{{ team.addLabel }}</button>
+                </div>
+                <div style="font-size: 11.5px; color: #5C5850; margin-top: 7px; line-height: 1.5;">{{ team.roleNote }}</div>
+              </div>
+            </sc-if>
           </div>
 
           <div style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.04), 0 1px 3px rgba(19,19,19,.06); padding: 24px; grid-column: 1 / -1;">
@@ -1386,6 +1535,16 @@ const fmtDate = (s) => {
 };
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+// The same three sentences the server sends back with an invitation, so the
+// signup form, the settings panel and the join screen all describe a role the
+// same way.
+const ROLE_LABEL = { admin: 'Admin', accountant: 'Accountant', viewer: 'Viewer' };
+const ROLE_NOTE = {
+  admin: 'Full access — books, settings, team and billing.',
+  accountant: 'Enter and edit transactions, invoices, bills and reports.',
+  viewer: 'Read-only access to the dashboard and reports.'
+};
+
 const NEW_CAT = '\u002B Create a new category\u2026';
 const NEW_PARTY = '\u002B Create a new record\u2026';
 
@@ -1425,11 +1584,15 @@ class Component extends DCLogic {
     this.state = {
       mode: 'sme', screen: 'dashboard', preset: 'ytd', role: 'Admin',
       session: null, account: null,
-      auth: { view: 'login', step: 1, name: '', org: '', email: '', pw: '', book: null, cycle: 'monthly', users: 1, err: '', busy: false },
+      auth: { view: 'login', step: 1, name: '', org: '', email: '', pw: '', book: null, cycle: 'monthly', users: 1, err: '', busy: false, seats: [] },
       search: '', txType: 'all', reportTab: 'pl', modal: null, form: {}, toast: null, aiQ: '', aiKey: null,
       newIncome: '', newExpense: '', newExpensePct: '100',
       imp: { open: false, step: 'source', source: 'csv', paste: '', url: '', fileName: '', rows: [] },
       booted: false, googleReady: false,
+      // Set from ?invite=… before anything else, so following a link never
+      // flashes the sign-in screen on the way past.
+      invite: null, inviteName: '', invitePassword: '', inviteErr: '', inviteBusy: false,
+      team: null, teamFresh: [], teamNewEmail: '', teamNewRole: 'accountant', teamBusy: false, copied: null,
       sme: EMPTY_BOOK(), church: EMPTY_BOOK(),
       org: { name: '', type: 'Limited Company', state: '', vatRate: '7.5', openingCash: '0', contributions: '0', fixedAssets: '0' },
       chOrg: { name: '', type: 'Registered Trustees', state: '', vatRate: '0', openingCash: '0', contributions: '0', fixedAssets: '0' }
@@ -1449,9 +1612,35 @@ class Component extends DCLogic {
         paystackKey: c.paystackPublicKey
       }))
       .catch(() => {});
+
+    // An invitation link takes precedence over whatever session this browser
+    // happens to hold: the point of following it is to join those books.
+    const token = new URLSearchParams(window.location.search).get('invite');
+    if (token) {
+      this._inviteToken = token;
+      return API.get('/invitations/' + encodeURIComponent(token))
+        .then((r) => this.setState({
+          invite: r.invitation,
+          inviteName: r.invitation.suggestedName || '',
+          booted: true
+        }))
+        .catch((err) => this.setState({
+          invite: { state: 'unknown', error: err.message }, booted: true
+        }));
+    }
+
     API.get('/auth/me')
       .then((r) => this.applySession(r.session))
       .catch(() => this.setState({ booted: true }));
+  }
+
+  // Drops ?invite=… once it has been dealt with, so a refresh does not try to
+  // accept an invitation that has already been used.
+  clearInviteFromUrl() {
+    this._inviteToken = null;
+    if (window.history && window.history.replaceState) {
+      window.history.replaceState({}, '', window.location.pathname);
+    }
   }
 
   // Everything the signed-in account can see comes from the server; the two
@@ -1475,6 +1664,9 @@ class Component extends DCLogic {
         role: d.role === 'admin' ? 'Admin' : d.role === 'viewer' ? 'Viewer' : 'Accountant',
         booted: true
       }))
+      // Who else is on these books, loaded once with them. Cheap — a handful
+      // of rows — and it keeps the settings screen from opening empty.
+      .then(() => this.loadTeam())
       .catch((err) => { this.setState({ booted: true }); this.flash(err.message); });
   }
 
@@ -2166,22 +2358,59 @@ class Component extends DCLogic {
     // Creating an account costs nothing and asks for nothing to pay with.
     // Payment is collected once, at the end of the trial, on the screen the
     // server puts up when the books stop opening.
+    // One row per seat beyond the subscriber's own, each carrying an email and
+    // the role that person will have.
+    const seatRows = [];
+    for (let i = 0; i < A.users - 1; i++) {
+      seatRows.push(Object.assign({ email: '', role: 'accountant' }, A.seats[i] || {}));
+    }
+    const setSeat = (i, patch) => this.setState((st2) => {
+      const seats = [];
+      for (let k = 0; k < 24; k++) seats[k] = Object.assign({ email: '', role: 'accountant' }, st2.auth.seats[k] || {});
+      seats[i] = Object.assign(seats[i], patch);
+      return { auth: { ...st2.auth, seats, err: '' } };
+    });
+
     const finish = () => {
       if (A.busy) return;
+      const invited = seatRows
+        .map((r) => ({ email: r.email.trim().toLowerCase(), role: r.role }))
+        .filter((r) => r.email);
+
+      if (invited.length !== seatRows.length) {
+        return this.setAuth({ err: 'Add an email address for each of the other ' + seatRows.length + (seatRows.length === 1 ? ' user' : ' users') + ', or reduce the user count.' });
+      }
+      for (const r of invited) {
+        if (!/.+@.+\..+/.test(r.email)) return this.setAuth({ err: r.email + ' is not a valid email address.' });
+        if (r.email === A.email.trim().toLowerCase()) return this.setAuth({ err: 'You already have a seat — invite the other people on your team.' });
+      }
+      if (new Set(invited.map((r) => r.email)).size !== invited.length) {
+        return this.setAuth({ err: 'Each person needs a different email address.' });
+      }
+
       this.setAuth({ busy: true, err: '' });
       return API.post('/auth/signup', {
         name: A.name.trim(), org: A.org.trim(), email: A.email.trim(),
         password: A.provider === 'google' ? undefined : A.pw,
         googleCredential: A.googleCredential,
-        book: A.book, cycle: A.cycle, users: A.users
+        book: A.book, cycle: A.cycle, users: A.users,
+        team: invited
       })
         .then((r) => {
-          this.setState((s) => ({ auth: { ...s.auth, pw: '', err: '', busy: false, googleCredential: null } }));
+          this.setState((s) => ({
+            auth: { ...s.auth, pw: '', err: '', busy: false, googleCredential: null },
+            // Held only in memory: the server stores a hash, so this response
+            // is the one and only time these links exist.
+            teamFresh: (r.invites || []).map((i) => ({ email: i.email, role: i.role, link: i.link }))
+          }));
           return this.applySession(r.session);
         })
         .then(() => this.setState({
           reportTab: 'pl', search: '',
-          toast: 'Trial started — free until ' + longDate(shift(14)) + ', no card needed.'
+          screen: (this.state.teamFresh || []).length ? 'settings' : 'dashboard',
+          toast: (this.state.teamFresh || []).length
+            ? 'Books ready. Send your team their invite links below.'
+            : 'Trial started — free until ' + longDate(shift(14)) + ', no card needed.'
         }))
         .catch((err) => this.setAuth({ err: err.message, busy: false }));
     };
@@ -2226,20 +2455,25 @@ class Component extends DCLogic {
     }
 
     const locked = Boolean(ses) && ses.access === 'locked';
+    const joining = Boolean(st.invite);
 
     return {
-      showAuth: !ses && st.booted,
+      showInvite: joining && st.booted,
+      inv: this.inviteVals(),
+      team: this.teamVals(ses),
+      showAuth: !ses && st.booted && !joining,
       // Locked accounts get the payment screen instead of the app — not the
       // app with a dialog over it, because there is nothing behind it to read.
-      showPaywall: locked,
-      authed: !!ses && !locked,
+      showPaywall: locked && !joining,
+      authed: !!ses && !locked && !joining,
       pay: this.payVals(ses, longDate),
       trial: this.trialVals(ses, longDate),
       userName: nm, userInitials: initials, trialPill: pill,
       goBilling: () => this.setState({ screen: 'settings' }),
       signOut: () => API.post('/auth/signout').catch(() => {}).then(() => this.setState({
         session: null, account: null, sme: EMPTY_BOOK(), church: EMPTY_BOOK(),
-        auth: { view: 'login', step: 1, name: '', org: '', email: '', pw: '', book: null, cycle: 'monthly', users: 1, err: '', busy: false }
+        auth: { view: 'login', step: 1, name: '', org: '', email: '', pw: '', book: null, cycle: 'monthly', users: 1, err: '', busy: false, seats: [] },
+        team: null, teamFresh: []
       })),
       au: {
         isLogin: A.view === 'login', isSignup: A.view === 'signup',
@@ -2259,6 +2493,17 @@ class Component extends DCLogic {
         // rather than offering a control that cannot complete.
         googleReady: st.googleReady,
         finishLabel: A.busy ? 'Setting up your books\u2026' : 'Start my 14-day free trial',
+        hasTeam: seatRows.length > 0,
+        teamNote: 'You chose ' + A.users + ' users, so ' + seatRows.length +
+          (seatRows.length === 1 ? ' other person' : ' other people') +
+          ' can join. Each gets a link to set their own password.',
+        team: seatRows.map((r, i) => ({
+          email: r.email,
+          role: r.role,
+          note: ROLE_NOTE[r.role],
+          setEmail: (e) => setSeat(i, { email: e.target.value }),
+          setRole: (e) => setSeat(i, { role: e.target.value })
+        })),
         isGoogle: A.provider === 'google',
         noProvider: A.provider !== 'google',
         dropGoogle: (e) => { if (e && e.preventDefault) e.preventDefault(); this.setAuth({ provider: null, pw: '' }); },
@@ -2269,6 +2514,177 @@ class Component extends DCLogic {
         trialEnds: longDate(shift(14)), firstCharge: longDate(shift(14))
       },
       sub: this.subVals(ses, longDate, shift)
+    };
+  }
+
+  // The screen somebody lands on after following an invitation link. They may
+  // have no Profitna account at all, or one already — the server says which,
+  // and the form asks for a new password or their existing one accordingly.
+  inviteVals() {
+    const st = this.state;
+    const i = st.invite;
+    if (!i) return { open: false, closed: false };
+
+    const open = i.state === 'pending';
+    const closedNote = {
+      accepted: 'That invitation has already been used. Sign in with the email it was sent to.',
+      cancelled: 'That invitation was cancelled. Ask whoever invited you for a new link.',
+      expired: 'That invitation has expired. Ask whoever invited you for a new link.',
+      unknown: i.error || 'That invitation link is not valid.'
+    }[i.state] || '';
+
+    const accept = () => {
+      if (st.inviteBusy) return;
+      const name = String(st.inviteName || '').trim();
+      const password = String(st.invitePassword || '');
+      if (!i.hasAccount && !name) return this.setState({ inviteErr: 'Enter your full name.' });
+      if (!password) {
+        return this.setState({ inviteErr: i.hasAccount
+          ? 'Enter the password you use on Profitna.'
+          : 'Choose a password of at least 8 characters.' });
+      }
+      if (!i.hasAccount && password.length < 8) {
+        return this.setState({ inviteErr: 'Choose a password of at least 8 characters.' });
+      }
+
+      this.setState({ inviteBusy: true, inviteErr: '' });
+      API.post('/invitations/' + encodeURIComponent(this._inviteToken) + '/accept', { name, password })
+        .then((r) => {
+          this.clearInviteFromUrl();
+          this.setState({ invite: null, inviteBusy: false, invitePassword: '', inviteName: '' });
+          return this.applySession(r.session);
+        })
+        .then(() => this.flash('You are on ' + i.orgName + ' as ' + (ROLE_LABEL[i.role] || i.role) + '.'))
+        .catch((err) => this.setState({ inviteErr: err.message, inviteBusy: false }));
+    };
+
+    return {
+      open,
+      closed: !open,
+      closedNote,
+      title: open ? 'Join ' + i.orgName : 'This link cannot be used',
+      blurb: open
+        ? (i.invitedBy ? i.invitedBy + ' invited you to ' : 'You have been invited to ') +
+          (i.book === 'church' ? "keep this organisation's books on Profitna." : "keep this business's books on Profitna.")
+        : '',
+      role: ROLE_LABEL[i.role] || i.role,
+      roleNote: i.roleNote || ROLE_NOTE[i.role] || '',
+      email: i.email || '',
+      name: st.inviteName,
+      password: st.invitePassword,
+      needsName: !i.hasAccount,
+      passwordLabel: i.hasAccount ? 'Your Profitna password' : 'Choose a password',
+      footnote: i.hasAccount
+        ? 'This email already has a Profitna account — sign in with its password to join these books as well.'
+        : 'This creates your own Profitna sign-in. Only you will know the password.',
+      buttonLabel: st.inviteBusy ? 'Joining\u2026' : 'Join ' + i.orgName,
+      err: st.inviteErr || '',
+      setName: (e) => this.setState({ inviteName: e.target.value, inviteErr: '' }),
+      setPassword: (e) => this.setState({ invitePassword: e.target.value, inviteErr: '' }),
+      accept
+    };
+  }
+
+  // Who is on these books. Loaded the first time the settings screen is
+  // opened, and reloaded after every change rather than patched locally —
+  // seats and the last-admin rule are the server's to decide.
+  loadTeam() {
+    if (!this.state.session) return Promise.resolve();
+    return API.get(this.orgPath('/members'))
+      .then((r) => this.setState({ team: r }))
+      .catch(() => {});
+  }
+
+  teamVals(ses) {
+    const st = this.state;
+    if (!ses) return { members: [], invitations: [], fresh: [] };
+    const t = st.team;
+    const canManage = Boolean(t && t.canManage);
+    const fresh = st.teamFresh || [];
+
+    const after = (promise, done) => promise
+      .then((r) => { this.loadTeam(); if (done) done(r); })
+      .catch((err) => this.flash(err.message));
+
+    const add = () => {
+      if (st.teamBusy) return;
+      const email = String(st.teamNewEmail || '').trim().toLowerCase();
+      if (!/.+@.+\..+/.test(email)) return this.flash('Enter a valid email address.');
+      this.setState({ teamBusy: true });
+      API.post(this.orgPath('/members'), { email, role: st.teamNewRole })
+        .then((r) => {
+          this.setState((s2) => ({
+            teamBusy: false,
+            teamNewEmail: '',
+            teamFresh: [...(s2.teamFresh || []), { email: r.invitation.email, role: r.invitation.role, link: r.link }]
+          }));
+          this.loadTeam();
+          this.flash('Invitation ready — copy the link and send it to ' + email + '.');
+        })
+        .catch((err) => { this.setState({ teamBusy: false }); this.flash(err.message); });
+    };
+
+    const copy = (link, key) => {
+      const done = () => { this.setState({ copied: key }); setTimeout(() => this.setState({ copied: null }), 2000); };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(link).then(done).catch(() => this.flash(link));
+      } else {
+        this.flash(link);
+      }
+    };
+
+    return {
+      canManage,
+      help: canManage
+        ? 'Everyone here shares one set of books. What each person may do is set by their role, and you can change it at any time.'
+        : 'What you may do on these books is set by your role. Ask an admin to change it.',
+      seatLine: t ? t.seats.members + ' of ' + t.seats.seats + ' seats used' +
+        (t.seats.pending ? ' · ' + t.seats.pending + ' invited' : '') : '',
+      roleNote: ROLE_NOTE[st.teamNewRole],
+      newEmail: st.teamNewEmail,
+      newRole: st.teamNewRole,
+      addLabel: st.teamBusy ? 'Inviting\u2026' : 'Invite',
+      setNewEmail: (e) => this.setState({ teamNewEmail: e.target.value }),
+      setNewRole: (e) => this.setState({ teamNewRole: e.target.value }),
+      add,
+
+      hasFresh: fresh.length > 0,
+      fresh: fresh.map((f, idx) => ({
+        email: f.email,
+        link: f.link,
+        label: st.copied === 'fresh' + idx ? 'Copied' : 'Copy link',
+        copy: () => copy(f.link, 'fresh' + idx)
+      })),
+
+      members: ((t && t.members) || []).map((m) => ({
+        name: (m.name || m.email) + (m.you ? ' (you)' : ''),
+        sub: m.email + ' · ' + (m.lastLoginAt ? 'last in ' + fmtDate(String(m.lastLoginAt).slice(0, 10)) : 'not signed in yet'),
+        role: m.role,
+        // An admin may change anyone's role, including their own — the server
+        // is what refuses to leave the books without one.
+        locked: !canManage,
+        selBg: canManage ? '#FFFFFF' : '#F7F5F0',
+        canRemove: canManage && !m.you,
+        setRole: (e) => after(API.patch(this.orgPath('/members/' + m.id), { role: e.target.value }),
+          () => this.flash((m.name || m.email) + ' is now ' + (ROLE_LABEL[e.target.value] || e.target.value).toLowerCase() + '.')),
+        remove: () => {
+          if (!window.confirm('Remove ' + (m.name || m.email) + ' from these books? What they entered stays.')) return;
+          after(API.del(this.orgPath('/members/' + m.id)), () => this.flash('Removed. Their seat is free again.'));
+        }
+      })),
+
+      invitations: ((t && t.invitations) || []).map((i) => ({
+        email: i.email,
+        sub: 'Invited as ' + (ROLE_LABEL[i.role] || i.role).toLowerCase() + ' · waiting to join',
+        relinkLabel: st.copied === 'inv' + i.id ? 'Copied' : 'New link',
+        relink: () => API.post(this.orgPath('/members/invitations/' + i.id + '/link'))
+          .then((r) => copy(r.link, 'inv' + i.id))
+          .catch((err) => this.flash(err.message)),
+        cancel: () => {
+          if (!window.confirm('Cancel the invitation to ' + i.email + '?')) return;
+          after(API.del(this.orgPath('/members/invitations/' + i.id)), () => this.flash('Invitation cancelled.'));
+        }
+      }))
     };
   }
 
@@ -2319,7 +2735,8 @@ class Component extends DCLogic {
         return API.post('/auth/signout').catch(() => {}).then(() => this.setState({
           session: null, account: null, payErr: '', payBusy: false,
           sme: EMPTY_BOOK(), church: EMPTY_BOOK(),
-          auth: { view: 'login', step: 1, name: '', org: '', email: '', pw: '', book: null, cycle: 'monthly', users: 1, err: '', busy: false }
+          auth: { view: 'login', step: 1, name: '', org: '', email: '', pw: '', book: null, cycle: 'monthly', users: 1, err: '', busy: false, seats: [] },
+          team: null, teamFresh: []
         }));
       }
     };
@@ -2728,8 +3145,6 @@ class Component extends DCLogic {
       { label: church ? 'Accumulated fund b/f' : 'Owner contributions', value: o.contributions, onChange: setField('contributions') },
       { label: 'Property and equipment', value: o.fixedAssets, onChange: setField('fixedAssets') }
     ];
-    const roles = [['Admin', 'Full access — books, settings, team and exports'], ['Accountant', 'Enter and edit transactions, reconcile, run reports'], ['Viewer', 'Read-only access to dashboard and reports']]
-      .map((x) => ({ name: x[0], desc: x[1], go: () => this.setState({ role: x[0] }), bg: st.role === x[0] ? '#EFEDE6' : '#FFFFFF', border: st.role === x[0] ? '#0B6B4F' : '#E7E3DA' }));
     const catRows = d.cats.map((c, i) => ({
       name: c.name, pct: String(c.pct),
       onChange: (e) => {
@@ -2855,7 +3270,7 @@ class Component extends DCLogic {
       bankRows, recTiles, recVerify, refreshBank: this.refreshBank, autoMatch: this.autoMatch,
       openImport: this.openImport, imp: this.impVals(church, d),
       reportTabs, report,
-      settingsFields, roles, catRows,
+      settingsFields, catRows,
       coaHelp: church
         ? 'Your giving and expenditure accounts. Add anything your church tracks that is not here — a new project fund line, a departmental budget — and it appears in the giving form and every report straight away.'
         : 'Your income and expense accounts. Add anything specific to your trade that is not here, and it appears in the transaction form and every report straight away.',

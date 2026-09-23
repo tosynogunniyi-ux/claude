@@ -31,7 +31,7 @@ web/            The application interface
   vendor/             React and the spreadsheet reader, served locally
 
 server/         The API and the database
-  src/routes/         auth, ledger, bank, org, subscription, admin
+  src/routes/         auth, ledger, bank, org, subscription, members, admin
   src/sql/            schema migrations
   src/integrations/   Paystack, Google, Anthropic
   src/create-admin.js the only way a Control Center account is created
@@ -83,6 +83,25 @@ invoices and every figure entered stay exactly where they were, and come back
 the moment payment goes through. A failed payment leaves the customer on that
 screen, free to try again.
 
+## Roles and the team
+
+One seat means one person, and that person is the admin of their own books.
+Buy more and the extra seats are named at signup, each with a role:
+
+| Role | May |
+|---|---|
+| **Admin** | Everything: books, settings, team and billing. |
+| **Accountant** | Enter and edit transactions, invoices, bills and reports. |
+| **Viewer** | Read the dashboard and reports. Nothing else. |
+
+An active subscriber can add, re-role or remove people at any time from
+**Settings → Team & access**, within the seats they pay for.
+
+There is no email delivery in this product and none is pretended: inviting
+somebody produces a link to copy and send. It lets them set their own
+password and join with the role they were given, and it works once. An
+organisation always keeps at least one admin.
+
 ## The Control Center
 
 The platform owner's console — every registered account, what each is paying,
@@ -126,14 +145,15 @@ invoices and pledges, bills, payments, contacts, inventory with stock moves,
 statement import and reconciliation, the chart of accounts with per-account
 deductibility, reports, and subscription state. Data is scoped per
 organisation, and that scoping is enforced in one place in the API rather than
-sprinkled through it. The owner's Control Center is live behind its own
-credentials and second factor.
+sprinkled through it. Several people can share one set of books, each with a
+role. The owner's Control Center is live behind its own credentials and second
+factor.
 
 Not finished yet:
 
 - Mono's bank-connect widget is not in the front end; the exchange, webhook and
   storage are ready behind it.
 - WhatsApp and email delivery are interface only, and say so in the product.
-- Roles (admin / accountant / viewer) are enforced by the API, but the
-  interface does not yet hide what a viewer cannot do, and there is no invite
-  flow — treat every account as an owner for now.
+- Roles are enforced by the API and assignable in the product, but the
+  interface does not yet grey out what a viewer cannot do — they see the
+  buttons and are told no when they use one.

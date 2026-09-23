@@ -7,7 +7,9 @@ const { requireAuth } = require('./auth');
 const { requireSubscription } = require('./access');
 const { gate } = require('./admin-auth');
 const authRoutes = require('./routes/auth');
+const invitationRoutes = require('./routes/invitations');
 const adminRoutes = require('./routes/admin');
+const memberRoutes = require('./routes/members');
 const orgRoutes = require('./routes/org');
 const ledgerRoutes = require('./routes/ledger');
 const bankRoutes = require('./routes/bank');
@@ -26,6 +28,9 @@ app.use(cookieParser());
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 app.use('/api/auth', authRoutes.router);
+// Following an invitation link happens before there is anything to sign in
+// with, so this is keyed on the token rather than on a session.
+app.use('/api/invitations', invitationRoutes.router);
 
 // The platform owner's console. `gate` answers 404 — not 401 — when no owner
 // account exists or the caller is outside ADMIN_IP_ALLOWLIST, so a deployment
@@ -36,6 +41,9 @@ const orgScoped = express.Router({ mergeParams: true });
 // Subscription routes come first and sit in front of the gate: an account
 // locked out for not having paid still has to be able to pay.
 orgScoped.use(subscriptionRoutes.router);
+// Managing the team stays reachable alongside them: an admin locked out at
+// the paywall can still see who is on the books.
+orgScoped.use(memberRoutes.router);
 // Past the end of the trial — or of a paid term — the books answer 402 with
 // what the paywall needs. Nothing is deleted; it opens again on payment.
 orgScoped.use(requireSubscription);

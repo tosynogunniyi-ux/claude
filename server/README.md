@@ -69,6 +69,8 @@ what it can honestly do:
 - `src/billing.js` — the timer that ends trials and renews terms.
 - `src/access.js` — who may open the books, and until when. One middleware,
   mounted in front of the book and never in front of the subscription routes.
+- `src/team.js`, `src/routes/members.js`, `src/routes/invitations.js` — who is
+  on a set of books, what they may do, and how a second person gets there.
 
 Two rules the schema enforces by design, carried over from the build spec:
 document status is **derived** from payments and due date rather than stored,
@@ -135,6 +137,52 @@ than a defence.
 - `expired` is **derived** from the period end and today's date, never stored —
   the same rule invoices follow. `suspended` is stored, because it is an act
   rather than a consequence.
+
+## Roles, seats and invitations
+
+`memberships.role` has existed since the first migration and `requireOrg()`
+has enforced it all along; what was missing was any way to create a second
+membership. That is what `invitations` adds.
+
+| Role | May |
+|---|---|
+| `admin` | Everything: books, settings, team and billing. |
+| `accountant` | Enter and edit transactions, invoices, bills and reports. |
+| `viewer` | Read the dashboard and reports. Nothing else. |
+
+**A seat is a person.** Two counts are always added together before anyone
+else is let in — people already on the books, and invitations still
+outstanding — so a one-seat plan cannot quietly carry five people. For the
+same reason seats cannot be reduced below the number in use, and the seat is
+checked again when an invitation is accepted, not only when it was sent.
+
+**Signing up for one** makes that person the admin of their own books, as
+before. **Signing up for more** names the other seats in the same request:
+`POST /auth/signup` takes `team: [{ email, role }]`, creates an invitation for
+each inside the transaction that creates the books, and returns a link per
+person. An account for three users therefore ends with one member and two
+invitations, not three unexplained empty seats.
+
+**Afterwards**, `POST /orgs/:id/members` does the same one at a time.
+
+**There is no email delivery in this product, and none is pretended.** An
+invitation produces a link the subscriber copies and sends however they
+already talk to their accountant. Only the SHA-256 of the token is stored, so
+the table is not a set of usable keys into other people's books; the raw token
+is returned once, and "New link" issues another, which cancels the old one.
+
+Following a link lands on `/?invite=…`, which reads
+`GET /api/invitations/:token` — organisation name, role and who invited them,
+and nothing about the books, because anyone holding the link can read it.
+Accepting creates the person's own sign-in. If the address already has a
+Profitna account it must prove itself with that account's password first: an
+invitation is a way onto somebody's books, never a way into somebody's
+account.
+
+An organisation always keeps at least one admin — the last one cannot be
+demoted or removed. Removing somebody frees their seat and ends their access
+at their next request; it does not touch anything they entered, which belongs
+to the books rather than to them.
 
 ## Signing up, the trial, and the paywall
 
@@ -236,8 +284,10 @@ if it is unavailable.
   and storage are in place behind `MONO_SECRET_KEY`.
 - WhatsApp and email delivery are UI-only, as the design intends — no
   integration claims are made anywhere in the product.
-- Roles are enforced on the API (`admin` / `accountant` / `viewer`), but the
-  UI does not yet hide what a viewer cannot do, and there is no invite flow.
+- Roles are enforced on the API and assignable in the product, but the UI does
+  not yet grey out what a viewer cannot do — a viewer sees the buttons and is
+  refused when they use one. The refusal is clear; the absence would be
+  clearer.
 - Control Center accounts are created at the command line only — there is no
   invite flow and no "add another owner" screen, on purpose. A console that
   can mint its own administrators is a console one stolen session can keep.

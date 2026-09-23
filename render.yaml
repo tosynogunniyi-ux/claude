@@ -45,6 +45,9 @@ services:
         sync: false
       # The owner's console. It answers 404 until an account is created by
       # running `node src/create-admin.js --email you@…` in a Render shell.
+      # Where invitation links point; the request is used when unset.
+      - key: PUBLIC_URL
+        sync: false
       - key: ADMIN_PATH
         sync: false
       - key: ADMIN_IP_ALLOWLIST

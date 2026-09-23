@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const { one, tx } = require('../db');
 const { issue, clear, requireAuth, recordLogin, SUSPENDED_MESSAGE } = require('../auth');
 const { accessFor } = require('../access');
+const team = require('../team');
 const { seedChartOfAccounts } = require('../defaults');
 const { seedDemoBooks } = require('../demo');
 const paystack = require('../integrations/paystack');
@@ -21,7 +22,7 @@ function bad(res, message) {
 // The session object the UI keeps in state: same shape the prototype built
 // locally at signup, plus the ids it now needs to talk to the API and the
 // derived trial facts the banner and the paywall are drawn from.
-async function sessionFor(userId) {
+async function sessionFor(userId, preferOrgId) {
   const row = await one(
     `SELECT u.id            AS "userId",
             u.full_name     AS name,
@@ -46,9 +47,11 @@ async function sessionFor(userId) {
        JOIN organizations o ON o.id = m.organization_id
        LEFT JOIN subscriptions s ON s.organization_id = o.id
       WHERE u.id = $1
-      ORDER BY m.created_at
+      -- Someone can be on more than one set of books. Without a preference
+      -- this is the oldest membership, which is their own.
+      ORDER BY (o.id = $2) DESC, m.created_at
       LIMIT 1`,
-    [userId]
+    [userId, preferOrgId || null]
   );
   if (!row) return null;
 
@@ -81,7 +84,7 @@ async function sessionFor(userId) {
   });
 }
 
-async function createAccount({ name, orgName, email, password, googleSub, book, cycle, seats }) {
+async function createAccount({ name, orgName, email, password, googleSub, book, cycle, seats, invites }) {
   const passwordHash = password ? await bcrypt.hash(password, 12) : null;
 
   return tx(async (client) => {
@@ -127,13 +130,30 @@ async function createAccount({ name, orgName, email, password, googleSub, book, 
       await seedDemoBooks(client, org.id, book);
     }
 
+    // Seats beyond the first are assigned here, in the same transaction that
+    // creates the books: a signup for three users ends with one member and
+    // two invitations waiting, not three unexplained empty seats.
+    const issued = [];
+    for (const person of invites || []) {
+      const result = await team.invite(
+        { organizationId: org.id, email: person.email, name: person.name, role: person.role, invitedBy: user.id },
+        client
+      );
+      if (result.error) {
+        const err = new Error(result.error);
+        err.status = 400;
+        throw err;
+      }
+      issued.push({ email: result.invitation.email, name: result.invitation.full_name, role: result.invitation.role, token: result.token });
+    }
+
     await client.query(
       `INSERT INTO audit_log (organization_id, user_id, action, entity_type, entity_id)
        VALUES ($1, $2, 'account.created', 'organization', $3)`,
       [org.id, user.id, org.id]
     );
 
-    return user.id;
+    return { userId: user.id, orgId: org.id, issued };
   });
 }
 
@@ -165,17 +185,41 @@ router.post('/signup', async (req, res, next) => {
       if (password.length < 8) return bad(res, 'Choose a password of at least 8 characters.');
     }
 
+    // One seat means one person, and that person is the admin of their own
+    // books. More than one, and the extra seats are named and given a role
+    // here — an empty seat helps nobody.
+    const invites = [];
+    const wanted = Array.isArray(body.team) ? body.team : [];
+    if (wanted.length > seats - 1) {
+      return bad(res, 'You chose ' + seats + ' users, so you can invite ' + (seats - 1) + ' besides yourself.');
+    }
+    for (const person of wanted) {
+      const address = String((person && person.email) || '').trim().toLowerCase();
+      if (!address) continue;
+      if (!EMAIL_RE.test(address)) return bad(res, 'Enter a valid email address for each person you are inviting.');
+      if (address === email) return bad(res, 'You already have a seat — invite the other people on your team.');
+      if (invites.some((i) => i.email === address)) return bad(res, 'Each person needs a different email address.');
+      invites.push({ email: address, name: person.name, role: team.normaliseRole(person.role, 'viewer') });
+    }
+
     // Signing up costs nothing and asks for nothing to pay with. The account
     // opens on a 14-day trial with no card on file; payment is collected at
     // the end of it, through /subscription/activate. Anything card-shaped in
     // the body is ignored rather than trusted.
-    const userId = await createAccount({
-      name, orgName, email, password, googleSub, book, cycle, seats,
-      card: null, payment: null
+    const created = await createAccount({
+      name, orgName, email, password, googleSub, book, cycle, seats, invites
     });
-    await recordLogin(req, userId);
-    issue(req, res, { id: userId, email });
-    res.status(201).json({ session: await sessionFor(userId) });
+    await recordLogin(req, created.userId);
+    issue(req, res, { id: created.userId, email });
+
+    res.status(201).json({
+      session: await sessionFor(created.userId),
+      // Shown once, for the subscriber to copy and send. Nothing stores the
+      // raw token, so this response is the only place these links exist.
+      invites: created.issued.map((i) => ({
+        email: i.email, name: i.name, role: i.role, link: team.inviteLink(req, i.token)
+      }))
+    });
   } catch (err) {
     if (err.status === 409) return res.status(409).json({ error: err.message });
     next(err);

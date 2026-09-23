@@ -49,6 +49,8 @@ services:
       MONO_WEBHOOK_SECRET: ${MONO_WEBHOOK_SECRET:-}
       # The owner's console. It answers 404 until an account is created with
       #   docker compose exec app node src/create-admin.js --email you@…
+      # Where invitation links point; the request is used when unset.
+      PUBLIC_URL: ${PUBLIC_URL:-}
       ADMIN_PATH: ${ADMIN_PATH:-/admin}
       ADMIN_IP_ALLOWLIST: ${ADMIN_IP_ALLOWLIST:-}
       # Ends trials and renews terms. Idle until PAYSTACK_SECRET_KEY is set.

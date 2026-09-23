@@ -169,6 +169,139 @@ async function signup(call, email, book, org) {
   const overSeat = await sme('PATCH', '/api/orgs/' + orgA + '/subscription', { users: 900 });
   check('seats are capped', overSeat.body.subscription.users === 25);
 
+  // -------------------------------------------------------------- the team
+  console.log('\nroles and invitations');
+
+  const boss = client();
+  const bossEmail = 'smoke-boss-' + stamp + '@mideops.ng';
+  const bookkeeperEmail = 'smoke-books-' + stamp + '@mideops.ng';
+  const readerEmail = 'smoke-reader-' + stamp + '@mideops.ng';
+
+  const team = await boss('POST', '/api/auth/signup', {
+    name: 'Chidinma Obi', org: 'Obi Trading ' + stamp, email: bossEmail,
+    password: 'smoke-test-pass-1', book: 'sme', cycle: 'monthly', users: 3,
+    team: [
+      { email: bookkeeperEmail, name: 'Segun Ade', role: 'accountant' },
+      { email: readerEmail, name: 'Ngozi Eze', role: 'viewer' }
+    ]
+  });
+  check('signing up for three assigns the other two seats', team.status === 201, 'status ' + team.status);
+  check('and hands back a link for each', (team.body.invites || []).length === 2, JSON.stringify(team.body.invites));
+  check('with the role each was given',
+    team.body.invites.some((i) => i.email === bookkeeperEmail && i.role === 'accountant') &&
+    team.body.invites.some((i) => i.email === readerEmail && i.role === 'viewer'),
+    JSON.stringify(team.body.invites));
+
+  const teamOrg = team.body.session.orgId;
+  check('the subscriber is the admin', team.body.session.role === 'admin', team.body.session.role);
+
+  const roster = await boss('GET', '/api/orgs/' + teamOrg + '/members');
+  check('one person is on the books so far', roster.body.members.length === 1);
+  check('and two invitations are waiting', roster.body.invitations.length === 2);
+  check('every seat is spoken for', roster.body.seats.free === 0, JSON.stringify(roster.body.seats));
+
+  const overSeats = await boss('POST', '/api/orgs/' + teamOrg + '/members', {
+    email: 'smoke-fourth-' + stamp + '@mideops.ng', role: 'viewer'
+  });
+  check('a fourth person needs a fourth seat', overSeats.status === 409, 'status ' + overSeats.status);
+
+  const shrink = await boss('PATCH', '/api/orgs/' + teamOrg + '/subscription', { users: 1 });
+  check('seats cannot drop below the people using them', shrink.status === 409, 'status ' + shrink.status);
+
+  const tooMany = await client()('POST', '/api/auth/signup', {
+    name: 'Over Reach', org: 'Over Reach ' + stamp, email: 'smoke-over-' + stamp + '@mideops.ng',
+    password: 'smoke-test-pass-1', book: 'sme', cycle: 'monthly', users: 2,
+    team: [{ email: 'a-' + stamp + '@x.ng', role: 'viewer' }, { email: 'b-' + stamp + '@x.ng', role: 'viewer' }]
+  });
+  check('you cannot invite more people than you bought seats for', tooMany.status === 400, 'status ' + tooMany.status);
+
+  // --- accepting -----------------------------------------------------------
+  const linkFor = (email) => team.body.invites.find((i) => i.email === email).link;
+  const tokenOf = (link) => link.split('invite=')[1];
+
+  const peek = await client()('GET', '/api/invitations/' + tokenOf(linkFor(bookkeeperEmail)));
+  check('the link says who is inviting and to what', peek.status === 200 &&
+    peek.body.invitation.orgName.startsWith('Obi Trading') && peek.body.invitation.role === 'accountant',
+    JSON.stringify(peek.body.invitation));
+  check('and that there is no account yet', peek.body.invitation.hasAccount === false);
+
+  const junk = await client()('GET', '/api/invitations/not-a-real-token');
+  check('a made-up link is not valid', junk.status === 404, 'status ' + junk.status);
+
+  const accountant = client();
+  const joined = await accountant('POST', '/api/invitations/' + tokenOf(linkFor(bookkeeperEmail)) + '/accept', {
+    name: 'Segun Ade', password: 'smoke-test-pass-2'
+  });
+  check('accepting creates the account and signs them in', joined.status === 201, 'status ' + joined.status);
+  check('on the books they were invited to', joined.body.session.orgId === teamOrg);
+  check('with the role they were given', joined.body.session.role === 'accountant', joined.body.session.role);
+
+  const reuse = await client()('POST', '/api/invitations/' + tokenOf(linkFor(bookkeeperEmail)) + '/accept', {
+    name: 'Someone Else', password: 'another-password'
+  });
+  check('the same link cannot be used twice', reuse.status === 400, 'status ' + reuse.status);
+
+  // --- what each role may do ----------------------------------------------
+  const read = await accountant('GET', '/api/orgs/' + teamOrg + '/data');
+  check('an accountant can read the books', read.status === 200, 'status ' + read.status);
+
+  const wrote = await accountant('POST', '/api/orgs/' + teamOrg + '/transactions', {
+    type: 'expense', date: '2026-03-02', amount: 42000, category: 'Fuel',
+    party: 'Total', description: 'entered by the accountant'
+  });
+  check('and write to them', wrote.status === 201, 'status ' + wrote.status);
+
+  const settings = await accountant('PATCH', '/api/orgs/' + teamOrg, { name: 'Renamed By Accountant' });
+  check('but not change the organisation', settings.status === 403, 'status ' + settings.status);
+
+  const sneak = await accountant('POST', '/api/orgs/' + teamOrg + '/members', {
+    email: 'smoke-sneak-' + stamp + '@x.ng', role: 'admin'
+  });
+  check('nor invite anyone', sneak.status === 403, 'status ' + sneak.status);
+
+  const viewer = client();
+  const viewerJoined = await viewer('POST', '/api/invitations/' + tokenOf(linkFor(readerEmail)) + '/accept', {
+    name: 'Ngozi Eze', password: 'smoke-test-pass-3'
+  });
+  check('a viewer can accept too', viewerJoined.status === 201 && viewerJoined.body.session.role === 'viewer',
+    viewerJoined.body.session && viewerJoined.body.session.role);
+  check('and read the books', (await viewer('GET', '/api/orgs/' + teamOrg + '/data')).status === 200);
+
+  const viewerWrite = await viewer('POST', '/api/orgs/' + teamOrg + '/transactions', {
+    type: 'income', date: '2026-03-03', amount: 1000, category: 'Sales', description: 'should not stick'
+  });
+  check('but not write to them', viewerWrite.status === 403, 'status ' + viewerWrite.status);
+
+  // --- changing roles afterwards ------------------------------------------
+  const viewerId = viewerJoined.body.session.userId;
+  const bossId = team.body.session.userId;
+
+  const promote = await boss('PATCH', '/api/orgs/' + teamOrg + '/members/' + viewerId, { role: 'accountant' });
+  check('an admin can change a role', promote.status === 200 && promote.body.role === 'accountant');
+  check('which takes effect at once',
+    (await viewer('POST', '/api/orgs/' + teamOrg + '/transactions', {
+      type: 'income', date: '2026-03-03', amount: 1000, category: 'Sales', description: 'now allowed'
+    })).status === 201);
+
+  const selfDemote = await boss('PATCH', '/api/orgs/' + teamOrg + '/members/' + bossId, { role: 'viewer' });
+  check('the last admin cannot demote themselves', selfDemote.status === 400, 'status ' + selfDemote.status);
+
+  const badRole = await boss('PATCH', '/api/orgs/' + teamOrg + '/members/' + viewerId, { role: 'owner' });
+  check('an unknown role is refused', badRole.status === 400, 'status ' + badRole.status);
+
+  await boss('PATCH', '/api/orgs/' + teamOrg + '/members/' + viewerId, { role: 'admin' });
+  const nowFine = await boss('PATCH', '/api/orgs/' + teamOrg + '/members/' + bossId, { role: 'accountant' });
+  check('and can once somebody else is one', nowFine.status === 200, 'status ' + nowFine.status);
+  await viewer('PATCH', '/api/orgs/' + teamOrg + '/members/' + bossId, { role: 'admin' });
+
+  const removed = await boss('DELETE', '/api/orgs/' + teamOrg + '/members/' + viewerId);
+  check('removing somebody frees their seat', removed.status === 200 && removed.body.seats.free === 1,
+    JSON.stringify(removed.body.seats));
+  check('and ends their access', (await viewer('GET', '/api/orgs/' + teamOrg + '/data')).status === 404,
+    'they could still read the books');
+  check('while what they entered stays',
+    (await boss('GET', '/api/orgs/' + teamOrg + '/data')).body.book.tx.some((t) => t.description === 'now allowed'));
+
   console.log('\npersistence');
   const fresh = client();
   const back = await fresh('POST', '/api/auth/login', {
