@@ -29,8 +29,13 @@ const EXPIRY_SKEW_MS = 60 * 1000;
 // serves its own error page, which is HTML and tells the customer nothing. A
 // refusal in fifteen seconds that says which host it could not reach is worth
 // far more than a wait that never ends.
+//
+// Eight seconds, not fifteen, because the proxy in front of this app has its
+// own patience and it is usually shorter. Losing the race means the customer
+// gets the proxy's HTML error page instead of our explanation, which is the
+// whole problem this was meant to solve.
 function timeoutMs() {
-  return Number(process.env.MONNIFY_TIMEOUT_MS || 15000);
+  return Number(process.env.MONNIFY_TIMEOUT_MS || 8000);
 }
 
 function base() {
@@ -41,8 +46,8 @@ function base() {
 // fetch, but it always comes back. AbortSignal.timeout raises a TimeoutError;
 // a refused connection or an unresolvable name raises its own. All of them
 // mean the same thing to the caller, so all of them say so the same way.
-async function fetchMonnify(url, options) {
-  const ms = timeoutMs();
+async function fetchMonnify(url, options, overrideMs) {
+  const ms = overrideMs || timeoutMs();
   try {
     return await fetch(url, Object.assign({}, options, { signal: AbortSignal.timeout(ms) }));
   } catch (err) {
@@ -278,6 +283,29 @@ function verifyWebhook(rawBody, signature) {
 // Only for tests: drops the cached bearer token.
 function _resetToken() { cached = null; inFlight = null; }
 
+// Authenticates and nothing else, on a leash of its own, bypassing the token
+// cache so it reports what the credentials do right now rather than what they
+// did an hour ago. Nothing is charged and no transaction is opened.
+async function ping(ms) {
+  if (!configured()) throw new Error('Monnify is not configured');
+  const basic = Buffer
+    .from(process.env.MONNIFY_API_KEY + ':' + process.env.MONNIFY_SECRET_KEY)
+    .toString('base64');
+
+  const res = await fetchMonnify(base() + '/api/v1/auth/login', {
+    method: 'POST',
+    headers: { Authorization: 'Basic ' + basic, 'Content-Type': 'application/json' }
+  }, ms || 6000);
+
+  const body = await res.json().catch(() => null);
+  const data = body && body.responseBody;
+  if (!res.ok || !body || !body.requestSuccessful || !data || !data.accessToken) {
+    throw new Error('Monnify rejected the API credentials at ' + base() + ' — ' +
+      ((body && body.responseMessage) || ('HTTP ' + res.status)));
+  }
+  return true;
+}
+
 module.exports = {
   name: 'monnify',
   configured,
@@ -285,6 +313,7 @@ module.exports = {
   chargeAuthorization,
   verifyWebhook,
   initTransaction,
+  ping,
   base,
   _resetToken
 };

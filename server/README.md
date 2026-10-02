@@ -304,6 +304,24 @@ card token — in the same field.
   checks `subscriptions.provider` and declines to try, because the token
   means nothing to them and the customer would see a decline on a good card.
 
+**When payments will not start**, sign in as an admin and open
+
+    /api/orgs/<organisation id>/subscription/processor-check
+
+It authenticates against Monnify and nothing else — no charge, no transaction
+— and answers within about six seconds whatever happens, so it beats any
+proxy's patience and cannot come back as somebody else's HTML error page.
+Three answers, three different fixes:
+
+| `result` says | Fix |
+|---|---|
+| could not reach Monnify at all | The container has no outbound internet, or `MONNIFY_ENV` names the wrong host |
+| answered but refused these credentials | Wrong key or secret, or live keys pointed at the sandbox |
+| accepted these credentials | Payments are fine; the fault is elsewhere |
+
+Keys are shown only as a first few characters and a length, which is enough to
+spot a swapped or truncated value without printing it.
+
 `locked` is derived, like document status and subscription expiry: a stored
 flag would be correct only until the next midnight nothing ran through.
 

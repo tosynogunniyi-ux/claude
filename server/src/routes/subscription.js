@@ -496,6 +496,73 @@ router.post('/subscription/checkout', requireOrg('admin'), async (req, res, next
   }
 });
 
+// Is the payment processor actually reachable from this server?
+//
+// Open it in a browser while signed in as an admin. It answers in a few
+// seconds whatever happens, so it beats any proxy's patience and cannot come
+// back as somebody else's HTML error page — which is exactly the failure it
+// exists to tell apart. Three answers, three different fixes: not configured,
+// cannot be reached (outbound access), or refused (the keys).
+//
+// It only ever asks the processor to authenticate. Nothing is charged and no
+// transaction is opened.
+router.get('/subscription/processor-check', requireOrg('admin'), async (req, res, next) => {
+  try {
+    const provider = gateway.name();
+    const out = {
+      provider,
+      configured: gateway.configured(),
+      monnify: monnify.configured()
+        ? {
+            baseUrl: monnify.base(),
+            env: process.env.MONNIFY_ENV || 'sandbox (default)',
+            // Enough to spot a mistyped or swapped value without printing it.
+            apiKey: mask(process.env.MONNIFY_API_KEY),
+            secretKey: mask(process.env.MONNIFY_SECRET_KEY),
+            contractCode: mask(process.env.MONNIFY_CONTRACT_CODE)
+          }
+        : null,
+      paystack: {
+        secretKey: process.env.PAYSTACK_SECRET_KEY ? mask(process.env.PAYSTACK_SECRET_KEY) : null,
+        publicKey: process.env.PAYSTACK_PUBLIC_KEY ? mask(process.env.PAYSTACK_PUBLIC_KEY) : null
+      }
+    };
+
+    if (provider !== 'monnify') {
+      out.result = provider === 'none'
+        ? 'No payment processor is configured on this server.'
+        : 'Paystack is the active processor; this check only probes Monnify.';
+      return res.json(out);
+    }
+
+    const started = Date.now();
+    try {
+      await monnify.ping(6000);
+      out.ms = Date.now() - started;
+      out.reachable = true;
+      out.result = 'Monnify accepted these credentials. Payments should work.';
+    } catch (err) {
+      out.ms = Date.now() - started;
+      out.reachable = !/Could not reach Monnify/.test(err.message);
+      out.error = err.message;
+      out.result = out.reachable
+        ? 'Monnify answered but refused these credentials — check the keys and MONNIFY_ENV.'
+        : 'This server could not reach Monnify at all — check outbound internet access from the container.';
+    }
+    res.json(out);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Shows the shape of a value without revealing it.
+function mask(v) {
+  const s = String(v || '');
+  if (!s) return null;
+  if (s.length <= 8) return s.slice(0, 2) + '…(' + s.length + ' chars)';
+  return s.slice(0, 6) + '…' + s.slice(-2) + ' (' + s.length + ' chars)';
+}
+
 module.exports = {
   router,
   chargeDue,
