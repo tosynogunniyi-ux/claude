@@ -365,6 +365,58 @@ const LOGIN_OK = {
   withMonnify();
 
   // =========================================================================
+  console.log('\nwhen Monnify cannot be reached');
+  // =========================================================================
+  // The failure that produced an HTML gateway page in production: the call
+  // never came back, so nothing in front of the app had anything to serve.
+  reset();
+  process.env.MONNIFY_TIMEOUT_MS = '300';
+  const slowFetch = global.fetch;
+  global.fetch = (url, opts) => new Promise((resolve, reject) => {
+    // Honour the abort signal the way a real fetch does, and otherwise hang.
+    if (opts && opts.signal) {
+      opts.signal.addEventListener('abort', () => {
+        const e = new Error('The operation was aborted due to timeout');
+        e.name = 'TimeoutError';
+        reject(e);
+      });
+    }
+  });
+
+  let hungErr = null;
+  const startedAt = Date.now();
+  // AbortSignal.timeout's timer does not itself hold the event loop open. A
+  // real server always has a listening socket doing that; this script, waiting
+  // on one stubbed promise, has nothing, so it gets a heartbeat for the
+  // duration of the call.
+  const keepAlive = setInterval(() => {}, 50);
+  try { await monnify.verify('MNFY|hang'); } catch (e) { hungErr = e; }
+  clearInterval(keepAlive);
+  const waited = Date.now() - startedAt;
+
+  check('a call that never answers gives up rather than hanging',
+    Boolean(hungErr), 'it returned or hung instead of raising');
+  check('and does so quickly', waited < 3000, 'waited ' + waited + 'ms');
+  check('the message names the host', /sandbox\.monnify\.com/.test(hungErr.message), hungErr.message);
+  check('and says it timed out', /did not answer within/.test(hungErr.message), hungErr.message);
+  check('and points at outbound access',
+    /outbound internet access/.test(hungErr.message),
+    'a closed egress port is the usual cause and is not obvious from "failed"');
+
+  // A refused connection reads the same way.
+  reset();
+  global.fetch = async () => { throw new Error('fetch failed'); };
+  let refusedErr = null;
+  try { await monnify.verify('MNFY|refused'); } catch (e) { refusedErr = e; }
+  check('a refused connection also reports which host',
+    Boolean(refusedErr) && /Could not reach Monnify at/.test(refusedErr.message),
+    refusedErr && refusedErr.message);
+
+  global.fetch = slowFetch;
+  delete process.env.MONNIFY_TIMEOUT_MS;
+  stubFetch();
+
+  // =========================================================================
   console.log('\nchoosing a provider');
   // =========================================================================
   reset();

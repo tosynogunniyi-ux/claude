@@ -23,9 +23,38 @@ const SANDBOX = 'https://sandbox.monnify.com';
 // a credential that expires in flight.
 const EXPIRY_SKEW_MS = 60 * 1000;
 
+// Every call out to Monnify is bounded. Without this a host that cannot reach
+// api.monnify.com — a closed outbound port, a DNS that does not resolve —
+// leaves the request hanging until something in front of the app gives up and
+// serves its own error page, which is HTML and tells the customer nothing. A
+// refusal in fifteen seconds that says which host it could not reach is worth
+// far more than a wait that never ends.
+function timeoutMs() {
+  return Number(process.env.MONNIFY_TIMEOUT_MS || 15000);
+}
+
 function base() {
   if (process.env.MONNIFY_BASE_URL) return process.env.MONNIFY_BASE_URL.replace(/\/+$/, '');
   return process.env.MONNIFY_ENV === 'live' ? LIVE : SANDBOX;
+}
+
+// fetch, but it always comes back. AbortSignal.timeout raises a TimeoutError;
+// a refused connection or an unresolvable name raises its own. All of them
+// mean the same thing to the caller, so all of them say so the same way.
+async function fetchMonnify(url, options) {
+  const ms = timeoutMs();
+  try {
+    return await fetch(url, Object.assign({}, options, { signal: AbortSignal.timeout(ms) }));
+  } catch (err) {
+    const why = err && (err.name === 'TimeoutError' || err.name === 'AbortError')
+      ? 'it did not answer within ' + Math.round(ms / 1000) + ' seconds'
+      : (err && err.message) || String(err);
+    throw new Error(
+      'Could not reach Monnify at ' + base() + ' — ' + why +
+      '. Check that this server has outbound internet access and that MONNIFY_ENV (' +
+      (process.env.MONNIFY_ENV || 'sandbox') + ') points at the right host.'
+    );
+  }
 }
 
 function configured() {
@@ -48,10 +77,10 @@ async function login() {
     .from(process.env.MONNIFY_API_KEY + ':' + process.env.MONNIFY_SECRET_KEY)
     .toString('base64');
 
-  const res = await fetch(base() + '/api/v1/auth/login', {
+  const res = await fetchMonnify(base() + '/api/v1/auth/login', {
     method: 'POST',
     headers: { Authorization: 'Basic ' + basic, 'Content-Type': 'application/json' }
-  }).catch((e) => { throw new Error('Could not reach Monnify at ' + base() + ' — ' + e.message); });
+  });
   const body = await res.json().catch(() => null);
   const data = body && body.responseBody;
   if (!res.ok || !body || !body.requestSuccessful || !data || !data.accessToken) {
@@ -84,7 +113,7 @@ async function token() {
 }
 
 async function call(path, { method = 'GET', body } = {}) {
-  const send = async (bearer) => fetch(base() + path, {
+  const send = async (bearer) => fetchMonnify(base() + path, {
     method,
     headers: { Authorization: 'Bearer ' + bearer, 'Content-Type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body)

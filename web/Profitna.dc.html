@@ -1877,7 +1877,24 @@ const API = {
       body: body ? JSON.stringify(body) : undefined
     });
     const text = await res.text();
-    const data = text ? JSON.parse(text) : {};
+    // Everything this API returns is JSON, including its errors. Anything else
+    // came from in front of the app — a proxy's own gateway page while the
+    // container is restarting or has stopped answering — and is HTML. Parsing
+    // it raises "Unexpected token '<'", which tells the person nothing and
+    // sounds like their data is broken. Say what actually happened instead.
+    let data;
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch (parseErr) {
+      const err = new Error(
+        res.status >= 500 || res.status === 0
+          ? 'The server did not answer that request. It may still be restarting — wait a moment and try again.'
+          : 'The server sent something unexpected (' + res.status + '). Try again, and if it keeps happening the deployment needs a look.'
+      );
+      err.status = res.status;
+      err.unparseable = true;
+      throw err;
+    }
     if (!res.ok) {
       // 402 means the trial or the paid term has run out. Any call can come
       // back with it — a tab left open overnight hits it on the next save —
