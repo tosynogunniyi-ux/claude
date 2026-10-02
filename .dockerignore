@@ -3,9 +3,7 @@
 **/*.log
 .git
 .gitignore
-chats
-project/uploads
-project/.thumbnail
+docs
 server/test
 DEPLOY.md
 README.md

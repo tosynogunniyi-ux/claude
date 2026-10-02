@@ -19,7 +19,12 @@ function check(name, condition, detail) {
   }
 }
 
-function client() {
+// Hands back the cookie a client is holding, for the two checks that need a
+// raw fetch rather than the JSON helper.
+let lastSmeCookie = null;
+function smeCookie() { return lastSmeCookie; }
+
+function client(track) {
   let cookie = null;
   return async function call(method, path, body) {
     const res = await fetch(BASE + path, {
@@ -31,9 +36,14 @@ function client() {
       body: body ? JSON.stringify(body) : undefined
     });
     const setCookie = res.headers.get('set-cookie');
-    if (setCookie) cookie = setCookie.split(';')[0];
+    if (setCookie) {
+      cookie = setCookie.split(';')[0];
+      if (track) lastSmeCookie = cookie;
+    }
     const text = await res.text();
-    return { status: res.status, body: text ? JSON.parse(text) : {} };
+    let parsed = {};
+    try { parsed = text ? JSON.parse(text) : {}; } catch { parsed = { raw: text }; }
+    return { status: res.status, body: parsed };
   };
 }
 
@@ -45,14 +55,13 @@ async function signup(call, email, book, org) {
     password: 'smoke-test-pass-1',
     book,
     cycle: 'monthly',
-    users: 1,
-    card: { brand: 'Visa', last4: '4081', exp: '09/29' }
+    users: 1
   });
 }
 
 (async () => {
   const stamp = Date.now();
-  const sme = client();
+  const sme = client(true);
   const church = client();
 
   console.log('\nauth');
@@ -146,12 +155,274 @@ async function signup(call, email, book, org) {
   const match = await sme('POST', '/api/orgs/' + orgA + '/bank/auto-match');
   check('auto-match runs', match.status === 200);
 
+  console.log('\nthe card-free trial');
+  const trial = a.body.session;
+  check('signup asks for no card', trial.card === null, JSON.stringify(trial.card));
+  check('and starts a trial', trial.subStatus === 'trialing' && trial.access === 'trial', trial.access);
+  check('with 14 days on it', trial.daysLeft === 14, String(trial.daysLeft));
+  check('and a date it ends', /^\d{4}-\d{2}-\d{2}$/.test(trial.trialEndsOn || ''), trial.trialEndsOn);
+  check('the books open during it', (await sme('GET', '/api/orgs/' + orgA + '/data')).status === 200);
+
+  const withCard = await client()('POST', '/api/auth/signup', {
+    name: 'Card Sender', org: 'Card Sender Ltd ' + stamp, email: 'smoke-card-' + stamp + '@mideops.ng',
+    password: 'smoke-test-pass-1', book: 'sme', cycle: 'monthly', users: 1,
+    card: { brand: 'Visa', last4: '4081', exp: '09/29' }, paymentReference: 'made-up'
+  });
+  check('a client that sends card details anyway is not billed for it',
+    withCard.status === 201 && withCard.body.session.card === null,
+    'status ' + withCard.status + ' ' + JSON.stringify(withCard.body.card));
+
   console.log('\nsubscription');
   const subs = await sme('PATCH', '/api/orgs/' + orgA + '/subscription', { cycle: 'annual', users: 3 });
   check('cycle and seats update', subs.body.subscription.cycle === 'annual' && subs.body.subscription.users === 3);
   check('the amount follows the seat count', subs.body.subscription.amount === 57000 * 3);
   const overSeat = await sme('PATCH', '/api/orgs/' + orgA + '/subscription', { users: 900 });
   check('seats are capped', overSeat.body.subscription.users === 25);
+
+  // ------------------------------------------------- bank accounts & branding
+  console.log('\nbank accounts');
+
+  const accts = await sme('GET', '/api/orgs/' + orgA + '/bank-accounts');
+  check('a new organisation starts with one account', accts.body.accounts.length === 1, JSON.stringify(accts.body.accounts.length));
+  const main = accts.body.accounts[0];
+  check('and it is the primary one', main.isPrimary === true);
+
+  const opened = await sme('PATCH', '/api/orgs/' + orgA + '/bank-accounts/' + main.id, {
+    name: 'GTBank current', bankName: 'Guaranty Trust Bank', accountNumber: '0123456789',
+    openingBalance: 500000, openingDate: '2026-01-01'
+  });
+  check('an opening balance can be set', opened.status === 200, 'status ' + opened.status);
+
+  const afterOpening = opened.body.accounts[0];
+  check('the balance starts from it',
+    Number(afterOpening.balance) === 500000 - 42000 + 0 || Number(afterOpening.openingBalance) === 500000,
+    JSON.stringify(afterOpening));
+
+  const bookNow = (await sme('GET', '/api/orgs/' + orgA + '/data')).body;
+  const live = (await sme('GET', '/api/orgs/' + orgA + '/bank-accounts')).body.accounts[0];
+  check('the current balance is opening plus what moved through it',
+    Number(live.balance) === Number(live.openingBalance) + Number(live.received) - Number(live.paid),
+    JSON.stringify([live.openingBalance, live.received, live.paid, live.balance]));
+  check('and it counts the entries recorded against it', Number(live.entries) > 0, String(live.entries));
+
+  check('the opening figure the reports read follows it',
+    Number(bookNow.org.openingCash) === 500000, String(bookNow.org.openingCash));
+  check('and the book carries the accounts', Array.isArray(bookNow.book.accounts) && bookNow.book.accounts.length === 1);
+
+  const second = await sme('POST', '/api/orgs/' + orgA + '/bank-accounts', {
+    name: 'Zenith savings', openingBalance: 250000
+  });
+  check('a second account can be added', second.status === 201 && second.body.accounts.length === 2);
+  check('the second is not primary', second.body.accounts.filter((a) => a.isPrimary).length === 1);
+  check('opening cash is now the sum of both',
+    Number((await sme('GET', '/api/orgs/' + orgA + '/data')).body.org.openingCash) === 750000);
+
+  const beforeCash = (await sme('GET', '/api/orgs/' + orgA + '/bank-accounts')).body.accounts[0].balance;
+  const cashSale = await sme('POST', '/api/orgs/' + orgA + '/transactions', {
+    type: 'income', date: '2026-03-08', amount: 9000, category: 'Product Sales',
+    party: 'Walk-in', description: 'cash over the counter', method: 'Cash'
+  });
+  check('a cash sale is recorded', cashSale.status === 201);
+  const afterCash = (await sme('GET', '/api/orgs/' + orgA + '/bank-accounts')).body;
+  check('but does not touch a bank balance',
+    Number(afterCash.accounts[0].balance) === Number(beforeCash),
+    beforeCash + ' moved to ' + afterCash.accounts[0].balance);
+
+  const bankSale = await sme('POST', '/api/orgs/' + orgA + '/transactions', {
+    type: 'income', date: '2026-03-08', amount: 11000, category: 'Product Sales',
+    party: 'Halogen', description: 'paid in', method: 'Bank transfer'
+  });
+  check('a bank receipt does', bankSale.status === 201 &&
+    Number((await sme('GET', '/api/orgs/' + orgA + '/bank-accounts')).body.accounts[0].balance) === Number(beforeCash) + 11000,
+    'expected ' + (Number(beforeCash) + 11000));
+
+  const toSecond = await sme('POST', '/api/orgs/' + orgA + '/transactions', {
+    type: 'expense', date: '2026-03-08', amount: 15000, category: 'Utilities',
+    party: 'Ikeja Electric', description: 'paid from savings', method: 'Bank transfer',
+    bankAccountId: second.body.accounts.find((a) => a.name === 'Zenith savings').id
+  });
+  check('an entry can name its account', toSecond.status === 201);
+  const split = (await sme('GET', '/api/orgs/' + orgA + '/bank-accounts')).body.accounts;
+  check('and only that account moves',
+    Math.round(Number(split.find((a) => a.name === 'Zenith savings').balance)) === 250000 - 15000,
+    JSON.stringify(split.map((a) => [a.name, a.balance])));
+
+  const lastOne = await sme('DELETE', '/api/orgs/' + orgA + '/bank-accounts/' + split[1].id);
+  check('an account can be removed', lastOne.status === 200 && lastOne.body.accounts.length === 1);
+  const orphan = (await sme('GET', '/api/orgs/' + orgA + '/data')).body.book.tx
+    .find((t) => t.description === 'paid from savings');
+  check('and what it paid for stays in the books', Boolean(orphan));
+
+  const onlyOne = await sme('DELETE', '/api/orgs/' + orgA + '/bank-accounts/' + split[0].id);
+  check('the last account cannot be removed', onlyOne.status === 400, 'status ' + onlyOne.status);
+
+  console.log('\nreport branding');
+
+  const noLogo = await sme('GET', '/api/orgs/' + orgA + '/logo');
+  check('there is no logo to begin with', noLogo.status === 404, 'status ' + noLogo.status);
+
+  // A one-pixel PNG, which is enough to exercise the sniffing.
+  const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  const uploaded = await sme('POST', '/api/orgs/' + orgA + '/logo', { data: 'data:image/png;base64,' + PNG });
+  check('a PNG logo uploads', uploaded.status === 201 && uploaded.body.logo.mime === 'image/png',
+    'status ' + uploaded.status);
+
+  const served = await fetch(BASE + '/api/orgs/' + orgA + '/logo', { headers: { cookie: smeCookie() } });
+  check('and is served back as an image', served.headers.get('content-type') === 'image/png');
+  check('locked down on the way out',
+    (served.headers.get('content-security-policy') || '').includes('sandbox') &&
+    served.headers.get('x-content-type-options') === 'nosniff',
+    served.headers.get('content-security-policy'));
+
+  check('the book reports it has one', (await sme('GET', '/api/orgs/' + orgA + '/data')).body.org.hasLogo === true);
+
+  const notAnImage = await sme('POST', '/api/orgs/' + orgA + '/logo', {
+    data: Buffer.from('<svg onload="alert(1)"></svg>').toString('base64')
+  });
+  check('an SVG dressed as a logo is refused', notAnImage.status === 400, 'status ' + notAnImage.status);
+
+  const tooBig = await sme('POST', '/api/orgs/' + orgA + '/logo', {
+    data: Buffer.alloc(500 * 1024).toString('base64')
+  });
+  check('and so is an oversized file', tooBig.status === 400, 'status ' + tooBig.status);
+
+  const cleared = await sme('DELETE', '/api/orgs/' + orgA + '/logo');
+  check('a logo can be removed', cleared.status === 200);
+  check('and the book says so again',
+    (await sme('GET', '/api/orgs/' + orgA + '/data')).body.org.hasLogo === false);
+
+  // -------------------------------------------------------------- the team
+  console.log('\nroles and invitations');
+
+  const boss = client();
+  const bossEmail = 'smoke-boss-' + stamp + '@mideops.ng';
+  const bookkeeperEmail = 'smoke-books-' + stamp + '@mideops.ng';
+  const readerEmail = 'smoke-reader-' + stamp + '@mideops.ng';
+
+  const team = await boss('POST', '/api/auth/signup', {
+    name: 'Chidinma Obi', org: 'Obi Trading ' + stamp, email: bossEmail,
+    password: 'smoke-test-pass-1', book: 'sme', cycle: 'monthly', users: 3,
+    team: [
+      { email: bookkeeperEmail, name: 'Segun Ade', role: 'accountant' },
+      { email: readerEmail, name: 'Ngozi Eze', role: 'viewer' }
+    ]
+  });
+  check('signing up for three assigns the other two seats', team.status === 201, 'status ' + team.status);
+  check('and hands back a link for each', (team.body.invites || []).length === 2, JSON.stringify(team.body.invites));
+  check('with the role each was given',
+    team.body.invites.some((i) => i.email === bookkeeperEmail && i.role === 'accountant') &&
+    team.body.invites.some((i) => i.email === readerEmail && i.role === 'viewer'),
+    JSON.stringify(team.body.invites));
+
+  const teamOrg = team.body.session.orgId;
+  check('the subscriber is the admin', team.body.session.role === 'admin', team.body.session.role);
+
+  const roster = await boss('GET', '/api/orgs/' + teamOrg + '/members');
+  check('one person is on the books so far', roster.body.members.length === 1);
+  check('and two invitations are waiting', roster.body.invitations.length === 2);
+  check('every seat is spoken for', roster.body.seats.free === 0, JSON.stringify(roster.body.seats));
+
+  const overSeats = await boss('POST', '/api/orgs/' + teamOrg + '/members', {
+    email: 'smoke-fourth-' + stamp + '@mideops.ng', role: 'viewer'
+  });
+  check('a fourth person needs a fourth seat', overSeats.status === 409, 'status ' + overSeats.status);
+
+  const shrink = await boss('PATCH', '/api/orgs/' + teamOrg + '/subscription', { users: 1 });
+  check('seats cannot drop below the people using them', shrink.status === 409, 'status ' + shrink.status);
+
+  const tooMany = await client()('POST', '/api/auth/signup', {
+    name: 'Over Reach', org: 'Over Reach ' + stamp, email: 'smoke-over-' + stamp + '@mideops.ng',
+    password: 'smoke-test-pass-1', book: 'sme', cycle: 'monthly', users: 2,
+    team: [{ email: 'a-' + stamp + '@x.ng', role: 'viewer' }, { email: 'b-' + stamp + '@x.ng', role: 'viewer' }]
+  });
+  check('you cannot invite more people than you bought seats for', tooMany.status === 400, 'status ' + tooMany.status);
+
+  // --- accepting -----------------------------------------------------------
+  const linkFor = (email) => team.body.invites.find((i) => i.email === email).link;
+  const tokenOf = (link) => link.split('invite=')[1];
+
+  const peek = await client()('GET', '/api/invitations/' + tokenOf(linkFor(bookkeeperEmail)));
+  check('the link says who is inviting and to what', peek.status === 200 &&
+    peek.body.invitation.orgName.startsWith('Obi Trading') && peek.body.invitation.role === 'accountant',
+    JSON.stringify(peek.body.invitation));
+  check('and that there is no account yet', peek.body.invitation.hasAccount === false);
+
+  const junk = await client()('GET', '/api/invitations/not-a-real-token');
+  check('a made-up link is not valid', junk.status === 404, 'status ' + junk.status);
+
+  const accountant = client();
+  const joined = await accountant('POST', '/api/invitations/' + tokenOf(linkFor(bookkeeperEmail)) + '/accept', {
+    name: 'Segun Ade', password: 'smoke-test-pass-2'
+  });
+  check('accepting creates the account and signs them in', joined.status === 201, 'status ' + joined.status);
+  check('on the books they were invited to', joined.body.session.orgId === teamOrg);
+  check('with the role they were given', joined.body.session.role === 'accountant', joined.body.session.role);
+
+  const reuse = await client()('POST', '/api/invitations/' + tokenOf(linkFor(bookkeeperEmail)) + '/accept', {
+    name: 'Someone Else', password: 'another-password'
+  });
+  check('the same link cannot be used twice', reuse.status === 400, 'status ' + reuse.status);
+
+  // --- what each role may do ----------------------------------------------
+  const read = await accountant('GET', '/api/orgs/' + teamOrg + '/data');
+  check('an accountant can read the books', read.status === 200, 'status ' + read.status);
+
+  const wrote = await accountant('POST', '/api/orgs/' + teamOrg + '/transactions', {
+    type: 'expense', date: '2026-03-02', amount: 42000, category: 'Fuel',
+    party: 'Total', description: 'entered by the accountant'
+  });
+  check('and write to them', wrote.status === 201, 'status ' + wrote.status);
+
+  const settings = await accountant('PATCH', '/api/orgs/' + teamOrg, { name: 'Renamed By Accountant' });
+  check('but not change the organisation', settings.status === 403, 'status ' + settings.status);
+
+  const sneak = await accountant('POST', '/api/orgs/' + teamOrg + '/members', {
+    email: 'smoke-sneak-' + stamp + '@x.ng', role: 'admin'
+  });
+  check('nor invite anyone', sneak.status === 403, 'status ' + sneak.status);
+
+  const viewer = client();
+  const viewerJoined = await viewer('POST', '/api/invitations/' + tokenOf(linkFor(readerEmail)) + '/accept', {
+    name: 'Ngozi Eze', password: 'smoke-test-pass-3'
+  });
+  check('a viewer can accept too', viewerJoined.status === 201 && viewerJoined.body.session.role === 'viewer',
+    viewerJoined.body.session && viewerJoined.body.session.role);
+  check('and read the books', (await viewer('GET', '/api/orgs/' + teamOrg + '/data')).status === 200);
+
+  const viewerWrite = await viewer('POST', '/api/orgs/' + teamOrg + '/transactions', {
+    type: 'income', date: '2026-03-03', amount: 1000, category: 'Sales', description: 'should not stick'
+  });
+  check('but not write to them', viewerWrite.status === 403, 'status ' + viewerWrite.status);
+
+  // --- changing roles afterwards ------------------------------------------
+  const viewerId = viewerJoined.body.session.userId;
+  const bossId = team.body.session.userId;
+
+  const promote = await boss('PATCH', '/api/orgs/' + teamOrg + '/members/' + viewerId, { role: 'accountant' });
+  check('an admin can change a role', promote.status === 200 && promote.body.role === 'accountant');
+  check('which takes effect at once',
+    (await viewer('POST', '/api/orgs/' + teamOrg + '/transactions', {
+      type: 'income', date: '2026-03-03', amount: 1000, category: 'Sales', description: 'now allowed'
+    })).status === 201);
+
+  const selfDemote = await boss('PATCH', '/api/orgs/' + teamOrg + '/members/' + bossId, { role: 'viewer' });
+  check('the last admin cannot demote themselves', selfDemote.status === 400, 'status ' + selfDemote.status);
+
+  const badRole = await boss('PATCH', '/api/orgs/' + teamOrg + '/members/' + viewerId, { role: 'owner' });
+  check('an unknown role is refused', badRole.status === 400, 'status ' + badRole.status);
+
+  await boss('PATCH', '/api/orgs/' + teamOrg + '/members/' + viewerId, { role: 'admin' });
+  const nowFine = await boss('PATCH', '/api/orgs/' + teamOrg + '/members/' + bossId, { role: 'accountant' });
+  check('and can once somebody else is one', nowFine.status === 200, 'status ' + nowFine.status);
+  await viewer('PATCH', '/api/orgs/' + teamOrg + '/members/' + bossId, { role: 'admin' });
+
+  const removed = await boss('DELETE', '/api/orgs/' + teamOrg + '/members/' + viewerId);
+  check('removing somebody frees their seat', removed.status === 200 && removed.body.seats.free === 1,
+    JSON.stringify(removed.body.seats));
+  check('and ends their access', (await viewer('GET', '/api/orgs/' + teamOrg + '/data')).status === 404,
+    'they could still read the books');
+  check('while what they entered stays',
+    (await boss('GET', '/api/orgs/' + teamOrg + '/data')).body.book.tx.some((t) => t.description === 'now allowed'));
 
   console.log('\npersistence');
   const fresh = client();

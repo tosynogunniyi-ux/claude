@@ -63,7 +63,11 @@ const orgShape = (r) => ({
   vatRate: String(r.vat_rate),
   openingCash: String(r.opening_cash),
   contributions: String(r.owner_contributions),
-  fixedAssets: String(r.fixed_assets)
+  fixedAssets: String(r.fixed_assets),
+  // Whether there is a logo, and when it last changed — the bytes come from
+  // /logo, and this timestamp is what busts the browser's cache for them.
+  hasLogo: Boolean(r.logo_mime),
+  logoUpdatedAt: r.logo_updated_at || null
 });
 
 module.exports = { txShape, docShape, contactShape, itemShape, bankShape, orgShape };
