@@ -79,4 +79,4 @@ function verifyWebhook(rawBody, signature) {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
-module.exports = { configured, verify, chargeAuthorization, verifyWebhook };
+module.exports = { name: 'paystack', configured, verify, chargeAuthorization, verifyWebhook };

@@ -585,7 +585,7 @@ window.__resources = {
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="flex: 0 0 13px;">
             <path d="M5 11h14v10H5V11zm3 0V7a4 4 0 0 1 8 0v4"></path>
           </svg>
-          <span>Your card is entered on Paystack's secure page. Profitna never sees the number.</span>
+          <span>{{ pay.secureNote }}</span>
         </div>
       </sc-if>
       <sc-if value="{{ pay.noProcessor }}" hint-placeholder-val="{{ false }}">
@@ -1929,7 +1929,11 @@ class Component extends DCLogic {
       .then((c) => this.setState({
         googleReady: Boolean(c.google), googleClientId: c.googleClientId,
         paystackReady: Boolean(c.paystack && c.paystackPublicKey),
-        paystackKey: c.paystackPublicKey
+        paystackKey: c.paystackPublicKey,
+        payReady: Boolean(c.payments),
+        payProvider: c.paymentProvider || 'none',
+        monnifyKey: c.monnifyApiKey,
+        monnifyContract: c.monnifyContractCode
       }))
       .catch(() => {});
 
@@ -2054,6 +2058,53 @@ class Component extends DCLogic {
       } else {
         reject(new Error('Paystack loaded but did not expose a checkout.'));
       }
+    }));
+  }
+
+  // Monnify. Same contract as paystackAuthorise: the card is typed into
+  // Monnify's own window, and what comes back is a reference the server
+  // verifies before it trusts a naira of it.
+  //
+  // The amount is not passed from here. The server opens the transaction
+  // first and hands back a reference already bound to the real price, so a
+  // page with the console open cannot pay ₦1 for a ₦5,000 plan.
+  monnifyAuthorise(checkout) {
+    if (!this._monnify) {
+      this._monnify = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://sdk.monnify.com/plugin/monnify.js';
+        s.async = true;
+        s.onload = () => resolve(window.MonnifySDK);
+        s.onerror = () => reject(new Error('Could not reach Monnify. Check your connection and try again.'));
+        document.head.appendChild(s);
+      });
+    }
+
+    return this._monnify.then((SDK) => new Promise((resolve, reject) => {
+      if (!SDK || typeof SDK.initialize !== 'function') {
+        return reject(new Error('Monnify loaded but did not expose a checkout.'));
+      }
+      // Monnify calls onComplete for a closed transaction whatever the
+      // outcome, so the status is read rather than assumed.
+      SDK.initialize({
+        amount: checkout.amount,
+        currency: 'NGN',
+        reference: checkout.paymentReference,
+        customerFullName: this.state.session ? this.state.session.name : '',
+        customerEmail: this.state.session ? this.state.session.email : '',
+        apiKey: this.state.monnifyKey,
+        contractCode: this.state.monnifyContract,
+        paymentDescription: 'Profitna subscription',
+        onComplete: (r) => {
+          const status = String((r && (r.paymentStatus || r.status)) || '').toUpperCase();
+          if (status === 'PAID' || status === 'SUCCESS' || status === 'COMPLETED') {
+            resolve((r && r.transactionReference) || checkout.reference);
+          } else {
+            reject(new Error('Monnify did not confirm that payment. Nothing has been charged.'));
+          }
+        },
+        onClose: () => reject(new Error('Payment was cancelled.'))
+      });
     }));
   }
 
@@ -3298,7 +3349,13 @@ class Component extends DCLogic {
     const subscribe = () => {
       if (st.payBusy) return;
       this.setState({ payBusy: true, payErr: '' });
-      this.paystackAuthorise(ses.email, ses.amount)
+
+      // The server says what to open and, for Monnify, opens the transaction
+      // itself so the amount is settled before the window appears.
+      API.post(this.orgPath('/subscription/checkout'), {})
+        .then((checkout) => (checkout.provider === 'monnify'
+          ? this.monnifyAuthorise(checkout)
+          : this.paystackAuthorise(ses.email, ses.amount)))
         .then((reference) => API.post(this.orgPath('/subscription/activate'), { paymentReference: reference }))
         // Re-read the session rather than guessing: the server decides what
         // access the payment just bought.
@@ -3324,9 +3381,14 @@ class Component extends DCLogic {
         ses.users + (ses.users === 1 ? ' user' : ' users'),
       cadence: ses.cycle === 'monthly' ? 'Renews every month' : 'Renews every year',
       amount: money(ses.amount || 0),
-      canPay: Boolean(st.paystackReady) && !suspended,
-      noProcessor: !st.paystackReady && !suspended,
-      buttonLabel: st.payBusy ? 'Opening Paystack\u2026' : 'Subscribe now',
+      canPay: Boolean(st.payReady) && !suspended,
+      noProcessor: !st.payReady && !suspended,
+      buttonLabel: st.payBusy
+        ? 'Opening ' + (st.payProvider === 'monnify' ? 'Monnify' : 'Paystack') + '\u2026'
+        : 'Subscribe now',
+      secureNote: 'Your card is entered on ' +
+        (st.payProvider === 'monnify' ? 'Monnify' : 'Paystack') +
+        '’s secure page. Profitna never sees the number.',
       err: st.payErr || '',
       who: ses.email,
       subscribe,

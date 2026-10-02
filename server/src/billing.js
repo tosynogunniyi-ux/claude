@@ -1,6 +1,6 @@
 const { one, many, query, pool } = require('./db');
 const { chargeDue } = require('./routes/subscription');
-const paystack = require('./integrations/paystack');
+const gateway = require('./integrations/gateway');
 const { TRIAL_DAYS } = require('./pricing');
 
 // The thing that makes a trial end. chargeDue() charges one organisation;
@@ -117,8 +117,8 @@ async function runOnce(trigger) {
     holdsLock = (await client.query('SELECT pg_try_advisory_lock($1) AS got', [LOCK_KEY])).rows[0].got;
     if (!holdsLock) {
       totals.error = 'another instance is already running a billing pass';
-    } else if (!paystack.configured()) {
-      totals.error = 'PAYSTACK_SECRET_KEY is not set — nothing can be charged';
+    } else if (!gateway.configured()) {
+      totals.error = 'no payment processor is configured — nothing can be charged';
     } else {
       const rows = await due();
       totals.considered = rows.length;
@@ -181,7 +181,7 @@ function start() {
   const every = intervalMs();
   console.log(
     'billing scheduler on: every ' + Math.round(every / 60000) + ' minutes' +
-    (paystack.configured() ? '' : ' (idle — PAYSTACK_SECRET_KEY is not set)')
+    (gateway.configured() ? ' via ' + gateway.name() : ' (idle — no payment processor is configured)')
   );
 
   // Not immediately: a container that restart-loops should not start a

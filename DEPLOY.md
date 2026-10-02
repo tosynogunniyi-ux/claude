@@ -274,15 +274,25 @@ a payment screen inside the app and pays there; nothing of theirs is deleted
 while they decide. After that first payment the server renews the term by
 itself, checking every hour.
 
-Both halves need `PAYSTACK_SECRET_KEY` and `PAYSTACK_PUBLIC_KEY`. Without
-them, trials still run, but an expired account cannot be paid for and the
-payment screen says so plainly rather than offering a button that cannot
-work.
+Both halves need a payment processor. Pick one:
 
-Two things to do once that key is in place:
+**Monnify (Moniepoint)** — set `MONNIFY_API_KEY`, `MONNIFY_SECRET_KEY`,
+`MONNIFY_CONTRACT_CODE`, and `MONNIFY_ENV=live` when you leave the sandbox.
+Ask Monnify support to **enable Card Tokenisation** on the account: without it
+customers can pay, but no card is kept and nothing renews itself.
 
-- Point the Paystack webhook at `https://profitna.com/api/webhooks/paystack`
-  (Paystack dashboard → Settings → API Keys & Webhooks).
+**Paystack** — set `PAYSTACK_SECRET_KEY` and `PAYSTACK_PUBLIC_KEY`.
+
+If both are set Monnify is used; `PAYMENT_PROVIDER=monnify` or
+`=paystack` settles it outright. Without either, trials still run, but an
+expired account cannot be paid for and the payment screen says so plainly
+rather than offering a button that cannot work.
+
+Two things to do once the keys are in place:
+
+- Point the webhook at `https://profitna.com/api/webhooks/monnify`
+  (Monnify dashboard → Settings → API Keys & Webhooks) or at
+  `https://profitna.com/api/webhooks/paystack` for Paystack.
 - Open the Control Center's **Subscriptions** page. The card at the top says
   whether billing is on, when it last ran and what it charged, lists any
   subscription being retried after a declined card, and has a **Run now**
@@ -321,17 +331,15 @@ gunzip -c profitna-2026-09-15.sql.gz | docker compose exec -T db psql -U profitn
 
 ## Before real customers use it
 
-- **Payments** — add `PAYSTACK_SECRET_KEY` and `PAYSTACK_PUBLIC_KEY`, then
-  schedule the charge at trial end; `chargeDue()` in
-  `server/src/routes/subscription.js` does the charging but nothing calls it
-  yet. Point the Paystack webhook at `https://profitna.com/api/webhooks/paystack`.
+- **Payments** — add the Monnify or Paystack keys above and register the
+  matching webhook. The scheduler in `server/src/billing.js` already calls
+  `chargeDue()` every hour; it stays idle until a processor is configured.
 - **Google sign-in** — add `GOOGLE_CLIENT_ID` and list
   `https://profitna.com` as an authorised origin in the Google console.
 - **Bank feeds** — add `MONO_SECRET_KEY` and `MONO_WEBHOOK_SECRET`; the widget
   still needs adding to the front end.
-- **Roles** — the API enforces admin / accountant / viewer, but the UI does not
-  yet hide what a viewer cannot do, and there is no invite flow, so treat every
-  account as an owner for now.
+- **Roles** — admin / accountant / viewer are enforced by the API and shown
+  in the interface: what a role cannot do is greyed out and disabled.
 
 ## A caveat worth stating plainly
 

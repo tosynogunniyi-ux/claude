@@ -22,6 +22,7 @@ app.set('trust proxy', 1);
 // Webhooks verify a signature over the exact bytes received, so they are
 // mounted before the JSON parser can rewrite the body.
 app.post('/api/webhooks/paystack', express.raw({ type: '*/*' }), subscriptionRoutes.paystackWebhook);
+app.post('/api/webhooks/monnify', express.raw({ type: '*/*' }), subscriptionRoutes.monnifyWebhook);
 app.post('/api/webhooks/mono', express.json(), bankRoutes.monoWebhook);
 
 app.use(express.json({ limit: '2mb' }));

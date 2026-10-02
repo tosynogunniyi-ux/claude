@@ -41,8 +41,13 @@ services:
       DATABASE_URL: postgres://profitna:${POSTGRES_PASSWORD}@db:5432/profitna
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-}
       PAYSTACK_SECRET_KEY: ${PAYSTACK_SECRET_KEY:-}
       PAYSTACK_PUBLIC_KEY: ${PAYSTACK_PUBLIC_KEY:-}
+      MONNIFY_API_KEY: ${MONNIFY_API_KEY:-}
+      MONNIFY_SECRET_KEY: ${MONNIFY_SECRET_KEY:-}
+      MONNIFY_CONTRACT_CODE: ${MONNIFY_CONTRACT_CODE:-}
+      MONNIFY_ENV: ${MONNIFY_ENV:-sandbox}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-opus-5}
       MONO_SECRET_KEY: ${MONO_SECRET_KEY:-}
@@ -53,7 +58,7 @@ services:
       PUBLIC_URL: ${PUBLIC_URL:-}
       ADMIN_PATH: ${ADMIN_PATH:-/admin}
       ADMIN_IP_ALLOWLIST: ${ADMIN_IP_ALLOWLIST:-}
-      # Ends trials and renews terms. Idle until PAYSTACK_SECRET_KEY is set.
+      # Ends trials and renews terms. Idle until a processor is configured.
       BILLING_SCHEDULER: ${BILLING_SCHEDULER:-}
       BILLING_INTERVAL_MINUTES: ${BILLING_INTERVAL_MINUTES:-60}
     command: sh -c "node src/migrate.js && node src/index.js"

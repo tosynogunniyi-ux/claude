@@ -32,8 +32,13 @@ services:
       # Left empty until you have the accounts; each feature stays off and the
       # app degrades to what it can honestly do. See server/README.md.
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-}
       PAYSTACK_SECRET_KEY: ${PAYSTACK_SECRET_KEY:-}
       PAYSTACK_PUBLIC_KEY: ${PAYSTACK_PUBLIC_KEY:-}
+      MONNIFY_API_KEY: ${MONNIFY_API_KEY:-}
+      MONNIFY_SECRET_KEY: ${MONNIFY_SECRET_KEY:-}
+      MONNIFY_CONTRACT_CODE: ${MONNIFY_CONTRACT_CODE:-}
+      MONNIFY_ENV: ${MONNIFY_ENV:-sandbox}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-opus-5}
       MONO_SECRET_KEY: ${MONO_SECRET_KEY:-}
@@ -44,7 +49,7 @@ services:
       PUBLIC_URL: ${PUBLIC_URL:-}
       ADMIN_PATH: ${ADMIN_PATH:-/admin}
       ADMIN_IP_ALLOWLIST: ${ADMIN_IP_ALLOWLIST:-}
-      # Ends trials and renews terms. Idle until PAYSTACK_SECRET_KEY is set.
+      # Ends trials and renews terms. Idle until a processor is configured.
       BILLING_SCHEDULER: ${BILLING_SCHEDULER:-}
       BILLING_INTERVAL_MINUTES: ${BILLING_INTERVAL_MINUTES:-60}
       # Deliberately not set in production: real accounts start empty.

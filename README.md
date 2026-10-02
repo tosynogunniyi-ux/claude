@@ -33,7 +33,7 @@ web/            The application interface
 server/         The API and the database
   src/routes/         auth, ledger, bank, banking, org, subscription, members, admin
   src/sql/            schema migrations
-  src/integrations/   Paystack, Google, Anthropic
+  src/integrations/   Monnify, Paystack, Google, Anthropic
   src/create-admin.js the only way a Control Center account is created
   test/smoke.js       end-to-end checks against a running server
 
@@ -156,7 +156,7 @@ something honest rather than pretending:
 | Unset | Effect |
 |---|---|
 | `GOOGLE_CLIENT_ID` | Google sign-in reports it is not configured |
-| `PAYSTACK_SECRET_KEY` | Trials run, but an expired account cannot be paid for from the app |
+| No payment processor | Trials run, but an expired account cannot be paid for from the app |
 | `ANTHROPIC_API_KEY` | Category suggestions fall back to the keyword matcher |
 | `MONO_SECRET_KEY` | Bank feeds unavailable; CSV/Excel import unaffected |
 | No owner account | The Control Center at `/admin` answers 404 |

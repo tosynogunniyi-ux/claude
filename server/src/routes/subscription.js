@@ -2,6 +2,8 @@ const express = require('express');
 const { one, query } = require('../db');
 const { requireOrg, audit } = require('../auth');
 const paystack = require('../integrations/paystack');
+const monnify = require('../integrations/monnify');
+const gateway = require('../integrations/gateway');
 const { PER_USER_MONTHLY, PER_USER_ANNUAL, amountFor } = require('../pricing');
 const team = require('../team');
 
@@ -66,8 +68,8 @@ router.patch('/subscription', requireOrg('admin'), async (req, res, next) => {
 
 // The other end of the card-free trial: the customer pays here, once the
 // trial has run out, and the books open again. The browser has already paid
-// through Paystack's own window, so all that arrives is a reference — the
-// amount, the card and the reusable authorisation all come from verifying it,
+// through the processor's own window, so all that arrives is a reference — the
+// amount, the card and the reusable credential all come from verifying it,
 // never from the client.
 async function activate(organizationId, { reference, email, userId }) {
   const sub = await one('SELECT * FROM subscriptions WHERE organization_id = $1', [organizationId]);
@@ -75,14 +77,21 @@ async function activate(organizationId, { reference, email, userId }) {
   if (sub.status === 'suspended') {
     return { ok: false, status: 403, error: 'This account is suspended. Contact support@profitna.com.' };
   }
-  if (!paystack.configured()) {
+  if (!gateway.configured()) {
     return { ok: false, status: 501, error: 'Payments are not configured on this server.' };
   }
   if (!reference) return { ok: false, status: 400, error: 'Complete the payment before activating.' };
 
-  const payment = await paystack.verify(reference, email);
+  const provider = gateway.name();
+  const payment = await gateway.verify(reference, email);
   if (!payment) {
-    return { ok: false, status: 400, error: 'We could not verify that payment with Paystack. Nothing has been charged twice.' };
+    return {
+      ok: false,
+      status: 400,
+      error: 'We could not verify that payment with ' +
+        (provider === 'monnify' ? 'Monnify' : 'Paystack') +
+        '. Nothing has been charged twice.'
+    };
   }
 
   const expected = amountFor(sub.cycle, sub.seats);
@@ -96,7 +105,7 @@ async function activate(organizationId, { reference, email, userId }) {
 
   await query(
     `UPDATE subscriptions
-        SET provider = 'paystack',
+        SET provider = $7,
             provider_customer_id = COALESCE($2, provider_customer_id),
             provider_authorization_code = COALESCE($3, provider_authorization_code),
             card_brand = COALESCE($4, card_brand),
@@ -110,12 +119,14 @@ async function activate(organizationId, { reference, email, userId }) {
       payment.authorizationCode,
       payment.card ? payment.card.brand : null,
       payment.card ? payment.card.last4 : null,
-      payment.card ? payment.card.exp : null
+      payment.card ? payment.card.exp : null,
+      payment.provider || provider
     ]
   );
 
   await recordPayment({
     organizationId,
+    provider: payment.provider || provider,
     reference: payment.reference,
     purpose: 'subscription',
     amount: payment.amount,
@@ -186,24 +197,36 @@ async function chargeDue(organizationId) {
   if (!sub || sub.status === 'cancelled' || sub.status === 'suspended') {
     return { charged: false, reason: 'not billable' };
   }
-  if (!paystack.configured()) return { charged: false, reason: 'no payment processor configured' };
+  if (!gateway.configured()) return { charged: false, reason: 'no payment processor configured' };
   if (!sub.provider_authorization_code) return { charged: false, reason: 'no card on file' };
+
+  // A card stored with one processor cannot be charged through another: the
+  // token means nothing to them. Say so plainly instead of sending it over and
+  // recording a decline against a customer whose card is fine.
+  const provider = gateway.name();
+  if (sub.provider && sub.provider !== provider) {
+    return {
+      charged: false,
+      reason: 'card on file belongs to ' + sub.provider + ' and this server now bills through ' + provider
+    };
+  }
 
   const amount = amountFor(sub.cycle, sub.seats);
   const reference = 'profitna-' + organizationId + '-' + Date.now();
 
   let result;
   try {
-    result = await paystack.chargeAuthorization({
+    result = await gateway.chargeAuthorization({
       authorizationCode: sub.provider_authorization_code,
       email: sub.email,
+      name: sub.org_name,
       amountNaira: amount,
       reference
     });
   } catch (err) {
-    // Paystack unreachable is not a declined card: nothing was charged, so
-    // say so plainly and let the scheduler try again rather than recording a
-    // failure against the customer.
+    // The processor being unreachable is not a declined card: nothing was
+    // charged, so say so plainly and let the scheduler try again rather than
+    // recording a failure against the customer.
     return { charged: false, reason: 'could not reach the payment processor: ' + err.message, amount };
   }
 
@@ -213,6 +236,7 @@ async function chargeDue(organizationId) {
   // see in the console, and a history that only holds successes hides it.
   await recordPayment({
     organizationId,
+    provider,
     reference,
     purpose: 'renewal',
     amount,
@@ -259,7 +283,7 @@ async function recordPayment(p) {
   await query(
     `INSERT INTO payments (organization_id, provider, provider_reference, purpose, amount,
                            currency, status, channel, card_brand, card_last4, paid_at, detail)
-     VALUES ($1, 'paystack', $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+     VALUES ($1, $12, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
      -- The webhook is the later, authoritative word on a reference chargeDue
      -- already wrote, so it corrects the row rather than being dropped. A
      -- retried webhook rewrites the same values, which changes nothing.
@@ -279,7 +303,8 @@ async function recordPayment(p) {
       p.cardBrand || null,
       p.cardLast4 || null,
       p.paidAt || (p.status === 'success' ? new Date().toISOString() : null),
-      p.detail ? JSON.stringify(p.detail) : null
+      p.detail ? JSON.stringify(p.detail) : null,
+      p.provider || gateway.name()
     ]
   );
 }
@@ -335,4 +360,117 @@ async function paystackWebhook(req, res, next) {
   }
 }
 
-module.exports = { router, chargeDue, activate, paystackWebhook, PER_USER_MONTHLY, PER_USER_ANNUAL };
+// Monnify posts here. Signature is verified over the raw body, so this route
+// is mounted with the raw body parser rather than the JSON one.
+async function monnifyWebhook(req, res, next) {
+  try {
+    if (!monnify.configured()) return res.status(501).end();
+    if (!monnify.verifyWebhook(req.body, req.get('monnify-signature'))) {
+      return res.status(401).json({ error: 'Bad signature.' });
+    }
+
+    const event = JSON.parse(req.body.toString('utf8'));
+    const data = event.eventData || {};
+    const details = data.cardDetails || {};
+    const type = String(event.eventType || '').toUpperCase();
+
+    const succeeded = type === 'SUCCESSFUL_TRANSACTION' ||
+      String(data.paymentStatus).toUpperCase() === 'PAID';
+    const failed = type === 'FAILED_TRANSACTION' ||
+      String(data.paymentStatus).toUpperCase() === 'FAILED';
+    if (!succeeded && !failed) return res.json({ ok: true });
+
+    // The card token identifies the subscription, exactly as Paystack's
+    // authorization code does. A renewal we started ourselves also carries our
+    // own reference, which names the organisation directly — worth falling
+    // back to, because a decline is the case where the token may be the very
+    // thing that stopped working.
+    let sub = details.cardToken
+      ? await one('SELECT * FROM subscriptions WHERE provider_authorization_code = $1', [details.cardToken])
+      : null;
+    if (!sub) {
+      const mine = /^profitna-([0-9a-f-]{36})-\d+$/i.exec(String(data.paymentReference || ''));
+      if (mine) sub = await one('SELECT * FROM subscriptions WHERE organization_id = $1', [mine[1]]);
+    }
+    if (!sub) return res.json({ ok: true });
+
+    await recordPayment({
+      organizationId: sub.organization_id,
+      provider: 'monnify',
+      reference: data.transactionReference || data.paymentReference || null,
+      purpose: 'subscription',
+      // Already naira. Monnify does not work in kobo.
+      amount: Number(data.amountPaid || data.totalPayable || 0),
+      currency: data.currencyCode || data.currency || 'NGN',
+      status: succeeded ? 'success' : 'failed',
+      channel: data.paymentMethod || null,
+      cardBrand: details.cardType || sub.card_brand,
+      cardLast4: details.last4 || sub.card_last4,
+      paidAt: data.paidOn || null,
+      detail: succeeded ? null : { event: type, message: data.paymentStatus || null }
+    });
+
+    if (succeeded) await rollPeriod(sub.organization_id, sub.cycle);
+    else await query("UPDATE subscriptions SET status = 'past_due' WHERE id = $1", [sub.id]);
+
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// What the browser needs to open a payment window, decided here rather than in
+// the client. Monnify's amount is fixed server-side by opening the transaction
+// before the customer sees it, so a tampered-with client cannot pay ₦1 for a
+// ₦5,000 plan — the reference it gets back is already bound to the real figure.
+router.post('/subscription/checkout', requireOrg('admin'), async (req, res, next) => {
+  try {
+    const sub = await one('SELECT * FROM subscriptions WHERE organization_id = $1', [req.orgId]);
+    if (!sub) return res.status(404).json({ error: 'No subscription on this organisation.' });
+    if (!gateway.configured()) {
+      return res.status(501).json({ error: 'Payments are not configured on this server.' });
+    }
+
+    const amount = amountFor(sub.cycle, sub.seats);
+    const provider = gateway.name();
+
+    if (provider === 'monnify') {
+      const started = await monnify.initTransaction({
+        amountNaira: amount,
+        email: req.user.email,
+        name: req.user.full_name || req.user.email,
+        reference: 'profitna-' + req.orgId + '-' + Date.now(),
+        description: 'Profitna subscription',
+        redirectUrl: (process.env.PUBLIC_URL || '').replace(/\/+$/, '') || undefined
+      });
+      return res.json({
+        provider,
+        amount,
+        checkoutUrl: started.checkoutUrl,
+        // Verification is done against Monnify's own reference.
+        reference: started.transactionReference,
+        paymentReference: started.paymentReference
+      });
+    }
+
+    res.json({
+      provider,
+      amount,
+      publicKey: process.env.PAYSTACK_PUBLIC_KEY || null,
+      email: req.user.email,
+      reference: 'profitna-' + req.orgId + '-' + Date.now()
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+module.exports = {
+  router,
+  chargeDue,
+  activate,
+  paystackWebhook,
+  monnifyWebhook,
+  PER_USER_MONTHLY,
+  PER_USER_ANNUAL
+};

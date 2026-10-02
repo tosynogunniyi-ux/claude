@@ -39,7 +39,7 @@ what it can honestly do:
 |---|---|
 | `DATABASE_URL`, `JWT_SECRET` | Required. The server refuses to sign sessions without a secret. |
 | `GOOGLE_CLIENT_ID` | The Google buttons report that sign-in is not configured. |
-| `PAYSTACK_SECRET_KEY` + `PAYSTACK_PUBLIC_KEY` | Trials still run, but an expired account cannot be paid for from the app; the paywall says so instead of offering a dead button. |
+| No payment processor | Trials still run, but an expired account cannot be paid for from the app; the paywall says so instead of offering a dead button. |
 | `ANTHROPIC_API_KEY` | Category suggestions fall back to the keyword matcher, which still codes most Nigerian bank narrations. |
 | `MONO_SECRET_KEY` | Bank feeds are unavailable; the CSV / Excel / Sheets import path is unaffected. |
 | `ADMIN_PATH` | The owner's console is served at `/admin`. |
@@ -62,7 +62,7 @@ what it can honestly do:
   accounts and contacts.
 - `src/routes/ledger.js` — transactions, invoices, bills, payments, inventory.
 - `src/routes/bank.js` — statement import, matching, and the Mono feed.
-- `src/integrations/` — Paystack, Google, Anthropic, each behind a
+- `src/integrations/` — Monnify, Paystack, Google, Anthropic, each behind a
   `configured()` check.
 - `src/admin-auth.js`, `src/routes/admin.js`, `web/admin.html` — the Control
   Center, described below.
@@ -134,7 +134,7 @@ than a defence.
   revoked, so it has to be checked against something that can.
 - Every sign-in writes `last_login_at` and increments `login_count`.
 - Successful and failed charges are written to `payments`, from activation,
-  from `chargeDue()` and from the Paystack webhook, keyed on the provider
+  from `chargeDue()` and from the processor's webhook, keyed on the provider
   reference so a retried webhook does not duplicate a line.
 - `expired` is **derived** from the period end and today's date, never stored —
   the same rule invoices follow. `suspended` is stored, because it is an act
@@ -249,16 +249,52 @@ the payment screen renders itself from. Nothing is deleted, disabled or
 archived — the rows sit where they were.
 
 **Paying** goes through `POST /orgs/:id/subscription/activate`. The browser
-pays in Paystack's own window and sends back a reference; the server verifies
-it, refuses a payment smaller than the plan costs, and takes the amount, the
-card and the reusable authorisation from that verification rather than from
-the client. The term then starts today, which is what reopens the books —
-access is read from the period end, never from a flag.
+first asks `POST /orgs/:id/subscription/checkout`, which says which window to
+open and, for Monnify, opens the transaction server-side so the amount is
+already bound to the real price. The customer pays in the processor's own
+window and sends back a reference; the server verifies it, refuses a payment
+smaller than the plan costs, and takes the amount, the card and the reusable
+credential from that verification rather than from the client. The term then
+starts today, which is what reopens the books — access is read from the period
+end, never from a flag.
 
-**Afterwards** the stored authorisation is what `chargeDue()` charges at each
-renewal. Point the Paystack webhook at `/api/webhooks/paystack`.
+**Afterwards** the stored credential is what `chargeDue()` charges at each
+renewal. Point the processor's webhook at `/api/webhooks/monnify` or
+`/api/webhooks/paystack`.
 
 The card number and CVV never reach this server on any path.
+
+### Which processor
+
+Two are supported and exactly one runs at a time. `PAYMENT_PROVIDER` settles
+it (`monnify` or `paystack`); left unset, whichever has its keys filled in is
+used, and Monnify wins if both do — a deployment that has just moved over
+usually still has the old Paystack keys lying about. Naming a provider that
+is not configured leaves the app with no processor rather than quietly
+billing through the other one.
+
+Everything above `src/integrations/gateway.js` is unaware of the choice. Both
+modules expose the same four functions and `verify()` returns the same shape,
+with the reusable credential — Paystack's authorization code or Monnify's
+card token — in the same field.
+
+**Monnify specifics worth knowing:**
+
+- **Amounts are in naira**, as a decimal. Paystack works in kobo. Nothing in
+  this codebase multiplies by 100 for Monnify, and adding it would charge a
+  customer a hundred times over.
+- **Renewals need Card Tokenisation enabled** on the merchant account — ask
+  Monnify support to turn it on. Without it customers can still pay, but no
+  card is kept and nothing auto-renews. A payment that comes back without a
+  token still activates the account; it just will not renew itself.
+- **Every call needs a bearer token** fetched with the API key and secret.
+  It is cached, shared across concurrent calls, and refreshed once on a 401.
+- `MONNIFY_API_KEY` and `MONNIFY_CONTRACT_CODE` reach the browser. They are
+  public by design and authorise nothing alone; the secret key never leaves
+  the server.
+- A card stored with one processor is never sent to the other. `chargeDue()`
+  checks `subscriptions.provider` and declines to try, because the token
+  means nothing to them and the customer would see a decline on a good card.
 
 `locked` is derived, like document status and subscription expiry: a stored
 flag would be correct only until the next midnight nothing ran through.
@@ -266,9 +302,9 @@ flag would be correct only until the next midnight nothing ran through.
 ## Automatic billing
 
 `src/billing.js` is what makes a trial end. It runs inside the server process
-on a timer (`BILLING_INTERVAL_MINUTES`, default 60) and stays idle until
-`PAYSTACK_SECRET_KEY` is set, so a deployment without a processor charges
-nothing rather than failing loudly every hour.
+on a timer (`BILLING_INTERVAL_MINUTES`, default 60) and stays idle until a
+payment processor is configured, so a deployment without one charges nothing
+rather than failing loudly every hour.
 
 Each pass takes a Postgres **advisory lock**, so running more than one
 container does not charge the same card twice, and it charges at most

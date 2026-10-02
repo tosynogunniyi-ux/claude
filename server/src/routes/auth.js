@@ -7,6 +7,8 @@ const team = require('../team');
 const { seedChartOfAccounts } = require('../defaults');
 const { seedDemoBooks } = require('../demo');
 const paystack = require('../integrations/paystack');
+const monnify = require('../integrations/monnify');
+const gateway = require('../integrations/gateway');
 const google = require('../integrations/google');
 
 const router = express.Router();
@@ -305,8 +307,19 @@ router.get('/config', (req, res) => {
   res.json({
     google: google.configured(),
     googleClientId: process.env.GOOGLE_CLIENT_ID || null,
+    // Which processor the payment screen should open. `payments` is the only
+    // flag the screen needs to decide whether it can charge at all; the rest
+    // says which window to put up.
+    payments: gateway.configured(),
+    paymentProvider: gateway.name(),
     paystack: paystack.configured(),
-    paystackPublicKey: process.env.PAYSTACK_PUBLIC_KEY || null
+    paystackPublicKey: process.env.PAYSTACK_PUBLIC_KEY || null,
+    monnify: monnify.configured(),
+    // Public by design — it pairs with the contract code in Monnify's own SDK
+    // and cannot authorise anything on its own. The secret key never leaves
+    // the server.
+    monnifyApiKey: monnify.configured() ? (process.env.MONNIFY_API_KEY || null) : null,
+    monnifyContractCode: monnify.configured() ? (process.env.MONNIFY_CONTRACT_CODE || null) : null
   });
 });
 
