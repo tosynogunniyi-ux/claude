@@ -4,7 +4,7 @@ const { requireOrg, audit } = require('../auth');
 const paystack = require('../integrations/paystack');
 const monnify = require('../integrations/monnify');
 const gateway = require('../integrations/gateway');
-const { PER_USER_MONTHLY, PER_USER_ANNUAL, amountFor } = require('../pricing');
+const { PER_USER_MONTHLY, PER_USER_ANNUAL, TRIAL_DAYS, amountFor } = require('../pricing');
 const team = require('../team');
 
 const router = express.Router({ mergeParams: true });
@@ -264,15 +264,27 @@ async function chargeDue(organizationId) {
   return { charged: result.ok, amount, reason: result.ok ? null : message };
 }
 
-// A term starts today and ends one cycle out. Stored, because a renewal date
-// is a fact about a charge that happened — unlike expiry, which is read from
-// this date and the calendar.
+// A term starts where access currently runs out, or today if that is already
+// past. Stored, because a renewal date is a fact about a charge that happened
+// — unlike expiry, which is read from this date and the calendar.
+//
+// The GREATEST is what makes paying early safe. Somebody who subscribes with
+// four days of trial left keeps those four days and their month starts after
+// them, which is what the trial banner has always promised: "your books keep
+// running from <trial end>". Starting the term today instead would quietly
+// bill them for days they had already been given.
+//
+// It also means a renewal charged a day late does not shorten the term, and
+// that paying twice by accident buys two months rather than losing one.
+const PERIOD_START =
+  `GREATEST(CURRENT_DATE, COALESCE(current_period_end, trial_start + ${TRIAL_DAYS}))`;
+
 async function rollPeriod(organizationId, cycle) {
   await query(
     `UPDATE subscriptions
         SET status = 'active',
-            current_period_start = CURRENT_DATE,
-            current_period_end = (CURRENT_DATE +
+            current_period_start = ${PERIOD_START},
+            current_period_end = (${PERIOD_START} +
               CASE WHEN $2 = 'annual' THEN INTERVAL '1 year' ELSE INTERVAL '1 month' END)::date
       WHERE organization_id = $1`,
     [organizationId, cycle || 'monthly']

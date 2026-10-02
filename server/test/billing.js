@@ -242,6 +242,50 @@ function subscriptionFor(orgId) {
     'it is due again immediately'
   );
 
+  console.log('\npaying before the trial is up');
+  // Somebody four days into a fourteen-day trial who wants to subscribe now.
+  // The money question is whether those ten remaining days survive the charge.
+  const early = await makeSubscription(stamp + 3, 4);
+  const earlySub = await subscriptionFor(early.orgId);
+  const trialEnd = access.addDays(earlySub.trial_start, 14);
+
+  check('they are on a trial with days left',
+    access.accessFor(earlySub).state === 'trial' && access.accessFor(earlySub).daysLeft === 10,
+    JSON.stringify(access.accessFor(earlySub)));
+
+  paystack.verify = verified(price);
+  const earlyPaid = await subscription.activate(early.orgId, {
+    reference: 'ref-early-' + stamp,
+    email: 'billing-test-' + (stamp + 3) + '@example.ng'
+  });
+  check('the payment goes through', earlyPaid.ok === true, JSON.stringify(earlyPaid));
+
+  const earlyAfter = await subscriptionFor(early.orgId);
+  check('the paid term starts when the trial would have ended, not today',
+    earlyAfter.current_period_start === trialEnd,
+    'started ' + earlyAfter.current_period_start + ', trial ran to ' + trialEnd);
+  check('so the remaining trial days are not billed away',
+    earlyAfter.current_period_start > new Date().toISOString().slice(0, 10),
+    'the term began today and ten free days went missing');
+  check('and the month runs from there',
+    earlyAfter.current_period_end === access.addDays(trialEnd, 31) ||
+    new Date(earlyAfter.current_period_end + 'T00:00:00Z') >
+      new Date(trialEnd + 'T00:00:00Z'),
+    earlyAfter.current_period_end);
+  check('they are active rather than trialing', earlyAfter.status === 'active', earlyAfter.status);
+  check('and the books are open', access.accessFor(earlyAfter).state === 'active');
+
+  // Paying twice should buy two months, not lose one.
+  const firstEnd = earlyAfter.current_period_end;
+  await subscription.activate(early.orgId, {
+    reference: 'ref-early-again-' + stamp,
+    email: 'billing-test-' + (stamp + 3) + '@example.ng'
+  });
+  const twice = await subscriptionFor(early.orgId);
+  check('a second payment extends the term rather than restarting it',
+    new Date(twice.current_period_end + 'T00:00:00Z') > new Date(firstEnd + 'T00:00:00Z'),
+    'was ' + firstEnd + ', now ' + twice.current_period_end);
+
   console.log('\nthe run log');
   const last = await billing.lastRun();
   check('every pass is recorded', Boolean(last) && Boolean(last.finishedAt));

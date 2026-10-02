@@ -255,8 +255,16 @@ already bound to the real price. The customer pays in the processor's own
 window and sends back a reference; the server verifies it, refuses a payment
 smaller than the plan costs, and takes the amount, the card and the reusable
 credential from that verification rather than from the client. The term then
-starts today, which is what reopens the books — access is read from the period
-end, never from a flag.
+starts where access currently runs out — which reopens the books, since access
+is read from the period end and never from a flag.
+
+That last point is `rollPeriod()`, and it is deliberately not "today". A
+customer who subscribes from Settings with four days of trial left keeps those
+four days: the term begins when the trial would have ended. Starting it today
+would bill them for days they had already been given, and the trial banner has
+always promised otherwise. The same arithmetic means a renewal charged a day
+late does not shorten the term, and a double payment buys two months rather
+than losing one.
 
 **Afterwards** the stored credential is what `chargeDue()` charges at each
 renewal. Point the processor's webhook at `/api/webhooks/monnify` or

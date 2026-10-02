@@ -1336,6 +1336,18 @@ window.__resources = {
                 <div style="font-size: 12.5px; color: #5C5850; margin-top: 3px;">{{ sub.breakdown }}</div>
               </div>
             </div>
+            <sc-if value="{{ sub.onTrial }}" hint-placeholder-val="{{ true }}">
+              <div style="border-top: 1px solid #E4DFD5; margin-top: 15px; padding-top: 15px; display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap;">
+                <div style="font-size: 12.5px; color: #5C5850; line-height: 1.5; flex: 1 1 320px; min-width: 0; text-wrap: pretty;">{{ sub.subscribeNote }}</div>
+                <sc-if value="{{ sub.canSubscribe }}" hint-placeholder-val="{{ true }}">
+                  <button data-a="" disabled="{{ perm.noAdmin }}" onClick="{{ sub.subscribe }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); padding: 11px 20px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;" style-hover="background: #FAC775; color: #1a1a1a;">{{ sub.subscribeLabel }}</button>
+                </sc-if>
+                <sc-if value="{{ sub.noProcessor }}" hint-placeholder-val="{{ false }}">
+                  <div style="font-size: 12px; color: #8A6A1E; background: #FAEEDA; border: 1px solid #EBD9A8; border-radius: 6px; padding: 8px 12px; white-space: nowrap;">Payments are not set up on this server yet.</div>
+                </sc-if>
+              </div>
+            </sc-if>
+
             <div style="border-top: 1px solid #E4DFD5; margin-top: 15px; padding-top: 12px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
               <div style="font-size: 12px; color: #5C5850;">{{ sub.booksNote }}</div>
               <button data-a="" disabled="{{ perm.noAdmin }}" onClick="{{ sub.cancel }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 14px; font-size: 12.5px; font-weight: 500; cursor: pointer;" style-hover="border-color: #9E3A26; color: #9E3A26;">Cancel subscription</button>
@@ -1969,8 +1981,14 @@ class Component extends DCLogic {
 
   // Everything the signed-in account can see comes from the server; the two
   // book slots stay, but only the one this account keeps is ever filled.
-  applySession(session) {
-    this.setState({ session, account: session, mode: session.book, screen: 'dashboard' });
+  // `keepScreen` is for the one case where the session changes under somebody
+  // who is already working: subscribing from Settings. Everywhere else — the
+  // first sign-in, coming off the paywall — the dashboard is where they want
+  // to land, and being dropped there mid-edit is only right when the
+  // alternative was a screen they could not read anyway.
+  applySession(session, keepScreen) {
+    const screen = keepScreen && session.access !== 'locked' ? this.state.screen : 'dashboard';
+    this.setState({ session, account: session, mode: session.book, screen });
     // A locked account has no readable book — asking for it would only answer
     // 402 — so the payment screen is shown straight away instead.
     if (session.access === 'locked') {
@@ -2106,6 +2124,41 @@ class Component extends DCLogic {
         onClose: () => reject(new Error('Payment was cancelled.'))
       });
     }));
+  }
+
+  // Buying a subscription. Reached from two places — the paywall a lapsed
+  // account lands on, and the Subscribe now button in Settings that lets
+  // somebody still on trial start paying early — so it lives here rather than
+  // being written twice with two chances to drift.
+  //
+  // Nothing about the price is decided in this page. The server opens the
+  // transaction, verifies the payment and decides what access it bought; the
+  // session is re-read afterwards rather than guessed at.
+  startSubscription() {
+    if (this.state.payBusy) return Promise.resolve();
+    const ses = this.state.session;
+    // Somebody paying early is in the middle of Settings, not locked out of
+    // anything, so they stay where they are and watch the card change.
+    const inApp = this.state.screen === 'settings';
+    this.setState({ payBusy: true, payErr: '' });
+
+    return API.post(this.orgPath('/subscription/checkout'), {})
+      .then((checkout) => (checkout.provider === 'monnify'
+        ? this.monnifyAuthorise(checkout)
+        : this.paystackAuthorise(ses.email, ses.amount)))
+      .then((reference) => API.post(this.orgPath('/subscription/activate'), { paymentReference: reference }))
+      .then(() => API.get('/auth/me'))
+      .then((r) => {
+        this.setState({ payBusy: false, payErr: '' });
+        return this.applySession(r.session, inApp);
+      })
+      .then(() => this.flash('Subscription active. Thank you.'))
+      .catch((err) => {
+        this.setState({ payBusy: false, payErr: err.message });
+        // On the paywall the error renders in the panel. In Settings there is
+        // no such panel, so it is said out loud instead of disappearing.
+        if (this.state.screen === 'settings') this.flash(err.message);
+      });
   }
 
   // Every write goes to the server first, so what the screens show is what the
@@ -3346,27 +3399,7 @@ class Component extends DCLogic {
     const trialEnded = ses.accessReason === 'trial_ended';
     const suspended = ses.accessReason === 'suspended';
 
-    const subscribe = () => {
-      if (st.payBusy) return;
-      this.setState({ payBusy: true, payErr: '' });
-
-      // The server says what to open and, for Monnify, opens the transaction
-      // itself so the amount is settled before the window appears.
-      API.post(this.orgPath('/subscription/checkout'), {})
-        .then((checkout) => (checkout.provider === 'monnify'
-          ? this.monnifyAuthorise(checkout)
-          : this.paystackAuthorise(ses.email, ses.amount)))
-        .then((reference) => API.post(this.orgPath('/subscription/activate'), { paymentReference: reference }))
-        // Re-read the session rather than guessing: the server decides what
-        // access the payment just bought.
-        .then(() => API.get('/auth/me'))
-        .then((r) => {
-          this.setState({ payBusy: false, payErr: '' });
-          return this.applySession(r.session);
-        })
-        .then(() => this.flash('Subscription active. Welcome back.'))
-        .catch((err) => this.setState({ payBusy: false, payErr: err.message }));
-    };
+    const subscribe = () => this.startSubscription();
 
     return {
       title: suspended ? 'This account is on hold'
@@ -3437,13 +3470,34 @@ class Component extends DCLogic {
       const applied = { cycle: r.subscription.cycle, users: r.subscription.users };
       this.setState((s) => ({ session: { ...s.session, ...applied }, account: { ...s.account, ...applied } }));
     });
+    const longD = (iso) => longDate(new Date(iso + 'T00:00:00'));
+    // Paying during a trial does not forfeit what is left of it: the server
+    // starts the paid term where access currently runs out. Say so next to the
+    // button, because "pay now" otherwise reads as "lose your remaining days".
+    const startsOn = longD(ses.periodEnd || ses.trialEndsOn);
+
     return {
       status: onTrial
         ? (left > 0 ? 'Free trial · ' + left + (left === 1 ? ' day remaining' : ' days remaining') : 'Free trial · last day')
         : 'Active',
       help: onTrial
-        ? 'Nothing has been charged and no card is on file. When the trial ends we will ask you to pay for the plan below; your books stay exactly as you left them until you do.'
+        ? (ses.card
+            ? 'Nothing has been charged yet. When the trial ends we will charge the card below for the plan; your books stay exactly as you left them until then.'
+            : 'Nothing has been charged and no card is on file. When the trial ends we will ask you to pay for the plan below; your books stay exactly as you left them until you do.')
         : 'Your plan renews automatically. Changes to cycle or user count are applied on the next charge.',
+      // Everything below drives the "subscribe before the trial is up" row.
+      onTrial: onTrial,
+      canSubscribe: onTrial && Boolean(this.state.payReady),
+      noProcessor: onTrial && !this.state.payReady,
+      subscribeLabel: this.state.payBusy
+        ? 'Opening ' + (this.state.payProvider === 'monnify' ? 'Monnify' : 'Paystack') + '…'
+        : 'Subscribe now — ' + money(amount),
+      subscribeNote: left > 0
+        ? 'Don’t want to wait? Pay now and your ' + (monthly ? 'first month' : 'first year') +
+          ' starts ' + startsOn + ', when the trial ends — you keep the ' +
+          left + (left === 1 ? ' day' : ' days') + ' still left on it.'
+        : 'Pay now and your ' + (monthly ? 'first month' : 'first year') + ' starts today.',
+      subscribe: () => this.startSubscription(),
       cycles: [['monthly', 'Monthly'], ['annual', 'Yearly — 5% off']].map((c) => ({
         label: c[1], go: () => setSes({ cycle: c[0] }),
         bg: ses.cycle === c[0] ? '#1a1a1a' : '#FFFFFF', fg: ses.cycle === c[0] ? '#FFFFFF' : '#403D37'

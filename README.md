@@ -77,6 +77,11 @@ a plan — and nothing to pay with. No debit card, no ATM card, no credit card.
 The account opens straight onto a 14-day trial, and the app shows how many
 days are left.
 
+Anyone who would rather not wait can subscribe from **Settings** before the
+trial is up. Paying early costs nothing extra: the paid term starts on the day
+the trial would have ended, so the remaining free days are kept rather than
+billed away.
+
 When the trial runs out the books close behind a payment screen rather than
 disappearing: **nothing is deleted**. The organisation, the ledger, the
 invoices and every figure entered stay exactly where they were, and come back
