@@ -51,12 +51,19 @@ async function login() {
   const res = await fetch(base() + '/api/v1/auth/login', {
     method: 'POST',
     headers: { Authorization: 'Basic ' + basic, 'Content-Type': 'application/json' }
-  });
+  }).catch((e) => { throw new Error('Could not reach Monnify at ' + base() + ' — ' + e.message); });
   const body = await res.json().catch(() => null);
   const data = body && body.responseBody;
   if (!res.ok || !body || !body.requestSuccessful || !data || !data.accessToken) {
     const why = (body && body.responseMessage) || ('HTTP ' + res.status);
-    throw new Error('Monnify rejected the API credentials: ' + why);
+    // Naming the host is most of the diagnosis. By far the commonest cause of
+    // a rejected key is live credentials sent to the sandbox or the other way
+    // round, and the two look identical until you see which one was called.
+    throw new Error(
+      'Monnify rejected the API credentials at ' + base() + ' — ' + why +
+      '. Check MONNIFY_API_KEY and MONNIFY_SECRET_KEY, and that MONNIFY_ENV (' +
+      (process.env.MONNIFY_ENV || 'sandbox') + ') matches the keys you were given.'
+    );
   }
 
   // expiresIn is seconds. Default to an hour if it is ever missing rather than
@@ -103,25 +110,33 @@ async function call(path, { method = 'GET', body } = {}) {
 async function initTransaction({ amountNaira, email, name, reference, description, redirectUrl }) {
   if (!configured()) throw new Error('Monnify is not configured');
 
-  const { res, body } = await call('/api/v1/merchant/transactions/init-transaction', {
+  const body = {
+    amount: Number(amountNaira),
+    customerName: name || email,
+    customerEmail: email,
+    paymentReference: reference,
+    paymentDescription: description || 'Profitna subscription',
+    currencyCode: 'NGN',
+    contractCode: process.env.MONNIFY_CONTRACT_CODE
+  };
+  // Both of these are rejected outright if the merchant account does not have
+  // them enabled, so neither is sent unless it is asked for. Left out, Monnify
+  // offers whatever the contract actually supports, which is what we want.
+  if (redirectUrl) body.redirectUrl = redirectUrl;
+  if (process.env.MONNIFY_PAYMENT_METHODS) {
+    body.paymentMethods = process.env.MONNIFY_PAYMENT_METHODS.split(',').map((m) => m.trim()).filter(Boolean);
+  }
+
+  const { res, body: out } = await call('/api/v1/merchant/transactions/init-transaction', {
     method: 'POST',
-    body: {
-      amount: Number(amountNaira),
-      customerName: name || email,
-      customerEmail: email,
-      paymentReference: reference,
-      paymentDescription: description || 'Profitna subscription',
-      currencyCode: 'NGN',
-      contractCode: process.env.MONNIFY_CONTRACT_CODE,
-      redirectUrl: redirectUrl || undefined,
-      paymentMethods: ['CARD', 'ACCOUNT_TRANSFER']
-    }
+    body
   });
 
-  const data = body && body.responseBody;
-  if (!res.ok || !body || !body.requestSuccessful || !data) {
+  const data = out && out.responseBody;
+  if (!res.ok || !out || !out.requestSuccessful || !data) {
     throw new Error('Monnify could not start that payment: ' +
-      ((body && body.responseMessage) || ('HTTP ' + res.status)));
+      ((out && out.responseMessage) || ('HTTP ' + res.status)) +
+      ' (contract ' + process.env.MONNIFY_CONTRACT_CODE + ' at ' + base() + ')');
   }
   return {
     checkoutUrl: data.checkoutUrl,

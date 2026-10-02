@@ -447,14 +447,26 @@ router.post('/subscription/checkout', requireOrg('admin'), async (req, res, next
     const provider = gateway.name();
 
     if (provider === 'monnify') {
-      const started = await monnify.initTransaction({
-        amountNaira: amount,
-        email: req.user.email,
-        name: req.user.full_name || req.user.email,
-        reference: 'profitna-' + req.orgId + '-' + Date.now(),
-        description: 'Profitna subscription',
-        redirectUrl: (process.env.PUBLIC_URL || '').replace(/\/+$/, '') || undefined
-      });
+      let started;
+      try {
+        started = await monnify.initTransaction({
+          amountNaira: amount,
+          email: req.user.email,
+          name: req.user.full_name || req.user.email,
+          reference: 'profitna-' + req.orgId + '-' + Date.now(),
+          description: 'Profitna subscription',
+          redirectUrl: (process.env.PUBLIC_URL || '').replace(/\/+$/, '') || undefined
+        });
+      } catch (err) {
+        // The processor refusing to open a transaction is a configuration
+        // problem on this server, not a fault of the person clicking Subscribe.
+        // "Something went wrong" sends whoever set it up to read container
+        // logs; Monnify's own words tell them which key is wrong. This route
+        // is admin-only, so the detail reaches the person who can fix it and
+        // nobody else.
+        console.error('monnify init-transaction failed:', err);
+        return res.status(502).json({ error: err.message });
+      }
       return res.json({
         provider,
         amount,
@@ -462,6 +474,13 @@ router.post('/subscription/checkout', requireOrg('admin'), async (req, res, next
         // Verification is done against Monnify's own reference.
         reference: started.transactionReference,
         paymentReference: started.paymentReference
+      });
+    }
+
+    if (!process.env.PAYSTACK_PUBLIC_KEY) {
+      return res.status(502).json({
+        error: 'Paystack is half configured: the secret key is set but PAYSTACK_PUBLIC_KEY is not, ' +
+          'so the payment window cannot open.'
       });
     }
 

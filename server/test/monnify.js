@@ -166,6 +166,57 @@ const LOGIN_OK = {
   catch (e) { authErr = e; }
   check('bad credentials raise a readable error',
     Boolean(authErr) && /Invalid credentials/.test(authErr.message), authErr && authErr.message);
+  check('and name the host they were sent to',
+    /sandbox\.monnify\.com/.test(authErr.message),
+    'live keys against the sandbox look exactly like a wrong key until you see the host');
+  check('and the env setting that chose it', /MONNIFY_ENV/.test(authErr.message));
+
+  // =========================================================================
+  console.log('\nopening a transaction');
+  // =========================================================================
+  reset();
+  handlers['/api/v1/auth/login'] = LOGIN_OK;
+  handlers['/init-transaction'] = {
+    json: { requestSuccessful: true, responseBody: {
+      checkoutUrl: 'https://sandbox.sdk.monnify.com/checkout/X',
+      transactionReference: 'MNFY|INIT|1', paymentReference: 'profitna-1-2' } }
+  };
+
+  const started = await monnify.initTransaction({
+    amountNaira: 5000, email: 'owner@mideops.ng', name: 'Mideops', reference: 'profitna-1-2'
+  });
+  const initBody = calls.find((c) => c.url.includes('init-transaction')).body;
+  check('the checkout url comes back', started.checkoutUrl.includes('/checkout/'));
+  check('amount is naira here too', initBody.amount === 5000);
+  check('contract code is sent', initBody.contractCode === ENV.MONNIFY_CONTRACT_CODE);
+  check('paymentMethods is left out unless asked for',
+    !('paymentMethods' in initBody),
+    'naming a method the contract does not have gets the whole call rejected');
+  check('redirectUrl is left out when there is none', !('redirectUrl' in initBody));
+
+  reset();
+  handlers['/api/v1/auth/login'] = LOGIN_OK;
+  handlers['/init-transaction'] = { json: { requestSuccessful: true, responseBody: { checkoutUrl: 'u' } } };
+  process.env.MONNIFY_PAYMENT_METHODS = 'CARD, ACCOUNT_TRANSFER';
+  await monnify.initTransaction({ amountNaira: 1, email: 'a@b.ng', reference: 'r' });
+  check('but is sent when it is configured',
+    JSON.stringify(calls.find((c) => c.url.includes('init-transaction')).body.paymentMethods) ===
+      '["CARD","ACCOUNT_TRANSFER"]');
+  delete process.env.MONNIFY_PAYMENT_METHODS;
+
+  reset();
+  handlers['/api/v1/auth/login'] = LOGIN_OK;
+  handlers['/init-transaction'] = {
+    status: 400,
+    json: { requestSuccessful: false, responseMessage: 'Invalid contract code' }
+  };
+  let initErr = null;
+  try { await monnify.initTransaction({ amountNaira: 1, email: 'a@b.ng', reference: 'r' }); }
+  catch (e) { initErr = e; }
+  check('a refused transaction says why', Boolean(initErr) && /Invalid contract code/.test(initErr.message));
+  check('and which contract and host it tried',
+    /7059707855/.test(initErr.message) && /sandbox\.monnify\.com/.test(initErr.message),
+    initErr && initErr.message);
 
   // =========================================================================
   console.log('\nverifying a payment');
