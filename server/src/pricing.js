@@ -4,7 +4,15 @@
 
 const PER_USER_MONTHLY = 5000;
 const PER_USER_ANNUAL = 57000;
-const TRIAL_DAYS = 14;
+
+// How long a new account has before it is asked to pay.
+//
+// Changing this moves every trial, not just the ones started afterwards. When
+// a trial ends is derived — trial_start plus this number — and never written
+// into a row, so an account three days into a 14-day trial simply finds it has
+// 27 days left. Accounts that have already paid carry a real
+// current_period_end and are untouched by it.
+const TRIAL_DAYS = 30;
 
 function rate(cycle) {
   return cycle === 'annual' ? PER_USER_ANNUAL : PER_USER_MONTHLY;

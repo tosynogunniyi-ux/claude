@@ -256,7 +256,7 @@ window.__resources = {
         </div>
       </div>
     </div>
-    <div style="border-top: 1px solid rgba(250,199,117,0.28); padding-top: 16px; font-size: 11.5px; color: #A8A296; line-height: 1.6;">14 days free. No card required to start.<br />All figures in Naira (₦).</div>
+    <div style="border-top: 1px solid rgba(250,199,117,0.28); padding-top: 16px; font-size: 11.5px; color: #A8A296; line-height: 1.6;">{{ au.trialDays }} days free. No card required to start.<br />All figures in Naira (₦).</div>
   </section>
 
   <section style="flex: 1 1 460px; min-width: 320px; display: flex; align-items: flex-start; justify-content: center; padding: 44px 30px 60px;">
@@ -320,7 +320,7 @@ window.__resources = {
           <sc-if value="{{ au.step1 }}" hint-placeholder-val="{{ true }}">
             <div>
               <h1 style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 23px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.015em;">Create your account</h1>
-              <div style="font-size: 13px; color: #403D37; margin-bottom: 20px;">14 days free, full access. Card details come at the last step.</div>    
+              <div style="font-size: 13px; color: #403D37; margin-bottom: 20px;">{{ au.trialDays }} days free, full access. Card details come at the last step.</div>    
               <sc-if value="{{ au.googleReady }}" hint-placeholder-val="{{ false }}">
               <button onClick="{{ au.google }}" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px; border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 12px; font-size: 14px; font-weight: 600; color: #1a1a1a; cursor: pointer; box-shadow: 0 1px 2px rgba(19,19,19,.05); transition: background .14s, box-shadow .14s;" style-hover="background: #F7F5F0; box-shadow: 0 2px 4px rgba(19,19,19,.06);">
                 <svg width="17" height="17" viewBox="0 0 48 48" style="flex: 0 0 17px;">
@@ -399,7 +399,7 @@ window.__resources = {
           <sc-if value="{{ au.step3 }}" hint-placeholder-val="{{ false }}">
             <div>
               <h1 style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 23px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.015em;">Choose a plan</h1>
-              <div style="font-size: 13px; color: #403D37; margin-bottom: 18px;">Free for 14 days, no card required. We ask for payment when the trial ends on {{ au.trialEnds }}.</div>
+              <div style="font-size: 13px; color: #403D37; margin-bottom: 18px;">Free for {{ au.trialDays }} days, no card required. We ask for payment when the trial ends on {{ au.trialEnds }}.</div>
               <div style="display: grid; gap: 10px;">
                 <sc-for list="{{ au.plans }}" as="p" hint-placeholder-count="2">
                   <button onClick="{{ p.pick }}" style="text-align: left; cursor: pointer; background: {{ p.bg }}; border: 1px solid {{ p.border }}; border-left: 3px solid {{ p.rule }}; border-radius: 6px; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; gap: 12px;" style-hover="border-color: #1a1a1a;">
@@ -1919,6 +1919,9 @@ class Component extends DCLogic {
     super(props);
     this.state = {
       mode: 'sme', screen: 'dashboard', preset: 'ytd', role: 'Admin',
+      // Replaced by whatever /auth/config reports. Only ever seen in the
+      // moment before that lands.
+      trialDays: 30,
       session: null, account: null,
       auth: { view: 'login', step: 1, name: '', org: '', email: '', pw: '', book: null, cycle: 'monthly', users: 1, err: '', busy: false, seats: [] },
       search: '', txType: 'all', reportTab: 'pl', modal: null, form: {}, toast: null, aiQ: '', aiKey: null,
@@ -1961,6 +1964,9 @@ class Component extends DCLogic {
         paystackKey: c.paystackPublicKey,
         payReady: Boolean(c.payments),
         payProvider: c.paymentProvider || 'none',
+        // The server owns the trial length. Reading it rather than repeating
+        // it means the screens cannot promise a number it will not honour.
+        trialDays: Number(c.trialDays) || 30,
         monnifyKey: c.monnifyApiKey,
         monnifyContract: c.monnifyContractCode
       }))
@@ -3057,7 +3063,7 @@ class Component extends DCLogic {
         // Hides the Google buttons on a deployment without GOOGLE_CLIENT_ID,
         // rather than offering a control that cannot complete.
         googleReady: st.googleReady,
-        finishLabel: A.busy ? 'Setting up your books\u2026' : 'Start my 14-day free trial',
+        finishLabel: A.busy ? 'Setting up your books\u2026' : 'Start my ' + st.trialDays + '-day free trial',
         hasTeam: seatRows.length > 0,
         teamNote: 'You chose ' + A.users + ' users, so ' + seatRows.length +
           (seatRows.length === 1 ? ' other person' : ' other people') +
@@ -3076,7 +3082,8 @@ class Component extends DCLogic {
         lines, total: money(total), totalLabel: monthly ? 'Billed monthly' : 'Billed yearly',
         cadence: monthly ? 'monthly' : 'yearly',
         addonNote: 'Each user beyond the first adds ' + money(monthly ? PU : ANN) + ' ' + (monthly ? 'per month' : 'per year') + '.',
-        trialEnds: longDate(shift(14)), firstCharge: longDate(shift(14))
+        trialDays: st.trialDays,
+        trialEnds: longDate(shift(st.trialDays)), firstCharge: longDate(shift(st.trialDays))
       },
       sub: this.subVals(ses, longDate, shift)
     };
@@ -3420,7 +3427,7 @@ class Component extends DCLogic {
 
     return {
       title: suspended ? 'This account is on hold'
-        : trialEnded ? 'Your 14-day free trial has ended'
+        : trialEnded ? 'Your ' + st.trialDays + '-day free trial has ended'
         : 'Your subscription is not active',
       blurb: suspended
         ? 'Contact support@profitna.com and we will sort it out.'

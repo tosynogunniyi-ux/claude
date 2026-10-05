@@ -13,7 +13,7 @@ const paystack = require('../src/integrations/paystack');
 const billing = require('../src/billing');
 const subscription = require('../src/routes/subscription');
 const access = require('../src/access');
-const { PER_USER_MONTHLY } = require('../src/pricing');
+const { PER_USER_MONTHLY, TRIAL_DAYS } = require('../src/pricing');
 
 let passed = 0;
 const failures = [];
@@ -61,10 +61,11 @@ function subscriptionFor(orgId) {
 (async () => {
   const stamp = Date.now();
 
-  // A trial that started 14 days ago is over today; one that started 13 days
-  // ago still has a day to run.
-  const over = await makeSubscription(stamp, 14);
-  const running = await makeSubscription(stamp + 1, 13);
+  // A trial that started TRIAL_DAYS ago is over today; one that started a day
+  // later still has a day to run. Read from the constant rather than written
+  // out, so changing the trial length does not quietly stop testing this.
+  const over = await makeSubscription(stamp, TRIAL_DAYS);
+  const running = await makeSubscription(stamp + 1, TRIAL_DAYS - 1);
 
   console.log('\nwhat is due');
   const shortlist = await billing.due(500);
@@ -173,8 +174,10 @@ function subscriptionFor(orgId) {
   console.log('\npaying at the end of the trial');
 
   // A fresh account, exactly as signup leaves it: trial over, no card, no
-  // authorisation code — nothing the biller can charge.
-  const unpaid = await makeSubscription(stamp + 2, 20);
+  // authorisation code — nothing the biller can charge. Six days past the end,
+  // measured from the constant so it stays genuinely over whatever the trial
+  // length becomes.
+  const unpaid = await makeSubscription(stamp + 2, TRIAL_DAYS + 6);
   await query(
     'UPDATE subscriptions SET provider_authorization_code = NULL, card_brand = NULL, card_last4 = NULL WHERE organization_id = $1',
     [unpaid.orgId]
@@ -245,12 +248,12 @@ function subscriptionFor(orgId) {
   console.log('\npaying before the trial is up');
   // Somebody four days into a fourteen-day trial who wants to subscribe now.
   // The money question is whether those ten remaining days survive the charge.
-  const early = await makeSubscription(stamp + 3, 4);
+  const early = await makeSubscription(stamp + 3, 4);  // four days in
   const earlySub = await subscriptionFor(early.orgId);
-  const trialEnd = access.addDays(earlySub.trial_start, 14);
+  const trialEnd = access.addDays(earlySub.trial_start, TRIAL_DAYS);
 
   check('they are on a trial with days left',
-    access.accessFor(earlySub).state === 'trial' && access.accessFor(earlySub).daysLeft === 10,
+    access.accessFor(earlySub).state === 'trial' && access.accessFor(earlySub).daysLeft === TRIAL_DAYS - 4,
     JSON.stringify(access.accessFor(earlySub)));
 
   paystack.verify = verified(price);
@@ -266,7 +269,7 @@ function subscriptionFor(orgId) {
     'started ' + earlyAfter.current_period_start + ', trial ran to ' + trialEnd);
   check('so the remaining trial days are not billed away',
     earlyAfter.current_period_start > new Date().toISOString().slice(0, 10),
-    'the term began today and ten free days went missing');
+    'the term began today and the unused trial days went missing');
   check('and the month runs from there',
     earlyAfter.current_period_end === access.addDays(trialEnd, 31) ||
     new Date(earlyAfter.current_period_end + 'T00:00:00Z') >

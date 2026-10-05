@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const { one, tx } = require('../db');
 const { issue, clear, requireAuth, recordLogin, SUSPENDED_MESSAGE } = require('../auth');
 const { accessFor } = require('../access');
+const { TRIAL_DAYS } = require('../pricing');
 const team = require('../team');
 const { seedChartOfAccounts } = require('../defaults');
 const { seedDemoBooks } = require('../demo');
@@ -213,7 +214,7 @@ router.post('/signup', async (req, res, next) => {
     }
 
     // Signing up costs nothing and asks for nothing to pay with. The account
-    // opens on a 14-day trial with no card on file; payment is collected at
+    // opens on a free trial with no card on file; payment is collected at
     // the end of it, through /subscription/activate. Anything card-shaped in
     // the body is ignored rather than trusted.
     const created = await createAccount({
@@ -307,6 +308,10 @@ router.get('/config', (req, res) => {
   res.json({
     google: google.configured(),
     googleClientId: process.env.GOOGLE_CLIENT_ID || null,
+    // How long a trial runs. Sent rather than written into the page, so the
+    // length is stated in one place and the screens cannot promise a number
+    // the server does not honour.
+    trialDays: TRIAL_DAYS,
     // Which processor the payment screen should open. `payments` is the only
     // flag the screen needs to decide whether it can charge at all; the rest
     // says which window to put up.

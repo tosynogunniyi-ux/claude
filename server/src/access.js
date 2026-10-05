@@ -4,7 +4,7 @@ const { TRIAL_DAYS, amountFor } = require('./pricing');
 // Who may use the books, and until when.
 //
 // Signing up costs nothing and asks for no card: an account starts on a
-// 14-day trial and is fully usable. When the trial runs out — or a paid term
+// free trial and is fully usable. When the trial runs out — or a paid term
 // lapses — the books stop opening until a subscription is paid for. Nothing
 // is deleted; the data sits where it was and comes back the moment payment
 // goes through.
@@ -72,7 +72,7 @@ function accessFor(sub) {
 }
 
 const LOCKED_MESSAGE = {
-  trial_ended: 'Your 14-day free trial has ended. Activate your subscription to continue.',
+  trial_ended: 'Your ' + TRIAL_DAYS + '-day free trial has ended. Activate your subscription to continue.',
   subscription_lapsed: 'Your subscription is not active. Complete payment to continue.',
   suspended: 'This account is suspended. Contact support@profitna.com.',
   no_subscription: 'This organisation has no subscription.'

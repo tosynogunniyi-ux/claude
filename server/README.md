@@ -228,7 +228,15 @@ to the books rather than to them.
 
 ## Signing up, the trial, and the paywall
 
-    sign up  →  no card  →  14-day trial  →  trial ends  →  pay  →  active
+    sign up  →  no card  →  30-day trial  →  trial ends  →  pay  →  active
+
+The length is `TRIAL_DAYS` in `src/pricing.js` and nothing else. Changing it
+moves every trial, not only the ones started afterwards: when a trial ends is
+derived from `trial_start` plus that number and is never written into a row,
+so there is nothing to migrate. An account part-way through simply finds it
+has longer, and one whose trial had lapsed inside the new window opens again.
+Accounts that have already paid carry a real `current_period_end` and are not
+affected either way.
 
 **Signing up asks for nothing to pay with.** `/auth/signup` takes a name, an
 organisation, an email, a password and a plan choice, and creates a
@@ -338,7 +346,7 @@ container does not charge the same card twice, and it charges at most
 several passes instead of firing hundreds of charges at once.
 
 **What is due:** a subscription whose term has run out —
-`COALESCE(current_period_end, trial_start + 14) <= today` — that is still
+`COALESCE(current_period_end, trial_start + TRIAL_DAYS) <= today` — that is still
 `trialing`, `active` or `past_due` and has an authorisation code. Cancelled
 and suspended subscriptions are never charged, and neither is one with no card
 on file — which, since signup no longer collects one, is every account that

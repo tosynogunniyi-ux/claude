@@ -11,6 +11,7 @@
 
 require('dotenv').config();
 const bcrypt = require('bcryptjs');
+const { TRIAL_DAYS } = require('../src/pricing');
 const { pool } = require('../src/db');
 const totp = require('../src/totp');
 // Read directly for the scheduling checks: which subscriptions are due, and
@@ -343,7 +344,7 @@ async function makeOwner(email, password) {
 
   const notYet = await pool.query(
     `SELECT COUNT(*)::int AS n FROM subscriptions
-      WHERE id = $1 AND COALESCE(current_period_end, trial_start + 14) > CURRENT_DATE`,
+      WHERE id = $1 AND COALESCE(current_period_end, trial_start + ${TRIAL_DAYS}) > CURRENT_DATE`,
     [sub.id]
   );
   check('…and one whose term has not ended is not', notYet.rows[0].n === 0);

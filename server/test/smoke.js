@@ -5,6 +5,7 @@
 // that one organisation can never read another's books.
 
 const BASE = process.env.SMOKE_BASE || 'http://localhost:4000';
+const { TRIAL_DAYS } = require('../src/pricing');
 
 let passed = 0;
 const failures = [];
@@ -159,7 +160,7 @@ async function signup(call, email, book, org) {
   const trial = a.body.session;
   check('signup asks for no card', trial.card === null, JSON.stringify(trial.card));
   check('and starts a trial', trial.subStatus === 'trialing' && trial.access === 'trial', trial.access);
-  check('with 14 days on it', trial.daysLeft === 14, String(trial.daysLeft));
+  check('with the full trial on it', trial.daysLeft === TRIAL_DAYS, String(trial.daysLeft));
   check('and a date it ends', /^\d{4}-\d{2}-\d{2}$/.test(trial.trialEndsOn || ''), trial.trialEndsOn);
   check('the books open during it', (await sme('GET', '/api/orgs/' + orgA + '/data')).status === 200);
 
