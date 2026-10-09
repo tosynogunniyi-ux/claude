@@ -333,6 +333,14 @@ leftover base URL. The same warnings come back from the processor check below.
 They catch the mistakes that otherwise surface as a real customer's card
 failing.
 
+**Why 424 and not 502.** When the payment processor will not answer, the
+checkout route replies **424 Failed Dependency**, which is a 4xx on purpose.
+A reverse proxy will replace a 5xx body from the app with its own HTML error
+page, so every carefully worded message about Monnify reached the customer as
+"the server did not answer" instead. 4xx is passed through untouched. Keep
+deliberate, user-facing failures in the 4xx range for that reason; genuine
+unexpected bugs can stay 500, where the front end's own fallback covers them.
+
 **Is the deploy live, and is it healthy?** `GET /api/health` needs no sign-in
 and answers three questions that otherwise take guesswork: `uptimeSeconds`
 (a small number means it restarted just now, which is the difference between

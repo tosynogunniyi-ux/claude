@@ -465,7 +465,14 @@ router.post('/subscription/checkout', requireOrg('admin'), async (req, res, next
         // is admin-only, so the detail reaches the person who can fix it and
         // nobody else.
         console.error('monnify init-transaction failed:', err);
-        return res.status(502).json({ error: err.message });
+        // 424, not 502, and the difference matters more than it looks. A
+        // reverse proxy in front of this app will happily replace a 5xx body
+        // with its own HTML error page, which is how every carefully worded
+        // message about Monnify ended up reaching the customer as "the server
+        // did not answer". 4xx is passed through untouched, and Failed
+        // Dependency is honest about what went wrong: this request could not
+        // be completed because something it depends on would not answer.
+        return res.status(424).json({ error: err.message });
       }
       return res.json({
         provider,
@@ -478,7 +485,8 @@ router.post('/subscription/checkout', requireOrg('admin'), async (req, res, next
     }
 
     if (!process.env.PAYSTACK_PUBLIC_KEY) {
-      return res.status(502).json({
+      // 4xx for the same reason as above: a 5xx never survives the proxy.
+      return res.status(424).json({
         error: 'Paystack is half configured: the secret key is set but PAYSTACK_PUBLIC_KEY is not, ' +
           'so the payment window cannot open.'
       });
