@@ -40,7 +40,7 @@ what it can honestly do:
 | `DATABASE_URL`, `JWT_SECRET` | Required. The server refuses to sign sessions without a secret. |
 | `GOOGLE_CLIENT_ID` | The Google buttons report that sign-in is not configured. |
 | No payment processor | Trials still run, but an expired account cannot be paid for from the app; the paywall says so instead of offering a dead button. |
-| `ANTHROPIC_API_KEY` | Category suggestions fall back to the keyword matcher, which still codes most Nigerian bank narrations. |
+| `ANTHROPIC_API_KEY` | Category suggestions fall back to the keyword matcher, which still codes most Nigerian bank narrations, and Ask Profitna says so on the screen and answers six set questions from the figures already on the page. |
 | `MONO_SECRET_KEY` | Bank feeds are unavailable; the CSV / Excel / Sheets import path is unaffected. |
 | `ADMIN_PATH` | The owner's console is served at `/admin`. |
 | `ADMIN_IP_ALLOWLIST` | The console is reachable from any address. |
@@ -73,6 +73,8 @@ what it can honestly do:
   on a set of books, what they may do, and how a second person gets there.
 - `src/routes/banking.js` — the company's own accounts and their balances,
   and the logo its reports carry.
+- `src/ai/books.js`, `src/ai/ask.js`, `src/routes/ai.js` — Ask Profitna,
+  described below.
 
 Two rules the schema enforces by design, carried over from the build spec:
 document status is **derived** from payments and due date rather than stored,
@@ -461,6 +463,53 @@ pg_restore --no-owner --no-acl -d profitna_restored profitna-<stamp>.dump
 That restore has been exercised, not assumed: `npm run test:backup` takes a
 real dump and reads it back, and the full round trip into an empty database
 was checked row-for-row across every table.
+
+## Ask Profitna
+
+The question box on the AI screen. It answers from one organisation's books
+and from nothing else.
+
+A turn runs like this:
+
+1. **A snapshot goes out with the question.** `src/ai/books.js` builds it from
+   SQL aggregates — twelve months of income and expenses, the top categories,
+   who owes what and what is overdue, cash and bank balances, stock, fund
+   balances on church books. It is about 1,300 tokens on a set of books with
+   8,000 entries, because it is totals rather than rows, so it can be sent
+   every time. Ordinary questions are answered from it with no lookup at all.
+2. **Five read-only lookups are offered** for what the snapshot cannot
+   answer: individual entries, totals for an arbitrary period, invoices and
+   bills, one party's whole history, and stock. The model never writes SQL and
+   never names a table. Each lookup builds its own statement from bound
+   parameters with `organization_id` already fixed by the route, and caps what
+   it returns at 50 rows.
+3. **At most four rounds of that.** On the last one the lookups are withheld,
+   so there is nothing to do but answer — a model that kept asking could
+   otherwise run until the timeout.
+4. **The table under the answer is the lookup's own rows.** The prose is the
+   model's; every figure in that table came out of the database. That is the
+   whole claim the screen makes, and it is enforced by where the rows are
+   built rather than by asking the model nicely.
+
+What it will not do: invent a figure, act on anything written in a narration
+(the standing instructions say those are data, never instructions), or answer
+with markdown, which the answer card would show literally.
+
+Costs and limits are in the configuration table above: `ASK_MODEL`,
+`ASK_EFFORT`, `ASK_DAILY_LIMIT`. The daily cap is counted from the audit log
+rather than from memory, so restarting the container does not reset it. The
+question itself is **not** recorded — only its length, how many rounds it
+took and what it cost. Nobody operating the server has a reason to read what
+a customer asked about their own books.
+
+`GET /orgs/:id/ai/status` says whether a model is connected and which one;
+the screen's pill reads from it rather than claiming either. Every failure
+answers in the 4xx range, for the reason in the Monnify section: a proxy
+replaces a 5xx body with its own HTML page and the sentence never arrives.
+
+`npm run test:ask` covers it — 60 checks, including the lookups against books
+with figures chosen so every total can be checked by hand, and the loop
+itself against a scripted model, so it runs without an API key.
 
 ## Automatic billing
 

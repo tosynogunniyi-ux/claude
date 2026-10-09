@@ -52,4 +52,10 @@ async function suggestCategory({ type, party, description, amount, allowed }) {
   return allowed.find((a) => a.toLowerCase() === text.toLowerCase()) || null;
 }
 
-module.exports = { configured, suggestCategory };
+module.exports = {
+  configured,
+  suggestCategory,
+  // One client for the whole process. Ask Profitna (src/ai/ask.js) runs its
+  // own prompt and its own model, but the key and the connection are shared.
+  client: getClient
+};

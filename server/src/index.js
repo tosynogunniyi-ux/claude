@@ -15,6 +15,7 @@ const bankingRoutes = require('./routes/banking');
 const ledgerRoutes = require('./routes/ledger');
 const bankRoutes = require('./routes/bank');
 const subscriptionRoutes = require('./routes/subscription');
+const aiRoutes = require('./routes/ai');
 
 const app = express();
 app.set('trust proxy', 1);
@@ -52,7 +53,10 @@ app.get('/api/health', async (req, res) => {
     // Two values that move with the code, so a stale deploy is visible
     // without digging: both changed in the releases around this one.
     trialDays: require('./pricing').TRIAL_DAYS,
-    paymentProvider: require('./integrations/gateway').name()
+    paymentProvider: require('./integrations/gateway').name(),
+    // Whether Ask Profitna has a model behind it, and which one. No key is
+    // revealed by either answer.
+    askModel: require('./ai/ask').configured() ? require('./ai/ask').model() : null
   });
 });
 app.use('/api/auth', authRoutes.router);
@@ -79,6 +83,7 @@ orgScoped.use(orgRoutes.router);
 orgScoped.use(bankingRoutes.router);
 orgScoped.use(ledgerRoutes.router);
 orgScoped.use(bankRoutes.router);
+orgScoped.use(aiRoutes.router);
 app.use('/api/orgs/:orgId', requireAuth, orgScoped);
 
 // The prototype is served from here, so the API is same-origin and the session

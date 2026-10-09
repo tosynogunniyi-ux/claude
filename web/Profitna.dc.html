@@ -938,11 +938,11 @@ window.__resources = {
           <div data-om="card" style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.04), 0 1px 3px rgba(19,19,19,.06); padding: 24px;">
             <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
               <div style="font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: #5C5850;">Ask about your books</div>
-              <div style="font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: #F1EEE6; color: #5C5850; white-space: nowrap;">Simulated · no model connected</div>
+              <div style="font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: {{ aiPillBg }}; color: {{ aiPillFg }}; white-space: nowrap;">{{ aiPill }}</div>
             </div>
             <div style="display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap;">
-              <input value="{{ aiQ }}" onChange="{{ onAiQ }}" placeholder="Who owes me the most money?" style="flex: 1 1 300px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 10px 13px; font-size: 14px; background: #FFFFFF;" />
-              <button onClick="{{ askAi }}" style="border: 0; background: #1a1a1a; color: #FAC775; border-radius: 6px; padding: 10px 18px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;" style-hover="background: #FAC775; color: #412402;">Ask</button>
+              <input value="{{ aiQ }}" onChange="{{ onAiQ }}" onKeyDown="{{ onAiKey }}" placeholder="Who owes me the most money?" style="flex: 1 1 300px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 10px 13px; font-size: 14px; background: #FFFFFF;" />
+              <button disabled="{{ aiBusy }}" onClick="{{ askAi }}" style="border: 0; background: #1a1a1a; color: #FAC775; border-radius: 6px; padding: 10px 18px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; opacity: {{ aiBtnOpacity }};" style-hover="background: #FAC775; color: #412402;">{{ aiBtnLabel }}</button>
             </div>
             <div style="display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap;">
               <sc-for list="{{ aiChips }}" as="c" hint-placeholder-count="6">
@@ -950,6 +950,18 @@ window.__resources = {
               </sc-for>
             </div>
           </div>
+
+          <sc-if value="{{ aiBusy }}" hint-placeholder-val="{{ false }}">
+            <div data-om="card" style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.04), 0 1px 3px rgba(19,19,19,.06); padding: 24px; margin-top: 16px;">
+              <div style="font-size: 13px; color: #5C5850;">You asked</div>
+              <div style="font-size: 16px; font-weight: 600; margin-top: 2px;">{{ aiAsking }}</div>
+              <div style="border-top: 1px solid #EDEAE2; margin: 18px 0 0; padding-top: 18px; display: flex; align-items: center; gap: 10px;">
+                <div style="width: 10px; height: 10px; border-radius: 50%; background: #B8863A; flex: 0 0 10px; animation: pf-pulse 1.5s ease-in-out infinite;"></div>
+                <div style="font-size: 15px; color: #403D37;">Reading your books…</div>
+              </div>
+              <div style="font-size: 12px; color: #8A857C; margin-top: 14px;">Totals, invoices and entries for this workspace only. Nothing is sent anywhere else.</div>
+            </div>
+          </sc-if>
 
           <sc-if value="{{ hasAnswer }}" hint-placeholder-val="{{ false }}">
             <div data-om="card" style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.04), 0 1px 3px rgba(19,19,19,.06); padding: 24px; margin-top: 16px;">
@@ -1931,6 +1943,9 @@ const API = {
       if (res.status === 402 && API.onPaywall) API.onPaywall(data.paywall || {});
       const err = new Error(data.error || 'That did not go through. Try again.');
       err.status = res.status;
+      // Some failures carry more than a sentence — whether a model is
+      // connected at all, for one — and the caller may need it.
+      err.body = data;
       throw err;
     }
     return data;
@@ -1954,6 +1969,10 @@ class Component extends DCLogic {
       session: null, account: null,
       auth: { view: 'login', step: 1, name: '', org: '', email: '', pw: '', book: null, cycle: 'monthly', users: 1, err: '', busy: false, seats: [] },
       search: '', txType: 'all', reportTab: 'pl', modal: null, form: {}, toast: null, aiQ: '', aiKey: null,
+      // Ask Profitna. aiStatus is null until the server has been asked whether
+      // a model is connected; aiAnswer holds the live one, aiKey the
+      // worked-out-on-this-page one, and they are never both set.
+      aiStatus: null, aiBusy: false, aiAnswer: null, aiThread: [], aiAsking: '',
       newIncome: '', newExpense: '', newExpensePct: '100',
       imp: { open: false, step: 'source', source: 'csv', paste: '', url: '', fileName: '', rows: [] },
       booted: false, googleReady: false,
@@ -2061,7 +2080,18 @@ class Component extends DCLogic {
       // Who else is on these books, loaded once with them. Cheap — a handful
       // of rows — and it keeps the settings screen from opening empty.
       .then(() => this.loadTeam())
+      .then(() => this.loadAiStatus(session))
       .catch((err) => { this.setState({ booted: true }); this.flash(err.message); });
+  }
+
+  // Whether this deployment has a model behind Ask Profitna. Asked once, with
+  // the book, so the screen can say which it is rather than claiming either.
+  // A failure here is not worth a message: the page falls back to answering
+  // the six questions it can work out from the figures it already holds.
+  loadAiStatus(session) {
+    return API.get('/orgs/' + session.orgId + '/ai/status')
+      .then((s) => this.setState({ aiStatus: s }))
+      .catch(() => this.setState({ aiStatus: { configured: false } }));
   }
 
   orgPath(path) { return '/orgs/' + this.state.session.orgId + (path || ''); }
@@ -2227,7 +2257,66 @@ class Component extends DCLogic {
   greeting() { const h = TODAY.getHours(); return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'; }
   firstName() { return String((this.state.session && this.state.session.name) || 'there').split(' ')[0]; }
   longDate() { return TODAY.getDate() + ' ' + ['January','February','March','April','May','June','July','August','September','October','November','December'][TODAY.getMonth()] + ' ' + TODAY.getFullYear(); }
-  askKey(key, q) { return () => this.setState({ screen: 'ai', aiKey: key, aiQ: q }); }
+  // The six questions this page can answer on its own, matched from whatever
+  // was typed. Used when no model is connected, and as the fallback when one
+  // is connected but could not answer.
+  aiKeyFor(text) {
+    const q = String(text || '').toLowerCase();
+    return /owe|owes|owing|debtor/.test(q) ? 'owes'
+      : /overdue|late|chas/.test(q) ? 'overdue'
+        : /revenue|made|sales|income|turnover/.test(q) ? 'revenue'
+          : /expense|spend|cost/.test(q) ? 'expenses'
+            : /cash|forecast|runway/.test(q) ? 'cash'
+              : /product|stock|inventor|margin/.test(q) ? 'products'
+                : null;
+  }
+
+  // One way in, from the question box, the suggestion chips and the dashboard
+  // insights alike. With a model connected it asks; without one it falls
+  // straight through to the figures already on this page.
+  runAsk(text, known) {
+    const question = String(text || '').trim();
+    if (!question) return this.flash('Type a question first.');
+    if (this.state.aiBusy) return undefined;
+    // This moves to the AI screen, so it honours the unsaved-settings guard
+    // like every other move between screens.
+    if (!this.leaveScreen('ai')) return undefined;
+
+    const connected = this.state.aiStatus && this.state.aiStatus.configured;
+    if (!connected) {
+      const key = known || this.aiKeyFor(question);
+      if (!key) return this.flash('No model is connected yet, so Profitna answers six set questions. Pick one above.');
+      return this.setState({ screen: 'ai', aiKey: key, aiQ: question, aiAnswer: null });
+    }
+
+    // Only the words of the last two exchanges go back up, so a follow-up —
+    // "and last month?" — has something to attach to.
+    const thread = (this.state.aiThread || []).slice(-4);
+    this.setState({ screen: 'ai', aiBusy: true, aiAsking: question, aiQ: question, aiAnswer: null, aiKey: null });
+
+    return API.post(this.orgPath('/ai/ask'), { question: question, history: thread })
+      .then((r) => this.setState((st) => ({
+        aiBusy: false,
+        aiAnswer: { question: question, answer: r.answer, table: r.table || null, lookups: r.lookups || [], model: r.model },
+        aiThread: thread.concat([{ role: 'user', content: question }, { role: 'assistant', content: r.answer }]),
+        aiStatus: Object.assign({}, st.aiStatus, { configured: true, model: r.model, askedToday: r.askedToday, limit: r.limit })
+      })))
+      .catch((err) => {
+        // A model that cannot answer must not take the screen down with it.
+        // What this page can work out for itself is shown instead, and the
+        // pill stops claiming a connection only when the server says there
+        // is none.
+        const key = known || this.aiKeyFor(question);
+        const gone = Boolean(err.body && err.body.configured === false);
+        this.setState((st) => ({
+          aiBusy: false, aiAnswer: null, aiKey: key,
+          aiStatus: gone ? Object.assign({}, st.aiStatus, { configured: false }) : st.aiStatus
+        }));
+        this.flash(key ? err.message + ' Showing what this page can work out instead.' : err.message);
+      });
+  }
+
+  askKey(key, q) { return () => this.runAsk(q, key); }
   confirmReminders(rows) { this.setState({ modal: 'reminders', form: { rows } }); }
 
   aiVals(d, o, months, catTotals, forecast, cash) {
@@ -2285,7 +2374,7 @@ class Component extends DCLogic {
       expenses: 'What are my biggest expenses?', cash: 'What is my cash flow forecast?', products: 'What products are most profitable?'
     };
     const chipKeys = church ? ['owes', 'overdue', 'revenue', 'expenses', 'cash'] : ['owes', 'overdue', 'revenue', 'expenses', 'cash', 'products'];
-    const aiChips = chipKeys.map((k) => ({ label: QS[k], go: () => this.setState({ aiKey: k, aiQ: QS[k] }) }));
+    const aiChips = chipKeys.map((k) => ({ label: QS[k], go: () => this.runAsk(QS[k], k) }));
 
     const A = {};
     A.owes = { headline: owing.length ? owing[0].name + ' carries the largest balance at ' + money(owing[0].amount) + '. Across all open invoices you are owed ' + money(this.ar()) + '.' : 'No customer currently owes you anything.',
@@ -2315,14 +2404,74 @@ class Component extends DCLogic {
       totalLabel: 'Gross profit, top 5', total: money(stock.slice(0, 5).reduce((a, x) => a + x.profit, 0)),
       primary: 'Open products', primaryGo: this.go('inventory'), secondary: 'Create purchase order', secondaryGo: () => this.flash('Purchase orders arrive in the next release.') };
 
-    const key = st.aiKey && A[st.aiKey] ? st.aiKey : null;
-    const ans = key ? Object.assign({ question: QS[key], note: 'Figures read from this workspace. No external model was called.' }, A[key], { hasRows: (A[key].rows || []).length > 0 }) : { question: '', headline: '', rows: [], hasRows: false, totalLabel: '', total: '', primary: '', secondary: '', note: '', primaryGo: () => {}, secondaryGo: () => {} };
+    // Where the answer on screen comes from. A live one from the model wins;
+    // otherwise the one this page worked out for itself; otherwise nothing is
+    // shown at all. The two are never mixed, so the note under the card is
+    // always true of the figures above it.
+    const live = st.aiAnswer;
+    const key = !live && st.aiKey && A[st.aiKey] ? st.aiKey : null;
+    const blank = { question: '', headline: '', rows: [], hasRows: false, totalLabel: '', total: '',
+      primary: '', secondary: '', note: '', primaryGo: () => {}, secondaryGo: () => {} };
 
-    return { insights, health, aiChips, ans, hasAnswer: !!key, noAnswer: !key, aiQ: st.aiQ,
+    // The lookup the model reached for says which screen is worth offering
+    // next, without it having to choose a button.
+    const NEXT = {
+      list_documents: ['View invoices', 'invoices', 'Open reports', 'reports'],
+      party_summary: ['View invoices', 'invoices', 'See transactions', 'transactions'],
+      list_stock: ['Open products', 'inventory', 'Open reports', 'reports'],
+      search_transactions: ['See transactions', 'transactions', 'Open reports', 'reports'],
+      period_totals: ['Open reports', 'reports', 'See transactions', 'transactions']
+    };
+    const next = NEXT[(live && live.lookups && live.lookups[live.lookups.length - 1]) || ''] ||
+      ['Open reports', 'reports', 'See transactions', 'transactions'];
+    const READ = {
+      search_transactions: 'your entries', period_totals: 'the totals for that period',
+      list_documents: 'your invoices and bills', party_summary: 'that account’s history',
+      list_stock: 'your products'
+    };
+    const read = live ? (live.lookups || []).map((l) => READ[l]).filter((x, i, all) => x && all.indexOf(x) === i) : [];
+
+    const ans = live
+      ? {
+        question: live.question,
+        headline: live.answer,
+        // Straight from the lookup the server ran, formatted here and
+        // nowhere else. The model never supplies a figure in this table.
+        rows: ((live.table && live.table.rows) || []).map((r) => ({
+          label: r.label, sub: r.sub, value: money(r.value),
+          color: r.negative ? '#8A2F1D' : '#1a1a1a'
+        })),
+        hasRows: Boolean(live.table && (live.table.rows || []).length),
+        totalLabel: (live.table && live.table.totalLabel) || '',
+        total: live.table ? money(live.table.total) : '',
+        primary: next[0], primaryGo: this.go(next[1]),
+        secondary: next[2], secondaryGo: this.go(next[3]),
+        note: 'Answered from this workspace' + (read.length ? ', after reading ' + read.join(' and ') : '') +
+          '. The figures in the table are read from your ledger.'
+      }
+      : key
+        ? Object.assign({ question: QS[key], note: 'Figures read from this workspace. No model was called.' },
+          A[key], { hasRows: (A[key].rows || []).length > 0 })
+        : blank;
+
+    const connected = Boolean(st.aiStatus && st.aiStatus.configured);
+    const showing = Boolean(live || key);
+
+    return { insights, health, aiChips, ans,
+      hasAnswer: showing && !st.aiBusy, noAnswer: !showing && !st.aiBusy,
+      aiBusy: Boolean(st.aiBusy), aiAsking: st.aiAsking || '',
+      aiBtnLabel: st.aiBusy ? 'Asking…' : 'Ask',
+      aiBtnOpacity: st.aiBusy ? '0.55' : '1',
+      // Said plainly either way. "Simulated" was the honest label while
+      // nothing was connected, and it would be a lie once something is.
+      aiPill: st.aiStatus === null ? 'Checking…'
+        : connected ? 'Reads your books · Profitna AI' : 'Simulated · no model connected',
+      aiPillBg: connected ? '#FAEEDA' : '#F1EEE6',
+      aiPillFg: connected ? '#412402' : '#5C5850',
+      aiQ: st.aiQ,
       onAiQ: (e) => this.setState({ aiQ: e.target.value }),
-      askAi: () => { const q = (st.aiQ || '').toLowerCase();
-        const k = /owe|owes|owing|debtor/.test(q) ? 'owes' : /overdue|late|chas/.test(q) ? 'overdue' : /revenue|made|sales|income|profit fall/.test(q) ? 'revenue' : /expense|spend|cost/.test(q) ? 'expenses' : /cash|forecast|runway/.test(q) ? 'cash' : /product|stock|inventor|margin/.test(q) ? 'products' : null;
-        if (k) this.setState({ aiKey: k }); else this.flash('Try one of the suggested questions — this build answers six of them.'); } };
+      onAiKey: (e) => { if (e.key === 'Enter') this.runAsk(this.state.aiQ); },
+      askAi: () => this.runAsk(st.aiQ) };
   }
   // ---------------- helpers ----------------
   d() { return this.state.mode === 'sme' ? this.state.sme : this.state.church; }
@@ -2392,14 +2541,20 @@ class Component extends DCLogic {
   }
 
   // ---------------- actions ----------------
+  // Leaving settings with unsaved edits asks first. Every route between
+  // screens comes through here, so there is nowhere for them to leak out.
+  // False means the person said no and the screen must not change.
+  leaveScreen(next) {
+    if (this.state.screen === 'settings' && next !== 'settings' && this.settingsDirty()) {
+      if (!window.confirm('You have unsaved changes in Settings. Leave without saving?')) return false;
+      this.setState({ draft: null });
+    }
+    return true;
+  }
+
   go(screen) {
     return () => {
-      // Leaving settings with unsaved edits asks first. This is the only
-      // route between screens, so there is nowhere else for them to leak out.
-      if (this.state.screen === 'settings' && screen !== 'settings' && this.settingsDirty()) {
-        if (!window.confirm('You have unsaved changes in Settings. Leave without saving?')) return;
-        this.setState({ draft: null });
-      }
+      if (!this.leaveScreen(screen)) return;
       this.setState({ screen, search: '', txType: 'all' });
     };
   }

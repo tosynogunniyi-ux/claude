@@ -79,6 +79,16 @@ not want to wait. Paying early does not cost the remaining days: the paid term
 starts when the trial *would* have ended, which is what the banner had always
 promised.
 
+**Ask Profitna** — the question box now has a model behind it. It is sent a
+snapshot of the books with every question (twelve months of totals, who owes
+what, cash, stock — about 1,300 tokens whether the books hold 100 entries or
+8,000), and it can run five read-only lookups for anything the snapshot does
+not hold. The table under each answer is built from the rows the lookup
+returned, not from the model's reply, so a figure on screen is always one the
+database produced. Without an API key nothing is faked: the pill says
+"Simulated · no model connected" and the screen answers the six questions it
+can work out for itself.
+
 **Trial length, per account** — the default is 14 days for new sign-ups. It
 went 14 → 30 → 14, and the second change could not work like the first: the
 length is now recorded on each subscription when it is created, so lowering
@@ -209,8 +219,10 @@ ways out — back to the dashboard, reload, sign out.
   branch by accident.
 - **Google sign-in** is still in Testing on the consent screen, so only
   tosyn.ogunniyi@gmail.com can use it. Publish it to open it up.
-- **Database backups** — no `pg_dump` schedule exists yet. This is the gap
-  that matters most of the ones listed here.
+- **Ask Profitna needs its key.** The code is live but the screen will keep
+  saying "Simulated · no model connected" until `ANTHROPIC_API_KEY` is set in
+  Easypanel → your app service → Environment. `GET /api/health` reports
+  `askModel` once it is, and nothing else needs changing.
 - **Mono's bank-connect widget** is not in the front end; the exchange,
   webhook and storage behind it are ready.
 - **Secrets exposed during setup** should be rotated: the VPS root password,
@@ -231,12 +243,14 @@ ways out — back to the dashboard, reload, sign out.
 `SEED_DEMO_DATA=true` fills each new account with eight months of sample
 Nigerian books. Leave it unset in production so real accounts start empty.
 
-Five test suites, run against a live server:
+Seven test suites, 414 checks, run against a live server and a real database:
 
 | Command | Checks | Covers |
 |---|---|---|
 | `npm run smoke` | 98 | Signup, ledger, invoices, inventory, imports, tenant isolation |
 | `npm run smoke:admin` | 86 | The Control Center, its auth and its second factor |
 | `npm run test:billing` | 49 | A trial through to a charge, a decline, a retry, a recovery |
-| `npm run test:monnify` | 71 | The processor, amounts, webhooks, and the live switch |
-| `npm run test:trial` | 14 | That changing the trial length moves existing accounts |
+| `npm run test:monnify` | 84 | The processor, amounts, webhooks, and the live switch |
+| `npm run test:ask` | 60 | What Profitna AI may read, and that its tables are the database's |
+| `npm run test:backup` | 21 | A real dump, read back, plus retention and the ways it fails |
+| `npm run test:trial` | 16 | That changing the trial length leaves running trials alone |
