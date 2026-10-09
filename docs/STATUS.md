@@ -4,7 +4,8 @@ A plain-language record of what has been built, what is live, and what is
 still waiting on somebody. Kept in the repository so it is always reachable:
 **github.com/tosynogunniyi-ux/claude → `docs/STATUS.md`**.
 
-Last updated 9 October 2026.
+Last updated 9 October 2026. **Monnify is live and the first real payment
+has gone through.**
 
 ---
 
@@ -103,6 +104,28 @@ appears in a charge.
 
 ---
 
+## Monnify, live
+
+Live since 9 October 2026, confirmed by a real ₦5,000 payment that activated
+the account. Getting there took five wrong turns worth remembering, because
+each hid the next:
+
+1. The app had no timeout on calls to Monnify, so a slow one hung until the
+   proxy served its own page.
+2. The browser was shown a raw JSON parser error instead of a sentence.
+3. The database pool had no timeouts either — not the cause here, but the
+   same class of fault.
+4. **Failures were answered with HTTP 502, and the proxy replaces a 5xx body
+   with its own HTML.** Every careful message about Monnify was being thrown
+   away at the last hop. Answering 424 fixed it, and only then was the real
+   error visible.
+5. **The server opened a Monnify transaction and then handed the SDK the same
+   reference**, so the SDK's own attempt was a duplicate. Monnify reported
+   "unable to process your transaction request" from inside its window.
+
+The lesson worth keeping from (4): a failure you are deliberately reporting to
+somebody belongs in the 4xx range. 5xx is the proxy's to take.
+
 ## Switching Monnify to live
 
 Monnify's sandbox and live dashboards are **separate accounts with separate
@@ -165,7 +188,13 @@ ways out — back to the dashboard, reload, sign out.
 
 ## Still open
 
-- **Take one live payment** end to end once the live keys are in.
+- **Database backups.** No `pg_dump` schedule exists. This was the biggest
+  gap before money was real; now it is the only one that could lose records
+  of payments people have actually made. Do this next.
+- **The billing scheduler now charges real cards** every hour it finds a term
+  that has ended. Worth watching the Control Center's Subscriptions page for
+  the first few renewals.
+
 - **The read-only Settings question** on Mideops Professional Services Ltd —
   `server/diagnose-role.sql` answers it; the output has not been looked at yet.
 - **The repository's default branch on GitHub is `backend-for-profitna`**,
