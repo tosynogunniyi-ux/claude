@@ -149,6 +149,12 @@ cd server && npm run create-admin -- --email you@example.com --name "Your Name"
 `/admin` answers 404 to everyone. See
 **[server/README.md](server/README.md#the-control-center)** for the rest.
 
+## Where things stand
+
+**[docs/STATUS.md](docs/STATUS.md)** — what is built, what is live, how to
+switch Monnify to live, what to do when payments will not start, and what is
+still open.
+
 ## Deploying
 
 See **[DEPLOY.md](DEPLOY.md)** — covers a VPS (including one already running
