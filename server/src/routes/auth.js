@@ -323,8 +323,8 @@ router.get('/config', (req, res) => {
     // Public by design — it pairs with the contract code in Monnify's own SDK
     // and cannot authorise anything on its own. The secret key never leaves
     // the server.
-    monnifyApiKey: monnify.configured() ? (process.env.MONNIFY_API_KEY || null) : null,
-    monnifyContractCode: monnify.configured() ? (process.env.MONNIFY_CONTRACT_CODE || null) : null
+    monnifyApiKey: monnify.configured() ? (monnify.conf('MONNIFY_API_KEY') || null) : null,
+    monnifyContractCode: monnify.configured() ? (monnify.conf('MONNIFY_CONTRACT_CODE') || null) : null
   });
 });
 

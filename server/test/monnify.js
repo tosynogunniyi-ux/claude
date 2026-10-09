@@ -417,6 +417,57 @@ const LOGIN_OK = {
   stubFetch();
 
   // =========================================================================
+  console.log('\ncredentials as they are actually pasted');
+  // =========================================================================
+  // Every one of these reached Monnify verbatim and came back as "invalid
+  // credentials", with nothing on screen to say the value merely had a
+  // bracket on it. A setup guide showing MONNIFY_API_KEY=<your key> is enough
+  // to cause it.
+  reset();
+  const pasted = [
+    ['exactly right', 'MK_PROD_ABC123'],
+    ['a trailing space', 'MK_PROD_ABC123 '],
+    ['a leading space', ' MK_PROD_ABC123'],
+    ['a trailing newline', 'MK_PROD_ABC123\n'],
+    ['wrapped in parentheses', '(MK_PROD_ABC123)'],
+    ['wrapped in angle brackets', '<MK_PROD_ABC123>'],
+    ['wrapped in double quotes', '"MK_PROD_ABC123"'],
+    ['wrapped in single quotes', "'MK_PROD_ABC123'"],
+    ['quoted and spaced', '  "MK_PROD_ABC123"  ']
+  ];
+  for (const [label, raw] of pasted) {
+    process.env.MONNIFY_API_KEY = raw;
+    check(label + ' still reaches Monnify as the bare key',
+      monnify.conf('MONNIFY_API_KEY') === 'MK_PROD_ABC123',
+      JSON.stringify(monnify.conf('MONNIFY_API_KEY')));
+  }
+
+  process.env.MONNIFY_API_KEY = 'MK_PROD_a(b)c';
+  check('brackets inside a key are left alone',
+    monnify.conf('MONNIFY_API_KEY') === 'MK_PROD_a(b)c',
+    'only the wrapping comes off, never the value');
+
+  process.env.MONNIFY_API_KEY = '   ';
+  check('a blank value stays blank', monnify.conf('MONNIFY_API_KEY') === '');
+
+  process.env.MONNIFY_API_KEY = '"MK_PROD_ABC123"';
+  process.env.MONNIFY_SECRET_KEY = 's';
+  process.env.MONNIFY_CONTRACT_CODE = 'c';
+  check('and the server says the setting itself is still wrong',
+    monnify.warnings().some((w) => /quotes, brackets or spaces/.test(w)),
+    'cleaning it up quietly would hide a mistake worth fixing');
+
+  // A wrapped secret must not break webhook signatures either.
+  process.env.MONNIFY_SECRET_KEY = '  "SECRET_XYZ"  ';
+  const body = Buffer.from('{"eventType":"SUCCESSFUL_TRANSACTION"}');
+  const sig = crypto.createHmac('sha512', 'SECRET_XYZ').update(body).digest('hex');
+  check('a wrapped secret still verifies a real webhook',
+    monnify.verifyWebhook(body, sig) === true,
+    'otherwise every payment notification would be rejected as forged');
+
+  withMonnify();
+
+  // =========================================================================
   console.log('\ngoing live');
   // =========================================================================
   // Each of these is a mismatch that otherwise shows up as a real customer's

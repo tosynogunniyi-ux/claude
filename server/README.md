@@ -317,9 +317,15 @@ with separate keys *and separate contract codes*, so all four values change
 together:
 
     MONNIFY_ENV=live
-    MONNIFY_API_KEY=<live key>
-    MONNIFY_SECRET_KEY=<live secret>
-    MONNIFY_CONTRACT_CODE=<live contract code>
+    MONNIFY_API_KEY=MK_PROD_...
+    MONNIFY_SECRET_KEY=...
+    MONNIFY_CONTRACT_CODE=...
+
+The value is whatever follows the `=`, bare: no quotes, no brackets, no
+spaces. The server strips those if it finds them and warns that the setting
+is still wrong, but a wrapped value is otherwise indistinguishable from a
+wrong key — it reaches Monnify verbatim and comes back "invalid
+ credentials".
 
 `MONNIFY_BASE_URL` overrides `MONNIFY_ENV` completely; unset it unless you are
 deliberately pointing at a test double. Register the webhook again in the live

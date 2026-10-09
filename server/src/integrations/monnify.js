@@ -38,6 +38,33 @@ function timeoutMs() {
   return Number(process.env.MONNIFY_TIMEOUT_MS || 8000);
 }
 
+// Credentials as pasted, cleaned of what pasting adds. A trailing newline
+// from a copied line, a stray space, or the quotes and brackets people wrap a
+// value in because a setup guide showed it that way — all of them travel into
+// the Authorization header and come back as "invalid credentials", with
+// nothing on screen to say the value merely has a space on the end.
+//
+// Only the wrapping is removed. Nothing inside the value is touched.
+function conf(name) {
+  const raw = process.env[name];
+  if (raw === undefined || raw === null) return '';
+  let v = String(raw).trim();
+  const pairs = [['"', '"'], ["'", "'"], ['<', '>'], ['(', ')'], ['[', ']'], ['{', '}']];
+  for (const [open, close] of pairs) {
+    while (v.length > 2 && v.startsWith(open) && v.endsWith(close)) {
+      v = v.slice(1, -1).trim();
+    }
+  }
+  return v;
+}
+
+// True when a value only works because conf() cleaned it up — worth saying so
+// rather than silently papering over a setting that is wrong on disk.
+function needsTidying(name) {
+  const raw = process.env[name];
+  return raw !== undefined && raw !== null && String(raw) !== conf(name) && conf(name) !== '';
+}
+
 function base() {
   if (process.env.MONNIFY_BASE_URL) return process.env.MONNIFY_BASE_URL.replace(/\/+$/, '');
   return process.env.MONNIFY_ENV === 'live' ? LIVE : SANDBOX;
@@ -53,8 +80,14 @@ function isLive() {
 function warnings() {
   const out = [];
   if (!configured()) return out;
-  const key = String(process.env.MONNIFY_API_KEY || '');
+  const key = conf('MONNIFY_API_KEY');
 
+  for (const name of ['MONNIFY_API_KEY', 'MONNIFY_SECRET_KEY', 'MONNIFY_CONTRACT_CODE']) {
+    if (needsTidying(name)) {
+      out.push(name + ' has quotes, brackets or spaces around it. They are being ignored, ' +
+        'but the value should be the bare key with nothing wrapped around it.');
+    }
+  }
   if (process.env.MONNIFY_BASE_URL) {
     out.push('MONNIFY_BASE_URL is set to ' + base() + ', which overrides MONNIFY_ENV entirely. ' +
       'Unset it unless you are pointing at a test double on purpose.');
@@ -70,7 +103,7 @@ function warnings() {
   // The sandbox and live dashboards issue different contract codes. A live key
   // with a sandbox contract code authenticates and then fails at the point of
   // taking money, which is the worst time to find out.
-  if (isLive() && !process.env.MONNIFY_CONTRACT_CODE) {
+  if (isLive() && !conf('MONNIFY_CONTRACT_CODE')) {
     out.push('MONNIFY_CONTRACT_CODE is not set.');
   }
   return out;
@@ -97,9 +130,9 @@ async function fetchMonnify(url, options, overrideMs) {
 
 function configured() {
   return Boolean(
-    process.env.MONNIFY_API_KEY &&
-    process.env.MONNIFY_SECRET_KEY &&
-    process.env.MONNIFY_CONTRACT_CODE
+    conf('MONNIFY_API_KEY') &&
+    conf('MONNIFY_SECRET_KEY') &&
+    conf('MONNIFY_CONTRACT_CODE')
   );
 }
 
@@ -112,7 +145,7 @@ let inFlight = null;
 
 async function login() {
   const basic = Buffer
-    .from(process.env.MONNIFY_API_KEY + ':' + process.env.MONNIFY_SECRET_KEY)
+    .from(conf('MONNIFY_API_KEY') + ':' + conf('MONNIFY_SECRET_KEY'))
     .toString('base64');
 
   const res = await fetchMonnify(base() + '/api/v1/auth/login', {
@@ -184,7 +217,7 @@ async function initTransaction({ amountNaira, email, name, reference, descriptio
     paymentReference: reference,
     paymentDescription: description || 'Profitna subscription',
     currencyCode: 'NGN',
-    contractCode: process.env.MONNIFY_CONTRACT_CODE
+    contractCode: conf('MONNIFY_CONTRACT_CODE')
   };
   // Both of these are rejected outright if the merchant account does not have
   // them enabled, so neither is sent unless it is asked for. Left out, Monnify
@@ -203,7 +236,7 @@ async function initTransaction({ amountNaira, email, name, reference, descriptio
   if (!res.ok || !out || !out.requestSuccessful || !data) {
     throw new Error('Monnify could not start that payment: ' +
       ((out && out.responseMessage) || ('HTTP ' + res.status)) +
-      ' (contract ' + process.env.MONNIFY_CONTRACT_CODE + ' at ' + base() + ')');
+      ' (contract ' + conf('MONNIFY_CONTRACT_CODE') + ' at ' + base() + ')');
   }
   return {
     checkoutUrl: data.checkoutUrl,
@@ -279,8 +312,8 @@ async function chargeAuthorization({ authorizationCode, email, amountNaira, refe
       paymentReference: reference,
       paymentDescription: 'Profitna subscription renewal',
       currencyCode: 'NGN',
-      contractCode: process.env.MONNIFY_CONTRACT_CODE,
-      apiKey: process.env.MONNIFY_API_KEY
+      contractCode: conf('MONNIFY_CONTRACT_CODE'),
+      apiKey: conf('MONNIFY_API_KEY')
     }
   });
 
@@ -305,7 +338,7 @@ async function chargeAuthorization({ authorizationCode, email, amountNaira, refe
 function verifyWebhook(rawBody, signature) {
   if (!configured() || !signature) return false;
   const expected = crypto
-    .createHmac('sha512', process.env.MONNIFY_SECRET_KEY)
+    .createHmac('sha512', conf('MONNIFY_SECRET_KEY'))
     .update(rawBody)
     .digest('hex');
   const a = Buffer.from(expected);
@@ -322,7 +355,7 @@ function _resetToken() { cached = null; inFlight = null; }
 async function ping(ms) {
   if (!configured()) throw new Error('Monnify is not configured');
   const basic = Buffer
-    .from(process.env.MONNIFY_API_KEY + ':' + process.env.MONNIFY_SECRET_KEY)
+    .from(conf('MONNIFY_API_KEY') + ':' + conf('MONNIFY_SECRET_KEY'))
     .toString('base64');
 
   const res = await fetchMonnify(base() + '/api/v1/auth/login', {
@@ -348,6 +381,7 @@ module.exports = {
   initTransaction,
   ping,
   base,
+  conf,
   isLive,
   warnings,
   _resetToken

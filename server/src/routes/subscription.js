@@ -526,9 +526,11 @@ router.get('/subscription/processor-check', requireOrg('admin'), async (req, res
             env: process.env.MONNIFY_ENV || 'sandbox (default)',
             // Enough to spot a mistyped or swapped value without printing it.
             live: monnify.isLive(),
-            apiKey: mask(process.env.MONNIFY_API_KEY),
-            secretKey: mask(process.env.MONNIFY_SECRET_KEY),
-            contractCode: mask(process.env.MONNIFY_CONTRACT_CODE)
+            // The cleaned values — what is actually sent. Anything wrapped
+            // around them is reported separately under `warnings`.
+            apiKey: mask(monnify.conf('MONNIFY_API_KEY')),
+            secretKey: mask(monnify.conf('MONNIFY_SECRET_KEY')),
+            contractCode: mask(monnify.conf('MONNIFY_CONTRACT_CODE'))
           }
         : null,
       paystack: {
