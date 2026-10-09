@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const { one, query } = require('../db');
 const { requireOrg, audit } = require('../auth');
 const paystack = require('../integrations/paystack');
@@ -447,40 +448,31 @@ router.post('/subscription/checkout', requireOrg('admin'), async (req, res, next
     const provider = gateway.name();
 
     if (provider === 'monnify') {
-      let started;
-      try {
-        started = await monnify.initTransaction({
-          amountNaira: amount,
-          email: req.user.email,
-          name: req.user.full_name || req.user.email,
-          reference: 'profitna-' + req.orgId + '-' + Date.now(),
-          description: 'Profitna subscription',
-          redirectUrl: (process.env.PUBLIC_URL || '').replace(/\/+$/, '') || undefined
-        });
-      } catch (err) {
-        // The processor refusing to open a transaction is a configuration
-        // problem on this server, not a fault of the person clicking Subscribe.
-        // "Something went wrong" sends whoever set it up to read container
-        // logs; Monnify's own words tell them which key is wrong. This route
-        // is admin-only, so the detail reaches the person who can fix it and
-        // nobody else.
-        console.error('monnify init-transaction failed:', err);
-        // 424, not 502, and the difference matters more than it looks. A
-        // reverse proxy in front of this app will happily replace a 5xx body
-        // with its own HTML error page, which is how every carefully worded
-        // message about Monnify ended up reaching the customer as "the server
-        // did not answer". 4xx is passed through untouched, and Failed
-        // Dependency is honest about what went wrong: this request could not
-        // be completed because something it depends on would not answer.
-        return res.status(424).json({ error: err.message });
-      }
+      // What the browser needs to open Monnify's own window, and nothing more.
+      //
+      // The transaction is deliberately NOT opened here. Monnify's SDK creates
+      // one itself, and a paymentReference may only be used once, so opening
+      // a transaction server-side and then handing the SDK the same reference
+      // makes the SDK's own attempt a duplicate — which it reports as "unable
+      // to process your transaction request", from inside its window, long
+      // after this server has stopped being involved. Two integration styles,
+      // each fine alone, fatal together.
+      //
+      // Nothing is lost by letting the SDK open it. The amount is not taken on
+      // trust from the browser either way: activate() verifies the payment
+      // with Monnify afterwards and refuses anything smaller than the plan
+      // costs, so a tampered amount buys nothing. It also keeps a call to
+      // Monnify out of the click path entirely, which is one less thing to
+      // time out between the button and the window.
+      const unique = Date.now().toString(36) + '-' + crypto.randomBytes(4).toString('hex');
       return res.json({
         provider,
         amount,
-        checkoutUrl: started.checkoutUrl,
-        // Verification is done against Monnify's own reference.
-        reference: started.transactionReference,
-        paymentReference: started.paymentReference
+        apiKey: monnify.conf('MONNIFY_API_KEY'),
+        contractCode: monnify.conf('MONNIFY_CONTRACT_CODE'),
+        reference: 'profitna-' + req.orgId + '-' + unique,
+        email: req.user.email,
+        name: req.user.full_name || req.user.email
       });
     }
 

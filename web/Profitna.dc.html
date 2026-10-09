@@ -2156,18 +2156,23 @@ class Component extends DCLogic {
       }
       // Monnify calls onComplete for a closed transaction whatever the
       // outcome, so the status is read rather than assumed.
+      // Every value here comes from the server's reply rather than from this
+      // page's own state, so there is one source for the reference, the keys
+      // and the price, and no chance of the window being opened against a
+      // different transaction than the one the server expects.
       SDK.initialize({
         amount: checkout.amount,
         currency: 'NGN',
-        reference: checkout.paymentReference,
-        customerFullName: this.state.session ? this.state.session.name : '',
-        customerEmail: this.state.session ? this.state.session.email : '',
-        apiKey: this.state.monnifyKey,
-        contractCode: this.state.monnifyContract,
+        reference: checkout.reference,
+        customerFullName: checkout.name,
+        customerEmail: checkout.email,
+        apiKey: checkout.apiKey,
+        contractCode: checkout.contractCode,
         paymentDescription: 'Profitna subscription',
         onComplete: (r) => {
           const status = String((r && (r.paymentStatus || r.status)) || '').toUpperCase();
           if (status === 'PAID' || status === 'SUCCESS' || status === 'COMPLETED') {
+            // Monnify's own reference is what the server verifies against.
             resolve((r && r.transactionReference) || checkout.reference);
           } else {
             reject(new Error('Monnify did not confirm that payment. Nothing has been charged.'));

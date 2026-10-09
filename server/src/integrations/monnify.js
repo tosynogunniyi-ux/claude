@@ -205,8 +205,15 @@ async function call(path, { method = 'GET', body } = {}) {
 // Payments
 // ---------------------------------------------------------------------------
 
-// Opens a transaction so the browser has something to pay against. Returns the
-// checkout URL and both references — Monnify's own and ours.
+// Opens a transaction server-side and returns its checkout URL.
+//
+// NOT used by the payment path, on purpose. Monnify's SDK opens its own
+// transaction, and a paymentReference may only be used once — so calling this
+// and then giving the SDK the same reference makes the SDK's attempt a
+// duplicate, which Monnify reports as "unable to process your transaction
+// request" from inside its own window. One side opens the transaction, never
+// both. Kept for a hosted checkoutUrl redirect flow, which would replace the
+// SDK rather than run alongside it.
 async function initTransaction({ amountNaira, email, name, reference, description, redirectUrl }) {
   if (!configured()) throw new Error('Monnify is not configured');
 
