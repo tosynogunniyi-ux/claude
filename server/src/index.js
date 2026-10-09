@@ -79,6 +79,12 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Something went wrong on our side.' });
 });
 
+// Said once at boot, where whoever just edited the keys is watching. Each of
+// these is a mismatch that otherwise surfaces as a customer's card failing.
+for (const w of require('./integrations/monnify').warnings()) {
+  console.warn('WARNING: ' + w);
+}
+
 if (require.main === module) {
   // Fail at boot rather than at the first sign-in attempt: a missing secret is
   // a deployment mistake, and it is far cheaper to find in the startup log.

@@ -417,6 +417,44 @@ const LOGIN_OK = {
   stubFetch();
 
   // =========================================================================
+  console.log('\ngoing live');
+  // =========================================================================
+  // Each of these is a mismatch that otherwise shows up as a real customer's
+  // card failing, which is an expensive way to learn about a typo.
+  reset();
+  const env = (o) => {
+    for (const k of ['MONNIFY_API_KEY', 'MONNIFY_SECRET_KEY', 'MONNIFY_CONTRACT_CODE',
+                     'MONNIFY_ENV', 'MONNIFY_BASE_URL']) delete process.env[k];
+    Object.assign(process.env, o);
+  };
+  const LIVE_OK = { MONNIFY_API_KEY: 'MK_PROD_A', MONNIFY_SECRET_KEY: 's', MONNIFY_CONTRACT_CODE: 'c', MONNIFY_ENV: 'live' };
+
+  env(LIVE_OK);
+  check('live mode points at the live host', monnify.base() === 'https://api.monnify.com');
+  check('and knows it is live', monnify.isLive() === true);
+  check('a correct live setup warns about nothing', monnify.warnings().length === 0,
+    JSON.stringify(monnify.warnings()));
+
+  env(Object.assign({}, LIVE_OK, { MONNIFY_API_KEY: 'MK_TEST_A' }));
+  check('a test key in live mode is caught',
+    monnify.warnings().some((w) => /test key/.test(w)), JSON.stringify(monnify.warnings()));
+
+  env(Object.assign({}, LIVE_OK, { MONNIFY_ENV: 'sandbox' }));
+  check('a live key sent to the sandbox is caught',
+    monnify.warnings().some((w) => /looks like a live key/.test(w)), JSON.stringify(monnify.warnings()));
+
+  env(Object.assign({}, LIVE_OK, { MONNIFY_BASE_URL: 'http://localhost:4900' }));
+  check('a base url left over from testing is caught',
+    monnify.warnings().some((w) => /overrides MONNIFY_ENV/.test(w)), JSON.stringify(monnify.warnings()));
+  check('and it really does override live',
+    monnify.isLive() === false && monnify.base() === 'http://localhost:4900',
+    'silently billing through a test double would be the worst outcome here');
+
+  env({});
+  check('an unconfigured server warns about nothing', monnify.warnings().length === 0);
+  withMonnify();
+
+  // =========================================================================
   console.log('\nchoosing a provider');
   // =========================================================================
   reset();

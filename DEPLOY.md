@@ -283,6 +283,13 @@ customers can pay, but no card is kept and nothing renews itself.
 
 **Paystack** — set `PAYSTACK_SECRET_KEY` and `PAYSTACK_PUBLIC_KEY`.
 
+Moving Monnify from sandbox to live changes all four values, not just the
+environment: the live dashboard issues its own key, secret **and contract
+code**. Unset `MONNIFY_BASE_URL` if it was ever set, re-register the webhook
+in the live dashboard, and check Card Tokenisation is on there too. The server
+warns at boot about a test key in live mode or a live key pointed at the
+sandbox.
+
 If both are set Monnify is used; `PAYMENT_PROVIDER=monnify` or
 `=paystack` settles it outright. Without either, trials still run, but an
 expired account cannot be paid for and the payment screen says so plainly

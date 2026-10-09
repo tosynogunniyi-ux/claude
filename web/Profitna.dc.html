@@ -210,6 +210,35 @@ window.__resources = {
 </div>
 </sc-if>
 
+<!-- Shown when building a screen threw. It sits above everything, because
+     what is behind it is a half-built page, and it exists so that a fault in
+     one screen's data is never a locked door: there is always a way back to
+     the dashboard, a way to reload, and a way out of the account. Nothing has
+     been lost — a screen failed to draw, the books are untouched. -->
+<sc-if value="{{ crashed }}" hint-placeholder-val="{{ false }}">
+<div style="position: fixed; inset: 0; background: rgba(26,26,26,0.72); display: flex; align-items: center; justify-content: center; z-index: 200; padding: 24px; animation: pf-fade .18s ease-out both;">
+  <div data-om="card" style="background: #FFFFFF; border: 1px solid #E5E1D8; border-top: 3px solid #FAC775; border-radius: 8px; max-width: 520px; width: 100%; padding: 28px;">
+    <div style="display: flex; align-items: flex-end; gap: 8px;">
+      <div style="font-size: 17px; font-weight: 700; letter-spacing: 0.08em; line-height: 1; color: #1a1a1a;">PROFIT<span style="color: #B8863A;">NA</span></div>
+    </div>
+    <h1 style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 22px; font-weight: 700; margin: 16px 0 6px; letter-spacing: -0.015em;">{{ crashScreen }} could not be drawn</h1>
+    <p style="font-size: 13.5px; color: #403D37; line-height: 1.55; margin: 0 0 4px; text-wrap: pretty;">Your books are safe and nothing has been changed. This is the screen failing to draw, not your data.</p>
+    <p style="font-size: 13.5px; color: #403D37; line-height: 1.55; margin: 0 0 18px; text-wrap: pretty;">Go back to the dashboard and carry on. If it keeps happening, send the line below to support@profitna.com.</p>
+    <div style="background: #F7F5F0; border: 1px solid #E5E1D8; border-radius: 6px; padding: 10px 12px; font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: #5C5850; word-break: break-word; margin-bottom: 20px;">{{ crashDetail }}</div>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+      <sc-if value="{{ crashOnDashboard }}" hint-placeholder-val="{{ false }}">
+        <button onClick="{{ crashReload }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); padding: 11px 18px; font-size: 13px; font-weight: 600; cursor: pointer;" style-hover="background: #FAC775; color: #1a1a1a;">Reload Profitna</button>
+      </sc-if>
+      <sc-if value="{{ crashElsewhere }}" hint-placeholder-val="{{ true }}">
+        <button onClick="{{ crashToDashboard }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.18); padding: 11px 18px; font-size: 13px; font-weight: 600; cursor: pointer;" style-hover="background: #FAC775; color: #1a1a1a;">Back to the dashboard</button>
+        <button onClick="{{ crashReload }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 11px 18px; font-size: 13px; font-weight: 500; cursor: pointer;" style-hover="background: #F4F3EE;">Reload</button>
+      </sc-if>
+      <button onClick="{{ crashSignOut }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 11px 18px; font-size: 13px; font-weight: 500; cursor: pointer; margin-left: auto;" style-hover="border-color: #9E3A26; color: #9E3A26;">Sign out</button>
+    </div>
+  </div>
+</div>
+</sc-if>
+
 <sc-if value="{{ showAuth }}" hint-placeholder-val="{{ true }}">
 <div style="display: flex; min-height: 100vh; align-items: stretch; flex-wrap: wrap; background: #F4F3EE;">
 
@@ -2978,7 +3007,7 @@ class Component extends DCLogic {
           screen: (this.state.teamFresh || []).length ? 'settings' : 'dashboard',
           toast: (this.state.teamFresh || []).length
             ? 'Books ready. Send your team their invite links below.'
-            : 'Trial started — free until ' + longDate(shift(14)) + ', no card needed.'
+            : 'Trial started — free until ' + longDate(shift(this.state.trialDays)) + ', no card needed.'
         }))
         .catch((err) => this.setAuth({ err: err.message, busy: false }));
     };
@@ -3544,7 +3573,82 @@ class Component extends DCLogic {
   }
 
   // ---------------- render ----------------
+  // The whole interface is built from one function, so anything it throws
+  // takes the entire app down with it — the runtime's boundary replaces the
+  // page with a developer's error string and there is no way back except a
+  // reload, which reproduces a fault that lives in the data. That is being
+  // locked out of your own books by a bad row.
+  //
+  // So the build is attempted, and a failure lands on a recovery screen that
+  // still offers a way out. `crashed` is derived from the attempt rather than
+  // stored, like everything else here: once the cause is gone it stops being
+  // true on its own.
   renderVals() {
+    let vals;
+    try {
+      vals = this.buildVals();
+    } catch (err) {
+      // Nothing was salvageable — the fault is outside any one section.
+      console.error('[profitna] the "' + this.state.screen + '" screen failed to render:', err);
+      return this.crashVals(err);
+    }
+    // A section failed but the rest of the app built. Only say so if it is the
+    // screen being looked at; a broken Settings should not interrupt someone
+    // reading their dashboard.
+    const broken = this._broken;
+    if (broken && broken.screen === this.state.screen) {
+      return Object.assign(vals, this.crashVals({ message: broken.detail }));
+    }
+    return vals;
+  }
+
+  // Builds one screen's share of the view-model, and contains a failure to
+  // that screen. Without this a bad row behind Settings takes the dashboard,
+  // the invoices and the reports with it, because every section is built on
+  // every render whatever screen is showing. With it, the rest of the app
+  // stays usable and only the affected screen says so.
+  section(screen, build, fallback) {
+    try {
+      return build();
+    } catch (err) {
+      console.error('[profitna] the "' + screen + '" section failed to build:', err);
+      this._broken = { screen: screen, detail: (err && err.message) || String(err) };
+      return fallback;
+    }
+  }
+
+  // Deliberately almost empty. Every list the shell walks resolves to nothing
+  // rather than throwing a second time, and the overlay sits above whatever is
+  // left. The three ways out cover the three real cases: the fault belongs to
+  // one screen, the fault is in this tab's state, or the account itself needs
+  // leaving.
+  crashVals(err) {
+    const st = this.state;
+    const SCREENS = {
+      dashboard: 'Dashboard', ai: 'Ask Profitna', transactions: 'Expenses & Income',
+      invoices: 'Invoices', bills: 'Bills', contacts: 'Customers & Suppliers',
+      inventory: 'Products', reconcile: 'Reconciliation', reports: 'Reports',
+      settings: 'Settings'
+    };
+    return {
+      crashed: true,
+      crashScreen: SCREENS[st.screen] || st.screen || 'this screen',
+      crashDetail: (err && err.message) ? String(err.message).slice(0, 300) : String(err),
+      crashOnDashboard: st.screen === 'dashboard',
+      crashElsewhere: st.screen !== 'dashboard',
+      crashToDashboard: () => this.setState({ screen: 'dashboard', modal: null, form: {} }),
+      crashReload: () => { try { window.location.reload(); } catch (e) { /* nothing left to try */ } },
+      crashSignOut: () => API.post('/auth/signout').catch(() => {}).then(() => this.setState({
+        session: null, account: null, sme: EMPTY_BOOK(), church: EMPTY_BOOK(),
+        screen: 'dashboard', modal: null, form: {},
+        auth: { view: 'login', step: 1, name: '', org: '', email: '', pw: '', book: null, cycle: 'monthly', users: 1, err: '', busy: false, seats: [] },
+        team: null, teamFresh: []
+      }))
+    };
+  }
+
+  buildVals() {
+    this._broken = null;
     const st = this.state, d = this.d(), o = this.o(), r = this.range(), church = st.mode === 'church';
     const per = d.tx.filter((t) => this.inRange(t, r));
     const income = this.sum(per, 'income'), expense = this.sum(per, 'expense');
@@ -3870,7 +3974,7 @@ class Component extends DCLogic {
     // The profile, the accounts, the logo and the Save button that governs
     // all three. Opening cash is no longer a field here: it is the sum of the
     // bank accounts' opening balances, which are edited below.
-    const settings = this.settingsVals(o, d, money);
+    const settings = this.section('settings', () => this.settingsVals(o, d, money), {});
     const catRows = d.cats.map((c, i) => ({
       name: c.name, pct: String(c.pct),
       onChange: (e) => {

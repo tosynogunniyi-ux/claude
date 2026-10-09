@@ -312,6 +312,27 @@ card token — in the same field.
   checks `subscriptions.provider` and declines to try, because the token
   means nothing to them and the customer would see a decline on a good card.
 
+**Going live.** Monnify's sandbox and live dashboards are separate accounts
+with separate keys *and separate contract codes*, so all four values change
+together:
+
+    MONNIFY_ENV=live
+    MONNIFY_API_KEY=<live key>
+    MONNIFY_SECRET_KEY=<live secret>
+    MONNIFY_CONTRACT_CODE=<live contract code>
+
+`MONNIFY_BASE_URL` overrides `MONNIFY_ENV` completely; unset it unless you are
+deliberately pointing at a test double. Register the webhook again in the live
+dashboard — sandbox registrations do not carry over — and confirm Card
+Tokenisation is enabled on the live account, or payments will work and
+renewals will not.
+
+The server checks these against each other at boot and prints a warning for
+each mismatch: a test key in live mode, a live key pointed at the sandbox, a
+leftover base URL. The same warnings come back from the processor check below.
+They catch the mistakes that otherwise surface as a real customer's card
+failing.
+
 **When payments will not start**, sign in as an admin and open
 
     /api/orgs/<organisation id>/subscription/processor-check

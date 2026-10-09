@@ -517,6 +517,7 @@ router.get('/subscription/processor-check', requireOrg('admin'), async (req, res
             baseUrl: monnify.base(),
             env: process.env.MONNIFY_ENV || 'sandbox (default)',
             // Enough to spot a mistyped or swapped value without printing it.
+            live: monnify.isLive(),
             apiKey: mask(process.env.MONNIFY_API_KEY),
             secretKey: mask(process.env.MONNIFY_SECRET_KEY),
             contractCode: mask(process.env.MONNIFY_CONTRACT_CODE)
@@ -527,6 +528,9 @@ router.get('/subscription/processor-check', requireOrg('admin'), async (req, res
         publicKey: process.env.PAYSTACK_PUBLIC_KEY ? mask(process.env.PAYSTACK_PUBLIC_KEY) : null
       }
     };
+
+    const warnings = monnify.warnings();
+    if (warnings.length) out.warnings = warnings;
 
     if (provider !== 'monnify') {
       out.result = provider === 'none'
