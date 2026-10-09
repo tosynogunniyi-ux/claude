@@ -28,7 +28,33 @@ app.post('/api/webhooks/mono', express.json(), bankRoutes.monoWebhook);
 app.use(express.json({ limit: '2mb' }));
 app.use(cookieParser());
 
-app.get('/api/health', (req, res) => res.json({ ok: true }));
+// Enough to answer the three questions that otherwise need a guess: is the
+// code I just deployed the code that is running, is the container restarting
+// under me, and is the database answering. Public, so it carries no secret
+// and no configuration — only facts about this process.
+const BOOTED_AT = new Date().toISOString();
+app.get('/api/health', async (req, res) => {
+  const started = Date.now();
+  let db = 'ok';
+  try {
+    await require('./db').query('SELECT 1');
+  } catch (err) {
+    db = 'failing: ' + err.message;
+  }
+  res.json({
+    ok: db === 'ok',
+    db,
+    dbMs: Date.now() - started,
+    // A small number here means the app has restarted recently, which is the
+    // difference between "my change is not deployed" and "it crashed again".
+    uptimeSeconds: Math.round(process.uptime()),
+    bootedAt: BOOTED_AT,
+    // Two values that move with the code, so a stale deploy is visible
+    // without digging: both changed in the releases around this one.
+    trialDays: require('./pricing').TRIAL_DAYS,
+    paymentProvider: require('./integrations/gateway').name()
+  });
+});
 app.use('/api/auth', authRoutes.router);
 // Following an invitation link happens before there is anything to sign in
 // with, so this is keyed on the token rather than on a session.

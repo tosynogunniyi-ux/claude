@@ -333,6 +333,14 @@ leftover base URL. The same warnings come back from the processor check below.
 They catch the mistakes that otherwise surface as a real customer's card
 failing.
 
+**Is the deploy live, and is it healthy?** `GET /api/health` needs no sign-in
+and answers three questions that otherwise take guesswork: `uptimeSeconds`
+(a small number means it restarted just now, which is the difference between
+"my change is not deployed" and "it crashed again"), `db` and `dbMs` (whether
+Postgres is answering and how fast), and `trialDays` / `paymentProvider`,
+which move with the code so a stale deploy shows up without digging. It
+carries no secrets and no configuration.
+
 **When payments will not start**, sign in as an admin and open
 
     /api/orgs/<organisation id>/subscription/processor-check
