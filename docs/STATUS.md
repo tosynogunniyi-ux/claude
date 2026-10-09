@@ -188,9 +188,12 @@ ways out — back to the dashboard, reload, sign out.
 
 ## Still open
 
-- **Database backups.** No `pg_dump` schedule exists. This was the biggest
-  gap before money was real; now it is the only one that could lose records
-  of payments people have actually made. Do this next.
+- **Copy the backups off the machine.** Nightly dumps now run and are
+  verified, but they sit on the same VPS as the database. That covers a bad
+  migration or a wrong `DELETE`; it does not cover losing the server. A
+  scheduled `docker compose cp app:/data/backups ...` to anywhere else closes
+  it. Check `GET /api/admin/backups` says `healthy: true` after the first
+  night.
 - **The billing scheduler now charges real cards** every hour it finds a term
   that has ended. Worth watching the Control Center's Subscriptions page for
   the first few renewals.

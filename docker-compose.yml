@@ -39,6 +39,10 @@ services:
       MONNIFY_SECRET_KEY: ${MONNIFY_SECRET_KEY:-}
       MONNIFY_CONTRACT_CODE: ${MONNIFY_CONTRACT_CODE:-}
       MONNIFY_ENV: ${MONNIFY_ENV:-sandbox}
+      # Nightly pg_dump into the backups volume below.
+      BACKUP_ENABLED: ${BACKUP_ENABLED:-on}
+      BACKUP_DIR: /data/backups
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-opus-5}
       MONO_SECRET_KEY: ${MONO_SECRET_KEY:-}
@@ -54,6 +58,11 @@ services:
       BILLING_INTERVAL_MINUTES: ${BILLING_INTERVAL_MINUTES:-60}
       # Deliberately not set in production: real accounts start empty.
       # SEED_DEMO_DATA: "true"
+    volumes:
+      # Where the nightly dumps land. A named volume, so they survive a
+      # redeploy — and so they are somewhere you can copy off the machine,
+      # which is the half of a backup this cannot do for you.
+      - backups:/data/backups
     # Migrations run to completion before the server accepts traffic.
     command: sh -c "node src/migrate.js && node src/index.js"
 
@@ -73,5 +82,6 @@ services:
 
 volumes:
   db-data:
+  backups:
   caddy-data:
   caddy-config:

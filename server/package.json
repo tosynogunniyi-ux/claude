@@ -14,7 +14,8 @@
     "smoke:admin": "node test/admin-smoke.js",
     "test:billing": "node test/billing.js",
     "test:monnify": "node test/monnify.js",
-    "test:trial": "node test/trial.js"
+    "test:trial": "node test/trial.js",
+    "test:backup": "node test/backup.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.0",

@@ -386,6 +386,52 @@ spot a swapped or truncated value without printing it.
 `locked` is derived, like document status and subscription expiry: a stored
 flag would be correct only until the next midnight nothing ran through.
 
+## Backups
+
+`src/backup.js` takes a `pg_dump` on a schedule, inside the server process and
+under its own advisory lock, so more than one container does not dump at once.
+Defaults: every 24 hours into `/data/backups`, keeping 14 days.
+
+It asks on each tick whether the newest dump has aged out rather than firing
+at a fixed hour. A container that restarts overnight would miss a fixed hour
+entirely and nobody would find out until the day the backup was needed; this
+way the schedule heals itself.
+
+Three things it does that a one-line cron job usually does not:
+
+- **Verifies.** `pg_restore --list` has to read the table of contents before
+  the file is accepted. An unverified backup is a guess.
+- **Writes under a temporary name** and renames only after that check passes,
+  so a half-written file is never left looking like a backup.
+- **Never deletes the last one.** However far past retention it is, an old
+  backup beats none — a database that has stopped dumping should not erase
+  its own history as well.
+
+`GET /api/admin/backups` reports whether `pg_dump` is present, how old the
+newest dump is, and one `healthy` boolean. A schedule nobody can see is a
+schedule nobody notices has stopped.
+
+**What this does not do, and you should.** The dumps sit on the same machine
+as the database. That covers a bad migration, a wrong `DELETE`, a corrupted
+table — but not losing the server. Copy them somewhere else on a schedule of
+your own:
+
+```bash
+# From anywhere with SSH to the host, nightly:
+docker compose cp app:/data/backups ./profitna-backups
+```
+
+and keep them somewhere that is not that machine. Restoring is:
+
+```bash
+createdb profitna_restored
+pg_restore --no-owner --no-acl -d profitna_restored profitna-<stamp>.dump
+```
+
+That restore has been exercised, not assumed: `npm run test:backup` takes a
+real dump and reads it back, and the full round trip into an empty database
+was checked row-for-row across every table.
+
 ## Automatic billing
 
 `src/billing.js` is what makes a trial end. It runs inside the server process

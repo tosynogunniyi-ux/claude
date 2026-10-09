@@ -700,6 +700,39 @@ router.patch('/subscriptions/:id', async (req, res, next) => {
 // AUTOMATIC BILLING
 // =========================================================================
 
+// Are the backups actually happening? A schedule nobody can see is a schedule
+// nobody notices has stopped, and the night it matters is the wrong time to
+// find out. Owner-only, like everything else here.
+router.get('/backups', async (req, res, next) => {
+  try {
+    const backup = require('../backup');
+    const tool = await backup.toolAvailable();
+    const all = backup.list();
+    const newest = all[0] || null;
+    const hoursOld = newest
+      ? Math.round((Date.now() - new Date(newest.takenAt).getTime()) / 36e5)
+      : null;
+    res.json({
+      enabled: backup.enabled(),
+      // Without this nothing else here can be true.
+      pgDump: tool,
+      directory: backup.dir(),
+      everyHours: backup.intervalHours(),
+      keepDays: backup.keepDays(),
+      count: all.length,
+      newest,
+      hoursSinceNewest: hoursOld,
+      // The one line worth reading.
+      healthy: tool.available && Boolean(newest) && hoursOld !== null &&
+        hoursOld < backup.intervalHours() * 2,
+      totalBytes: all.reduce((n, b) => n + b.bytes, 0),
+      backups: all.slice(0, 30)
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get('/billing', async (req, res, next) => {
   try {
     const [last, waiting, ready, recent] = await Promise.all([
