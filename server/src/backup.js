@@ -31,6 +31,11 @@ function intervalHours() { return Number(process.env.BACKUP_INTERVAL_HOURS || 24
 function keepDays() { return Number(process.env.BACKUP_KEEP_DAYS || 14); }
 function enabled() { return String(process.env.BACKUP_ENABLED || 'on').toLowerCase() !== 'off'; }
 
+// The last attempt, kept in memory so the owner's console can say why there
+// is no backup rather than only that there is none. Lost on restart, which is
+// fine: the files on disk are the record, this is the explanation.
+let lastAttempt = null;
+
 const PREFIX = 'profitna-';
 const SUFFIX = '.dump';
 
@@ -105,6 +110,12 @@ function ensureDir() {
 }
 
 async function once(reason) {
+  const result = await attempt(reason);
+  lastAttempt = Object.assign({ at: new Date().toISOString() }, result);
+  return result;
+}
+
+async function attempt(reason) {
   if (!process.env.DATABASE_URL) return { ok: false, error: 'DATABASE_URL is not set' };
 
   try {
@@ -165,6 +176,28 @@ function prune() {
     }
   });
   return removed;
+}
+
+// Can we write there at all? Answerable before any backup has been tried,
+// which is the question when the count is still zero.
+function writable() {
+  try {
+    ensureDir();
+    const probe = path.join(dir(), '.writable-probe');
+    fs.writeFileSync(probe, 'x');
+    fs.unlinkSync(probe);
+    return { ok: true };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err.message,
+      hint: err.code === 'EACCES' || err.code === 'EPERM'
+        ? 'The directory exists but this container cannot write to it. A volume ' +
+          'mounted here arrives owned by root, while the app runs as uid 1000. ' +
+          'Give the volume to uid 1000, or point BACKUP_DIR somewhere writable.'
+        : 'Check BACKUP_DIR and that a volume is mounted there.'
+    };
+  }
 }
 
 function dueNow() {
@@ -229,4 +262,5 @@ async function toolAvailable() {
   return { available: r.ok, version: r.ok ? (r.out || '').trim() : null };
 }
 
-module.exports = { start, once, list, prune, dueNow, dir, keepDays, intervalHours, enabled, toolAvailable };
+module.exports = { start, once, list, prune, dueNow, dir, keepDays, intervalHours, enabled,
+  toolAvailable, writable, lastAttempt: () => lastAttempt };

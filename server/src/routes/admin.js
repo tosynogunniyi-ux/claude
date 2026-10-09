@@ -707,6 +707,8 @@ router.get('/backups', async (req, res, next) => {
   try {
     const backup = require('../backup');
     const tool = await backup.toolAvailable();
+    const canWrite = backup.writable();
+    const last = backup.lastAttempt();
     const all = backup.list();
     const newest = all[0] || null;
     const hoursOld = newest
@@ -714,8 +716,13 @@ router.get('/backups', async (req, res, next) => {
       : null;
     res.json({
       enabled: backup.enabled(),
-      // Without this nothing else here can be true.
+      // Without these two nothing else here can be true.
       pgDump: tool,
+      writable: canWrite,
+      // Why there is no backup, not merely that there is none. A count of
+      // zero an hour after a deploy means something, and reading container
+      // logs to find out what is a poor way to spend that hour.
+      lastAttempt: last,
       directory: backup.dir(),
       everyHours: backup.intervalHours(),
       keepDays: backup.keepDays(),
@@ -723,11 +730,33 @@ router.get('/backups', async (req, res, next) => {
       newest,
       hoursSinceNewest: hoursOld,
       // The one line worth reading.
-      healthy: tool.available && Boolean(newest) && hoursOld !== null &&
+      healthy: tool.available && canWrite.ok && Boolean(newest) && hoursOld !== null &&
         hoursOld < backup.intervalHours() * 2,
+      // One line to read when healthy is false.
+      note: !tool.available ? 'pg_dump is missing from this image.'
+        : !canWrite.ok ? 'Cannot write to ' + backup.dir() + '. ' + canWrite.hint
+        : !newest ? (last && !last.ok ? 'The last attempt failed: ' + last.error
+            : 'No backup yet. The first runs a minute after the server starts — ' +
+              'use Run now rather than waiting.')
+        : hoursOld >= backup.intervalHours() * 2 ? 'The newest backup is ' + hoursOld + ' hours old.'
+        : 'Backups are running.',
       totalBytes: all.reduce((n, b) => n + b.bytes, 0),
       backups: all.slice(0, 30)
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Take one immediately. Waiting a day to learn whether backups work is a day
+// of not knowing, and the first thing anybody wants after setting this up is
+// to see a file appear.
+router.post('/backups/run', async (req, res, next) => {
+  try {
+    const backup = require('../backup');
+    const result = await backup.once('manual');
+    await adminAudit(req, result.ok ? 'backup.taken' : 'backup.failed', null, null, result);
+    res.status(result.ok ? 200 : 424).json(result);
   } catch (err) {
     next(err);
   }

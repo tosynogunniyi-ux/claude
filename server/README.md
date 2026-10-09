@@ -407,9 +407,18 @@ Three things it does that a one-line cron job usually does not:
   backup beats none — a database that has stopped dumping should not erase
   its own history as well.
 
-`GET /api/admin/backups` reports whether `pg_dump` is present, how old the
-newest dump is, and one `healthy` boolean. A schedule nobody can see is a
-schedule nobody notices has stopped.
+`GET /api/admin/backups` reports whether `pg_dump` is present, whether the
+directory can actually be written to, how old the newest dump is, the last
+attempt and why it failed if it did, one `healthy` boolean and one `note`
+saying what to do about it. A schedule nobody can see is a schedule nobody
+notices has stopped, and `healthy: false` with no reason is barely better.
+
+`POST /api/admin/backups/run` takes one immediately. Waiting a day to find out
+whether backups work is a day of not knowing.
+
+The commonest reason for `writable: false` is a volume mounted at
+`/data/backups` arriving owned by root while the app runs as uid 1000. The
+endpoint says so rather than leaving it to be guessed.
 
 **What this does not do, and you should.** The dumps sit on the same machine
 as the database. That covers a bad migration, a wrong `DELETE`, a corrupted
