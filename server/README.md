@@ -258,13 +258,23 @@ archived — the rows sit where they were.
 
 **Paying** goes through `POST /orgs/:id/subscription/activate`. The browser
 first asks `POST /orgs/:id/subscription/checkout`, which says which window to
-open and, for Monnify, opens the transaction server-side so the amount is
-already bound to the real price. The customer pays in the processor's own
-window and sends back a reference; the server verifies it, refuses a payment
-smaller than the plan costs, and takes the amount, the card and the reusable
-credential from that verification rather than from the client. The term then
-starts where access currently runs out — which reopens the books, since access
-is read from the period end and never from a flag.
+open and hands back the keys, the price and a fresh unique reference. The
+customer pays in the processor's own window and sends back a reference; the
+server verifies it, **refuses a payment smaller than the plan costs**, and
+takes the amount, the card and the reusable credential from that verification
+rather than from the client. That check is what makes it safe for the browser
+to name the amount at all. The term then starts where access currently runs
+out — which reopens the books, since access is read from the period end and
+never from a flag.
+
+`monnify.initTransaction()` exists and is tested, but **nothing in the payment
+path calls it, deliberately**. Monnify's SDK opens its own transaction and a
+`paymentReference` may be used only once, so opening one server-side and then
+handing the SDK that same reference makes the SDK's attempt a duplicate —
+reported as "unable to process your transaction request" from inside Monnify's
+window, long after this server has stopped being involved. One side opens the
+transaction, never both. The function is kept for a hosted `checkoutUrl`
+redirect flow, which would replace the SDK rather than run alongside it.
 
 That last point is `rollPeriod()`, and it is deliberately not "today". A
 customer who subscribes from Settings with four days of trial left keeps those
