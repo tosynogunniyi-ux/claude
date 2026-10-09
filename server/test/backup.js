@@ -80,6 +80,38 @@ const stale = (file) => fs.utimesSync(file, new Date('2020-01-01'), new Date('20
     fs.readdirSync(DIR).filter((f) => f.endsWith('.part')).length === 0,
     'a partial file that looks like a backup is worse than no file');
 
+  console.log('\nclient against server');
+  // The real failure on the live server: a 16 client meeting a 17 database.
+  // pg_dump reads older servers happily and newer ones never, so the only
+  // wrong answer is a client behind the database.
+  const here = await backup.compatibility();
+  check('it can see both versions',
+    here.available && here.clientMajor !== null && here.serverMajor !== null,
+    JSON.stringify(here));
+  check('and matching versions are compatible', here.compatible === true, JSON.stringify(here));
+
+  const fakeBin = fs.mkdtempSync(path.join(os.tmpdir(), 'fakebin-'));
+  fs.writeFileSync(path.join(fakeBin, 'pg_dump'),
+    '#!/bin/sh\n' +
+    'if [ "$1" = "--version" ]; then echo "pg_dump (PostgreSQL) 16.15"; exit 0; fi\n' +
+    'echo "pg_dump: error: aborting because of server version mismatch" >&2\n' +
+    'echo "pg_dump: detail: server version: 17.11; pg_dump version: 16.15" >&2\n' +
+    'exit 1\n');
+  fs.chmodSync(path.join(fakeBin, 'pg_dump'), 0o755);
+  const realPath2 = process.env.PATH;
+  process.env.PATH = fakeBin + ':' + realPath2;
+
+  const mismatched = await backup.once('test');
+  check('a version mismatch is reported as a failure', mismatched.ok === false);
+  check('and comes with the fix rather than only the complaint',
+    typeof mismatched.fix === 'string' && /at least as new as the database/.test(mismatched.fix),
+    'pg_dump\'s own words are accurate and say nothing about what to do');
+  check('leaving no half-written file',
+    fs.readdirSync(DIR).filter((f) => f.endsWith('.part')).length === 0);
+
+  process.env.PATH = realPath2;
+  fs.rmSync(fakeBin, { recursive: true, force: true });
+
   console.log('\nswitches');
   process.env.BACKUP_ENABLED = 'off';
   check('backups can be turned off', backup.enabled() === false);

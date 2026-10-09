@@ -47,7 +47,8 @@ Root holds the deployment files: `Dockerfile`, the two compose files, and
 
 ## Running it locally
 
-Needs Node 22 and PostgreSQL 16.
+Needs Node 22 and PostgreSQL 16 or newer. The Docker image ships a `pg_dump`
+for the backups that must be at least as new as the database it dumps.
 
 ```bash
 createdb profitna

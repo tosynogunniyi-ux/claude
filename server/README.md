@@ -416,6 +416,14 @@ notices has stopped, and `healthy: false` with no reason is barely better.
 `POST /api/admin/backups/run` takes one immediately. Waiting a day to find out
 whether backups work is a day of not knowing.
 
+**The client must be at least as new as the database.** `pg_dump` reads older
+servers back many versions and refuses a newer one outright, so the Dockerfile
+asks for the newest client first and falls back. Pinning it to the version in
+`docker-compose.yml` is the trap: a managed database elsewhere may be ahead of
+it, and the first sign is every nightly dump aborting. The server compares the
+two at boot and the console reports it, so this is visible rather than
+discovered the night it matters.
+
 The commonest reason for `writable: false` is a volume mounted at
 `/data/backups` arriving owned by root while the app runs as uid 1000. The
 endpoint says so rather than leaving it to be guessed.

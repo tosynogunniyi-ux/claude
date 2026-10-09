@@ -706,7 +706,7 @@ router.patch('/subscriptions/:id', async (req, res, next) => {
 router.get('/backups', async (req, res, next) => {
   try {
     const backup = require('../backup');
-    const tool = await backup.toolAvailable();
+    const tool = await backup.compatibility();
     const canWrite = backup.writable();
     const last = backup.lastAttempt();
     const all = backup.list();
@@ -730,10 +730,15 @@ router.get('/backups', async (req, res, next) => {
       newest,
       hoursSinceNewest: hoursOld,
       // The one line worth reading.
-      healthy: tool.available && canWrite.ok && Boolean(newest) && hoursOld !== null &&
+      healthy: tool.available && tool.compatible !== false && canWrite.ok &&
+        Boolean(newest) && hoursOld !== null &&
         hoursOld < backup.intervalHours() * 2,
       // One line to read when healthy is false.
       note: !tool.available ? 'pg_dump is missing from this image.'
+        : tool.compatible === false
+          ? 'pg_dump is ' + tool.clientMajor + ' but the database is ' + tool.serverMajor +
+            '. A client can read an older server, never a newer one, so the image needs ' +
+            'a ' + tool.serverMajor + ' client or later and a rebuild.'
         : !canWrite.ok ? 'Cannot write to ' + backup.dir() + '. ' + canWrite.hint
         : !newest ? (last && !last.ok ? 'The last attempt failed: ' + last.error
             : 'No backup yet. The first runs a minute after the server starts — ' +

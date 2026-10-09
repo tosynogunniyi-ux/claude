@@ -7,17 +7,21 @@ WORKDIR /app
 
 # pg_dump and pg_restore for the nightly backup.
 #
-# 16 first, to match the database. A newer client can dump an older server, so
-# the unpinned package is a safe fallback if Alpine renames or moves on; an
-# older client cannot, which is why 16 is asked for first.
+# NEWEST FIRST, and that order is the whole point. pg_dump refuses outright to
+# dump a server newer than itself, while a newer client handles older servers
+# back many versions. So the risk is never "too new" — it is pinning to the
+# version the compose file happens to use and then meeting a managed database
+# that has moved on. That is exactly what happened here: a 16 client against a
+# 17.11 server, aborting every night.
 #
 # Deliberately not fatal. This app is taking real payments, and breaking a
 # deployment because a package name moved would be a far worse outcome than
-# backups not starting. If neither package lands, the server says so loudly at
+# backups not starting. If none of these land, the server says so loudly at
 # boot and the owner's console reports the backups as unhealthy, so it cannot
 # fail quietly instead.
-RUN apk add --no-cache postgresql16-client \
+RUN apk add --no-cache postgresql17-client \
  || apk add --no-cache postgresql-client \
+ || apk add --no-cache postgresql16-client \
  || echo "WARNING: no postgresql client in this image; nightly backups will not run"
 
 # Dependencies first, so a code change doesn't reinstall them.

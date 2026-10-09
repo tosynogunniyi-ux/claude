@@ -132,7 +132,20 @@ async function attempt(reason) {
   const dumped = await run('pg_dump', ['--format=custom', '--no-owner', '--no-acl', '--file=' + partial]);
   if (!dumped.ok) {
     try { fs.unlinkSync(partial); } catch (e) { /* nothing to clean */ }
-    return { ok: false, error: 'pg_dump failed: ' + (dumped.err || 'exit ' + dumped.code) };
+    const raw = dumped.err || 'exit ' + dumped.code;
+    // pg_dump will not dump a server newer than itself. The message it prints
+    // is accurate but says nothing about what to do, and what to do is rebuild
+    // the image with a client at least as new as the database.
+    const mismatch = /server version mismatch/i.test(raw);
+    return {
+      ok: false,
+      error: 'pg_dump failed: ' + raw,
+      fix: mismatch
+        ? 'The database is newer than the pg_dump in this image. pg_dump can read older ' +
+          'servers but never newer ones, so the image needs a client at least as new as ' +
+          'the database — see the apk line in the Dockerfile — and then a rebuild.'
+        : undefined
+    };
   }
 
   let bytes = 0;
@@ -241,11 +254,17 @@ function start() {
 
   // Say at boot whether the tool is even here. The alternative is a schedule
   // that looks fine for weeks and has never written anything.
-  run('pg_dump', ['--version'], 15000).then((r) => {
-    if (r.ok) console.log('  pg_dump: ' + (r.out || '').trim());
-    else console.error('  WARNING: pg_dump is not available — no backups will be taken. ' +
-      (r.err || ''));
-  });
+  compatibility().then((c) => {
+    if (!c.available) {
+      console.error('  WARNING: pg_dump is not available — no backups will be taken.');
+    } else if (c.compatible === false) {
+      console.error('  WARNING: pg_dump is ' + c.clientMajor + ' but the database is ' +
+        c.serverMajor + '. pg_dump cannot read a server newer than itself, so no backups ' +
+        'will be taken until the image ships a ' + c.serverMajor + ' client or later.');
+    } else {
+      console.log('  pg_dump: ' + c.clientVersion + ' against server ' + (c.serverVersion || '?'));
+    }
+  }).catch(() => { /* reported by the first real attempt instead */ });
 
   const safely = () => { tick().catch((err) => console.error('backup tick failed:', err.message)); };
   // A minute after boot, so a deployment that has just changed the schema gets
@@ -256,6 +275,33 @@ function start() {
   return timer;
 }
 
+// Can this image's pg_dump actually read this database? Asked at boot and by
+// the owner's console, because the answer is knowable long before 2am.
+async function compatibility() {
+  const v = await run('pg_dump', ['--version'], 15000);
+  if (!v.ok) return { available: false };
+  const clientVersion = (v.out || '').trim();
+  const clientMajor = Number((clientVersion.match(/(\d+)\./) || [])[1]) || null;
+
+  let serverVersion = null;
+  try {
+    const r = await pool.query('SHOW server_version');
+    serverVersion = r.rows[0].server_version;
+  } catch (err) {
+    return { available: true, clientVersion, clientMajor, serverVersion: null, compatible: null };
+  }
+  const serverMajor = Number((String(serverVersion).match(/(\d+)/) || [])[1]) || null;
+  return {
+    available: true,
+    clientVersion,
+    clientMajor,
+    serverVersion,
+    serverMajor,
+    // A client may be newer than the server, never older.
+    compatible: clientMajor !== null && serverMajor !== null ? clientMajor >= serverMajor : null
+  };
+}
+
 // Whether pg_dump can be run at all, for the owner's console.
 async function toolAvailable() {
   const r = await run('pg_dump', ['--version'], 15000);
@@ -263,4 +309,4 @@ async function toolAvailable() {
 }
 
 module.exports = { start, once, list, prune, dueNow, dir, keepDays, intervalHours, enabled,
-  toolAvailable, writable, lastAttempt: () => lastAttempt };
+  toolAvailable, compatibility, writable, lastAttempt: () => lastAttempt };
