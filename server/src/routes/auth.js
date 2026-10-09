@@ -39,6 +39,7 @@ async function sessionFor(userId, preferOrgId) {
             s.cycle,
             s.seats         AS users,
             s.trial_start   AS "trialStart",
+            s.trial_days    AS "trialDaysStored",
             s.status        AS "subStatus",
             s.current_period_end,
             s.card_last4,
@@ -66,6 +67,7 @@ async function sessionFor(userId, preferOrgId) {
           cycle: row.cycle,
           seats: row.users,
           trial_start: row.trialStart,
+          trial_days: row.trialDaysStored,
           current_period_end: row.current_period_end,
           status: row.subStatus,
           card_last4: row.card_last4
@@ -74,6 +76,7 @@ async function sessionFor(userId, preferOrgId) {
   );
 
   delete row.current_period_end;
+  delete row.trialDaysStored;
   delete row.card_last4;
 
   return Object.assign(row, {
@@ -82,6 +85,10 @@ async function sessionFor(userId, preferOrgId) {
     onTrial: access.onTrial,
     daysLeft: access.daysLeft,
     trialEndsOn: access.trialEndsOn,
+    // This account's own trial length, which may not be the one a new sign-up
+    // would get. The screens say "your N-day trial" from here rather than from
+    // the current default.
+    trialDays: access.trialDays,
     periodEnd: access.periodEnd,
     amount: access.amount
   });
@@ -124,8 +131,10 @@ async function createAccount({ name, orgName, email, password, googleSub, book, 
     // No card, no processor, no charge. trial_start defaults to today and the
     // status to 'trialing', which is the whole of what a new account owes us.
     await client.query(
-      'INSERT INTO subscriptions (organization_id, cycle, seats) VALUES ($1, $2, $3)',
-      [org.id, cycle, seats]
+      // The trial length is written down here and never recomputed, so
+      // changing the default later cannot shorten a trial already running.
+      'INSERT INTO subscriptions (organization_id, cycle, seats, trial_days) VALUES ($1, $2, $3, $4)',
+      [org.id, cycle, seats, TRIAL_DAYS]
     );
 
     // One account to start with, so the first bank payment has somewhere to

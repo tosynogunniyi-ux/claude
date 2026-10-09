@@ -228,15 +228,23 @@ to the books rather than to them.
 
 ## Signing up, the trial, and the paywall
 
-    sign up  →  no card  →  30-day trial  →  trial ends  →  pay  →  active
+    sign up  →  no card  →  14-day trial  →  trial ends  →  pay  →  active
 
-The length is `TRIAL_DAYS` in `src/pricing.js` and nothing else. Changing it
-moves every trial, not only the ones started afterwards: when a trial ends is
-derived from `trial_start` plus that number and is never written into a row,
-so there is nothing to migrate. An account part-way through simply finds it
-has longer, and one whose trial had lapsed inside the new window opens again.
-Accounts that have already paid carry a real `current_period_end` and are not
-affected either way.
+`TRIAL_DAYS` in `src/pricing.js` is the length a **new** sign-up gets. Each
+subscription records the length it was created with in
+`subscriptions.trial_days`, and every read prefers that, so changing the
+default changes the next sign-up and nothing that is already running.
+
+It did not always work that way, and the reason it does now is worth keeping.
+The length used to be derived from the constant alone. Raising 14 to 30 that
+way reached everybody mid-trial, which is a gift nobody objects to. Lowering
+it the same way would have locked out an account twenty days into a thirty-day
+trial on the night of the change, after telling it all week it had ten days
+left. Lengthening and shortening are not symmetrical, and only one of them is
+safe to apply retroactively.
+
+Rows from before the column fall back to the current default, and accounts
+that have already paid carry a real `current_period_end` and never consult it.
 
 **Signing up asks for nothing to pay with.** `/auth/signup` takes a name, an
 organisation, an email, a password and a plan choice, and creates a

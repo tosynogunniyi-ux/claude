@@ -5,14 +5,26 @@
 const PER_USER_MONTHLY = 5000;
 const PER_USER_ANNUAL = 57000;
 
-// How long a new account has before it is asked to pay.
+// How long a NEW account gets before it is asked to pay.
 //
-// Changing this moves every trial, not just the ones started afterwards. When
-// a trial ends is derived — trial_start plus this number — and never written
-// into a row, so an account three days into a 14-day trial simply finds it has
-// 27 days left. Accounts that have already paid carry a real
-// current_period_end and are untouched by it.
-const TRIAL_DAYS = 30;
+// Only new ones. Each subscription records the length it was created with in
+// subscriptions.trial_days, and every read uses that in preference to this.
+// Changing this number therefore changes what the next sign-up receives and
+// leaves every trial already running exactly as it was promised.
+//
+// That is deliberate and was learned the hard way. The length used to be
+// derived from this constant alone, so raising 14 to 30 reached everybody
+// mid-trial — fine, since nobody minds more. Lowering it the same way would
+// have locked out an account twenty days into a thirty-day trial on the night
+// of the change, after telling it all week that it had ten days left.
+const TRIAL_DAYS = 14;
+
+// The length that applies to a given subscription row: what it was created
+// with, or the current default for rows that predate the column.
+function trialDaysFor(sub) {
+  const stored = sub && sub.trial_days;
+  return Number.isFinite(Number(stored)) && Number(stored) > 0 ? Number(stored) : TRIAL_DAYS;
+}
 
 function rate(cycle) {
   return cycle === 'annual' ? PER_USER_ANNUAL : PER_USER_MONTHLY;
@@ -29,4 +41,4 @@ function monthlyValue(cycle, seats) {
   return cycle === 'annual' ? (PER_USER_ANNUAL / 12) * seatCount : PER_USER_MONTHLY * seatCount;
 }
 
-module.exports = { PER_USER_MONTHLY, PER_USER_ANNUAL, TRIAL_DAYS, rate, amountFor, monthlyValue };
+module.exports = { PER_USER_MONTHLY, PER_USER_ANNUAL, TRIAL_DAYS, trialDaysFor, rate, amountFor, monthlyValue };

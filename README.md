@@ -71,11 +71,11 @@ trial through to a charge, a decline, a retry and a recovery.
 
 ## Signing up
 
-    sign up  →  no card  →  30-day trial  →  trial ends  →  pay  →  active
+    sign up  →  no card  →  14-day trial  →  trial ends  →  pay  →  active
 
 Creating an account asks for a name, an organisation, an email, a password and
 a plan — and nothing to pay with. No debit card, no ATM card, no credit card.
-The account opens straight onto a 30-day trial, and the app shows how many
+The account opens straight onto a 14-day trial, and the app shows how many
 days are left.
 
 Anyone who would rather not wait can subscribe from **Settings** before the

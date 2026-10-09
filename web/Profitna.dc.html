@@ -1950,7 +1950,7 @@ class Component extends DCLogic {
       mode: 'sme', screen: 'dashboard', preset: 'ytd', role: 'Admin',
       // Replaced by whatever /auth/config reports. Only ever seen in the
       // moment before that lands.
-      trialDays: 30,
+      trialDays: 14,
       session: null, account: null,
       auth: { view: 'login', step: 1, name: '', org: '', email: '', pw: '', book: null, cycle: 'monthly', users: 1, err: '', busy: false, seats: [] },
       search: '', txType: 'all', reportTab: 'pl', modal: null, form: {}, toast: null, aiQ: '', aiKey: null,
@@ -1995,7 +1995,7 @@ class Component extends DCLogic {
         payProvider: c.paymentProvider || 'none',
         // The server owns the trial length. Reading it rather than repeating
         // it means the screens cannot promise a number it will not honour.
-        trialDays: Number(c.trialDays) || 30,
+        trialDays: Number(c.trialDays) || 14,
         monnifyKey: c.monnifyApiKey,
         monnifyContract: c.monnifyContractCode
       }))
@@ -3461,7 +3461,10 @@ class Component extends DCLogic {
 
     return {
       title: suspended ? 'This account is on hold'
-        : trialEnded ? 'Your ' + st.trialDays + '-day free trial has ended'
+        // This account's own trial length, which may differ from what a new
+        // sign-up gets today. Telling somebody their 30-day trial was 14 days
+        // long would be both wrong and insulting.
+        : trialEnded ? 'Your ' + (ses.trialDays || st.trialDays) + '-day free trial has ended'
         : 'Your subscription is not active',
       blurb: suspended
         ? 'Contact support@profitna.com and we will sort it out.'

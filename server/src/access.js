@@ -1,5 +1,5 @@
 const { one } = require('./db');
-const { TRIAL_DAYS, amountFor } = require('./pricing');
+const { TRIAL_DAYS, trialDaysFor, amountFor } = require('./pricing');
 
 // Who may use the books, and until when.
 //
@@ -38,7 +38,9 @@ function accessFor(sub) {
   }
 
   const now = today();
-  const trialEndsOn = addDays(sub.trial_start, TRIAL_DAYS);
+  // This subscription's own length, not today's default.
+  const trialDays = trialDaysFor(sub);
+  const trialEndsOn = addDays(sub.trial_start, trialDays);
   // A subscription that has never been charged runs to the end of its trial.
   const periodEnd = sub.current_period_end || trialEndsOn;
   const onTrial = sub.status === 'trialing';
@@ -63,6 +65,7 @@ function accessFor(sub) {
     // 0 means "ends today", and access continues through today.
     daysLeft: Math.max(0, daysBetween(now, periodEnd)),
     trialEndsOn,
+    trialDays,
     periodEnd,
     cycle: sub.cycle,
     seats: sub.seats,
@@ -72,7 +75,7 @@ function accessFor(sub) {
 }
 
 const LOCKED_MESSAGE = {
-  trial_ended: 'Your ' + TRIAL_DAYS + '-day free trial has ended. Activate your subscription to continue.',
+  trial_ended: 'Your free trial has ended. Activate your subscription to continue.',
   subscription_lapsed: 'Your subscription is not active. Complete payment to continue.',
   suspended: 'This account is suspended. Contact support@profitna.com.',
   no_subscription: 'This organisation has no subscription.'

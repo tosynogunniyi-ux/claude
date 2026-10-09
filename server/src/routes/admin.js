@@ -29,7 +29,10 @@ const DUMMY_HASH = bcrypt.hashSync(crypto.randomBytes(24).toString('hex'), 12);
 
 // 'expired' is derived, never stored: the same rule invoices follow here. A
 // stored expiry is only correct until the next midnight nothing ran through.
-const PERIOD_END = `COALESCE(s.current_period_end, s.trial_start + ${pricing.TRIAL_DAYS})`;
+// Each subscription's own trial length, falling back to today's default for
+// rows that predate the column.
+const PERIOD_END =
+  `COALESCE(s.current_period_end, s.trial_start + COALESCE(s.trial_days, ${pricing.TRIAL_DAYS}))`;
 const EFFECTIVE_STATUS = `CASE
     WHEN s.id IS NULL THEN 'none'
     WHEN s.status = 'cancelled' THEN 'cancelled'

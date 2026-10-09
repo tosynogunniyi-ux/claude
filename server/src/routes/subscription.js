@@ -278,7 +278,7 @@ async function chargeDue(organizationId) {
 // It also means a renewal charged a day late does not shorten the term, and
 // that paying twice by accident buys two months rather than losing one.
 const PERIOD_START =
-  `GREATEST(CURRENT_DATE, COALESCE(current_period_end, trial_start + ${TRIAL_DAYS}))`;
+  `GREATEST(CURRENT_DATE, COALESCE(current_period_end, trial_start + COALESCE(trial_days, ${TRIAL_DAYS})))`;
 
 async function rollPeriod(organizationId, cycle) {
   await query(

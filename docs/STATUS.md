@@ -79,9 +79,12 @@ not want to wait. Paying early does not cost the remaining days: the paid term
 starts when the trial *would* have ended, which is what the banner had always
 promised.
 
-**A 30-day trial** — raised from 14, for new *and* existing accounts. No
-migration was needed: when a trial ends is derived from the start date, never
-stored, so everyone already on one simply found they had longer.
+**Trial length, per account** — the default is 14 days for new sign-ups. It
+went 14 → 30 → 14, and the second change could not work like the first: the
+length is now recorded on each subscription when it is created, so lowering
+the default reaches the next sign-up and leaves running trials exactly as
+promised. Lengthening and shortening are not symmetrical; only one is safe to
+apply retroactively.
 
 ---
 

@@ -38,17 +38,17 @@ SELECT o.name                                   AS organisation,
 \echo ''
 \echo '=== 3. Is the subscription locking the books? ========================='
 -- A locked account is read-only no matter what the role is: the trial or the
--- paid term has run out. daysLeft below zero means expired. The 30 is the
--- trial length from src/pricing.js; if that changes, this changes with it.
+-- paid term has run out. daysLeft below zero means expired. Each row carries
+-- its own trial length; the 14 is only the fallback for rows that predate it.
 SELECT o.name                                              AS organisation,
        s.status,
        s.seats,
        s.cycle,
        s.trial_start,
-       COALESCE(s.current_period_end, s.trial_start + 30)  AS access_until,
-       COALESCE(s.current_period_end, s.trial_start + 30)
+       COALESCE(s.current_period_end, s.trial_start + COALESCE(s.trial_days, 14))  AS access_until,
+       COALESCE(s.current_period_end, s.trial_start + COALESCE(s.trial_days, 14))
          - CURRENT_DATE                                    AS days_left,
-       (COALESCE(s.current_period_end, s.trial_start + 30) < CURRENT_DATE)
+       (COALESCE(s.current_period_end, s.trial_start + COALESCE(s.trial_days, 14)) < CURRENT_DATE)
                                                            AS locked_out
   FROM subscriptions s
   JOIN organizations o ON o.id = s.organization_id

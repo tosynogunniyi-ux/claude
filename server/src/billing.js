@@ -40,18 +40,18 @@ const DUE_SQL = `
          s.cycle,
          s.seats,
          s.charge_attempts AS attempts,
-         COALESCE(s.current_period_end, s.trial_start + ${TRIAL_DAYS}) AS "dueOn",
+         COALESCE(s.current_period_end, s.trial_start + COALESCE(s.trial_days, ${TRIAL_DAYS})) AS "dueOn",
          o.name AS "orgName"
     FROM subscriptions s
     JOIN organizations o ON o.id = s.organization_id
    WHERE s.status IN ('trialing', 'active', 'past_due')
      AND s.provider_authorization_code IS NOT NULL
-     AND COALESCE(s.current_period_end, s.trial_start + ${TRIAL_DAYS}) <= CURRENT_DATE
+     AND COALESCE(s.current_period_end, s.trial_start + COALESCE(s.trial_days, ${TRIAL_DAYS})) <= CURRENT_DATE
      AND (
            s.charge_attempts = 0
            OR (s.charge_attempts < ${MAX_ATTEMPTS} AND s.next_charge_attempt_at <= now())
          )
-   ORDER BY COALESCE(s.current_period_end, s.trial_start + ${TRIAL_DAYS})`;
+   ORDER BY COALESCE(s.current_period_end, s.trial_start + COALESCE(s.trial_days, ${TRIAL_DAYS}))`;
 
 function due(limit) {
   return many(DUE_SQL + ' LIMIT $1', [limit || BATCH]);
@@ -63,14 +63,14 @@ function outstanding() {
   return many(
     `SELECT s.organization_id AS "organizationId", s.charge_attempts AS attempts,
             s.last_charge_error AS "lastError", s.next_charge_attempt_at AS "nextAttempt",
-            COALESCE(s.current_period_end, s.trial_start + ${TRIAL_DAYS}) AS "dueOn",
+            COALESCE(s.current_period_end, s.trial_start + COALESCE(s.trial_days, ${TRIAL_DAYS})) AS "dueOn",
             o.name AS "orgName"
        FROM subscriptions s
        JOIN organizations o ON o.id = s.organization_id
       WHERE s.status IN ('trialing', 'active', 'past_due')
-        AND COALESCE(s.current_period_end, s.trial_start + ${TRIAL_DAYS}) <= CURRENT_DATE
+        AND COALESCE(s.current_period_end, s.trial_start + COALESCE(s.trial_days, ${TRIAL_DAYS})) <= CURRENT_DATE
         AND s.provider_authorization_code IS NOT NULL
-      ORDER BY COALESCE(s.current_period_end, s.trial_start + ${TRIAL_DAYS})
+      ORDER BY COALESCE(s.current_period_end, s.trial_start + COALESCE(s.trial_days, ${TRIAL_DAYS}))
       LIMIT 25`
   );
 }

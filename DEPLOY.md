@@ -53,7 +53,7 @@ minutes.
 ### 3. First account
 
 Open `https://profitna.com` and create the account — no card is asked for — and
-it becomes the admin of its organisation on a 30-day trial. The books start
+it becomes the admin of its organisation on a 14-day trial. The books start
 **empty** by design; `SEED_DEMO_DATA` is
 deliberately not set, so you get the designed empty states rather than
 somebody else's sample data. To demo with populated books instead, add
@@ -233,7 +233,7 @@ First HTTPS request can take a few seconds while Caddy gets the certificate.
 ### 7. First account
 
 Open `https://profitna.com`, create the account — no card is asked for — and
-it becomes the admin of its organisation on a 30-day trial. The books start
+it becomes the admin of its organisation on a 14-day trial. The books start
 **empty** — `SEED_DEMO_DATA` is deliberately
 not set in production, so you get the designed empty states rather than
 somebody else's sample data.
