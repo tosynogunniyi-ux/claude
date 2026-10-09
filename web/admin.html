@@ -811,6 +811,47 @@
   // The state of the thing that actually ends trials. It sits above the
   // subscription list because that is where you look when you are asking
   // "why has this one not been charged?".
+  // Backups. Deliberately beside billing: both are things that run on their
+  // own, and both are only noticed when they have quietly stopped.
+  function backupCard(b) {
+    var warn = !b.healthy;
+    var size = b.totalBytes > 1048576
+      ? (b.totalBytes / 1048576).toFixed(1) + ' MB'
+      : Math.round(b.totalBytes / 1024) + ' KB';
+
+    var detail = !b.enabled
+      ? 'Switched off — BACKUP_ENABLED is set to off.'
+      : b.newest
+        ? 'Newest ' + ago(b.newest.takenAt) + ' · ' + b.count +
+          (b.count === 1 ? ' dump' : ' dumps') + ' · ' + size +
+          ' · keeping ' + b.keepDays + ' days'
+        : 'Nothing has been dumped yet.';
+
+    return '<div class="card pad" style="margin-bottom:16px;' +
+        (warn ? ' border-color:#E0C9A0; background:#FFFDF8;' : '') + '">' +
+      '<div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap;">' +
+        '<div style="flex:1 1 320px; min-width:240px;">' +
+          '<h2 class="h2">Backups</h2>' +
+          '<div style="font-size:13px; color:' + (warn ? 'var(--amber)' : 'var(--muted)') + '; margin-top:3px;">' +
+            esc(b.note || '') + '</div>' +
+          '<div style="font-size:12.5px; color:var(--faint); margin-top:4px;">' + esc(detail) + '</div>' +
+          '<div style="font-size:11.5px; color:var(--faint); margin-top:6px;">' +
+            esc(b.directory) + ' · pg_dump ' + esc((b.pgDump && b.pgDump.clientMajor) || '?') +
+            ' against server ' + esc((b.pgDump && b.pgDump.serverMajor) || '?') +
+            ' — these sit on the same machine as the database; copy them off it.' +
+          '</div>' +
+        '</div>' +
+        '<div style="display:flex; align-items:center; gap:14px;">' +
+          '<div style="text-align:right;">' +
+            '<div class="label">Backups kept</div>' +
+            '<div style="font-size:22px; font-weight:600;" class="num">' + count(b.count) + '</div>' +
+          '</div>' +
+          '<button class="btn" id="backup-run">Back up now</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }
+
   function billingCard(b) {
     var s = b.scheduler;
     var last = b.lastRun;
@@ -874,11 +915,12 @@
         q: f.q, status: f.status, cycle: f.cycle, expiring: f.expiring,
         sort: f.sort, dir: f.dir, page: f.page, pageSize: 25
       })),
-      api('/billing')
+      api('/billing'),
+      api('/backups')
     ]);
     var d = results[0];
 
-    var html = billingCard(results[1]) + '<div class="card pad filters">' +
+    var html = billingCard(results[1]) + backupCard(results[2]) + '<div class="card pad filters">' +
       '<input id="s-q" placeholder="Search organisation" value="' + esc(f.q) + '" style="flex:1 1 240px;" />' +
       selectBox('s-status', f.status, [['', 'Any state'], ['trial', 'Trial'], ['active', 'Active'], ['past_due', 'Past due'], ['expired', 'Expired'], ['cancelled', 'Cancelled'], ['suspended', 'Suspended']]) +
       selectBox('s-cycle', f.cycle, [['', 'Any plan'], ['monthly', 'Monthly'], ['annual', 'Annual']]) +
@@ -941,6 +983,20 @@
         toast(err.message, true);
         $('billing-run').disabled = false;
         $('billing-run').textContent = 'Run now';
+      }
+    };
+
+    $('backup-run').onclick = async function () {
+      $('backup-run').disabled = true;
+      $('backup-run').textContent = 'Backing up…';
+      try {
+        var r = await send('/backups/run', 'POST', {});
+        toast('Backed up ' + Math.round(r.bytes / 1024) + 'KB in ' + r.seconds + 's.');
+        renderSubscriptions();
+      } catch (err) {
+        toast(err.message, true);
+        $('backup-run').disabled = false;
+        $('backup-run').textContent = 'Back up now';
       }
     };
 

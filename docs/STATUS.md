@@ -188,8 +188,8 @@ ways out — back to the dashboard, reload, sign out.
 
 ## Still open
 
-- **Copy the backups off the machine.** Nightly dumps now run and are
-  verified, but they sit on the same VPS as the database. That covers a bad
+- **Copy the backups off the machine.** Nightly dumps run, are verified, and
+  show up in the Control Center under Subscriptions → Backups. They sit on the same VPS as the database. That covers a bad
   migration or a wrong `DELETE`; it does not cover losing the server. A
   scheduled `docker compose cp app:/data/backups ...` to anywhere else closes
   it. Check `GET /api/admin/backups` says `healthy: true` after the first

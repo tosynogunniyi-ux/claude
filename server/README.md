@@ -407,6 +407,11 @@ Three things it does that a one-line cron job usually does not:
   backup beats none — a database that has stopped dumping should not erase
   its own history as well.
 
+The Control Center's **Subscriptions** page carries a **Backups** card beside
+automatic billing — both are things that run on their own and are only noticed
+once they have quietly stopped. It shows the state, how old the newest dump
+is, both Postgres versions, and a **Back up now** button.
+
 `GET /api/admin/backups` reports whether `pg_dump` is present, whether the
 directory can actually be written to, how old the newest dump is, the last
 attempt and why it failed if it did, one `healthy` boolean and one `note`
