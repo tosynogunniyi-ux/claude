@@ -814,7 +814,11 @@
   // Backups. Deliberately beside billing: both are things that run on their
   // own, and both are only noticed when they have quietly stopped.
   function backupCard(b) {
-    var warn = !b.healthy;
+    var off = b.offsite || { configured: false, note: '' };
+    // Two separate promises: that a dump exists, and that a copy of it is
+    // somewhere else. The card says both, because the second is the one that
+    // covers losing the machine.
+    var warn = !b.healthy || !off.configured || (off.lastCopy && !off.lastCopy.ok);
     var size = b.totalBytes > 1048576
       ? (b.totalBytes / 1048576).toFixed(1) + ' MB'
       : Math.round(b.totalBytes / 1024) + ' KB';
@@ -827,19 +831,29 @@
           ' · keeping ' + b.keepDays + ' days'
         : 'Nothing has been dumped yet.';
 
+    var offColour = !off.configured || (off.lastCopy && !off.lastCopy.ok)
+      ? 'var(--amber)' : 'var(--muted)';
+    var offLine = '<div style="font-size:12.5px; color:' + offColour + '; margin-top:7px;">' +
+      '<strong>Off-site:</strong> ' + esc(off.note || '') + '</div>' +
+      (off.configured
+        ? '<div style="font-size:11.5px; color:var(--faint); margin-top:3px;">' +
+            esc(off.bucket) + ' at ' + esc(off.endpoint) + ' · ' + esc(off.prefix) +
+            ' · key ' + esc(off.keyId) + '</div>'
+        : '');
+
     return '<div class="card pad" style="margin-bottom:16px;' +
         (warn ? ' border-color:#E0C9A0; background:#FFFDF8;' : '') + '">' +
       '<div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap;">' +
         '<div style="flex:1 1 320px; min-width:240px;">' +
           '<h2 class="h2">Backups</h2>' +
-          '<div style="font-size:13px; color:' + (warn ? 'var(--amber)' : 'var(--muted)') + '; margin-top:3px;">' +
+          '<div style="font-size:13px; color:' + (!b.healthy ? 'var(--amber)' : 'var(--muted)') + '; margin-top:3px;">' +
             esc(b.note || '') + '</div>' +
           '<div style="font-size:12.5px; color:var(--faint); margin-top:4px;">' + esc(detail) + '</div>' +
           '<div style="font-size:11.5px; color:var(--faint); margin-top:6px;">' +
             esc(b.directory) + ' · pg_dump ' + esc((b.pgDump && b.pgDump.clientMajor) || '?') +
             ' against server ' + esc((b.pgDump && b.pgDump.serverMajor) || '?') +
-            ' — these sit on the same machine as the database; copy them off it.' +
           '</div>' +
+          offLine +
         '</div>' +
         '<div style="display:flex; align-items:center; gap:14px;">' +
           '<div style="text-align:right;">' +

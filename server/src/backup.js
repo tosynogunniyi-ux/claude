@@ -2,15 +2,17 @@ const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
 const { pool } = require('./db');
+const offsite = require('./offsite');
 
 // Nightly backups.
 //
 // Runs inside the server process, like the billing scheduler, so there is no
 // second thing to deploy and no host cron to forget. It takes a custom-format
-// dump with pg_dump, checks the file is actually readable as a dump, and
-// deletes ones older than the retention window.
+// dump with pg_dump, checks the file is actually readable as a dump, copies it
+// to object storage somewhere else if that is configured, and deletes ones
+// older than the retention window.
 //
-// Two decisions worth knowing about:
+// Three decisions worth knowing about:
 //
 // Rather than firing at a fixed hour, it asks on every tick whether the newest
 // dump is older than the interval. A container that restarts in the night
@@ -22,6 +24,11 @@ const { pool } = require('./db');
 // exited cleanly and the result has been verified. A half-written file is
 // never left looking like a backup, which is the failure that turns "we have
 // backups" into "we had something shaped like one".
+//
+// A failed off-site copy does not fail the backup. The local dump is already
+// taken and verified by then, and throwing it away because somebody else's
+// endpoint was down would turn a small problem into a real one. It is
+// reported instead — loudly in the log, and on the Control Center's card.
 
 const LOCK_KEY = 4820772;              // billing holds 4820771; neighbours, not twins
 const TICK_MINUTES = 30;
@@ -165,6 +172,14 @@ async function attempt(reason) {
 
   fs.renameSync(partial, target);
 
+  // Off the machine, if there is anywhere to send it. The dump above is good
+  // whatever happens here, so this reports rather than fails.
+  let copied = null;
+  if (offsite.configured()) {
+    copied = await offsite.put(target, name);
+    copied.at = new Date().toISOString();
+  }
+
   const pruned = prune();
   return {
     ok: true,
@@ -172,6 +187,7 @@ async function attempt(reason) {
     bytes,
     seconds: Math.round((Date.now() - startedAt) / 1000),
     pruned,
+    offsite: copied,
     reason: reason || 'scheduled'
   };
 }
@@ -231,7 +247,15 @@ async function tick() {
       const result = await once('scheduled');
       if (result.ok) {
         console.log('backup ' + result.name + ' (' + Math.round(result.bytes / 1024) + 'KB in ' +
-          result.seconds + 's)' + (result.pruned.length ? ', pruned ' + result.pruned.length : ''));
+          result.seconds + 's)' + (result.pruned.length ? ', pruned ' + result.pruned.length : '') +
+          (result.offsite ? (result.offsite.ok ? ', copied to ' + result.offsite.key : '') : ''));
+        // A backup that only exists on the machine it was taken from is the
+        // thing the off-site copy was turned on to stop, so a silent failure
+        // here is not an option.
+        if (result.offsite && !result.offsite.ok) {
+          console.error('OFF-SITE COPY FAILED: ' + result.offsite.error +
+            ' — the dump is on this machine only.');
+        }
       } else {
         console.error('BACKUP FAILED: ' + result.error);
       }
@@ -251,6 +275,15 @@ function start() {
   }
   console.log('nightly backups on: every ' + intervalHours() + 'h into ' + dir() +
     ', keeping ' + keepDays() + ' days');
+
+  const where = offsite.describe();
+  if (where.configured) {
+    console.log('  off-site copies to ' + where.bucket + ' at ' + where.endpoint);
+  } else {
+    console.log('  off-site copies are OFF — dumps stay on this machine, which does ' +
+      'not survive losing it. See BACKUP_S3_* in server/.env.example.');
+  }
+  for (const w of offsite.warnings()) console.warn('  WARNING: ' + w);
 
   // Say at boot whether the tool is even here. The alternative is a schedule
   // that looks fine for weeks and has never written anything.

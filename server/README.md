@@ -443,17 +443,55 @@ The commonest reason for `writable: false` is a volume mounted at
 `/data/backups` arriving owned by root while the app runs as uid 1000. The
 endpoint says so rather than leaving it to be guessed.
 
-**What this does not do, and you should.** The dumps sit on the same machine
-as the database. That covers a bad migration, a wrong `DELETE`, a corrupted
-table — but not losing the server. Copy them somewhere else on a schedule of
-your own:
+### Getting them off the machine
+
+A dump on the same machine as the database covers a bad migration, a wrong
+`DELETE` or a corrupted table. It does not cover losing the server, which is
+the failure people actually mean when they say "backups".
+
+So each verified dump is copied to object storage as soon as it is taken.
+Anything that speaks the S3 API will do — Backblaze B2, Cloudflare R2, Wasabi,
+DigitalOcean Spaces, MinIO, AWS. That is deliberate: a second copy exists so
+it does not share a fate with the first, so it should not have to share a
+supplier with it either.
+
+```
+BACKUP_S3_BUCKET=profitna-backups
+BACKUP_S3_ACCESS_KEY_ID=...
+BACKUP_S3_SECRET_ACCESS_KEY=...
+BACKUP_S3_ENDPOINT=https://s3.us-west-004.backblazeb2.com   # not needed on AWS
+BACKUP_S3_REGION=us-west-004
+BACKUP_S3_PREFIX=nightly                                     # optional
+```
+
+Set those, redeploy, and press **Back up now** in the Control Center — the
+card then says where the copy went, or why it did not. Four things worth
+knowing:
+
+- **It is verified, not assumed.** After the upload it asks the store how big
+  the object is and compares. A `PUT` that answers 200 and keeps nothing is a
+  thing that happens.
+- **A failed copy never fails the backup.** The local dump is taken and
+  checked before the copy is attempted; discarding it because somebody else's
+  endpoint was down would turn a small problem into a real one. The failure is
+  logged loudly and shown on the card instead.
+- **No SDK.** The AWS signature is sixty lines of HMAC against `crypto` and
+  `fetch`, so this costs no dependency tree. `signature()` is checked byte-for-
+  byte against vectors produced by **botocore, AWS's own signer** — see
+  `test/offsite.js`. Testing it against my own understanding of SigV4 would
+  have proved only that I am consistent.
+- **Single request, no multipart.** Fine well past the size this database
+  will reach for years; over `BACKUP_S3_MAX_BYTES` (200MB) it refuses and says
+  to use rsync instead rather than silently half-uploading.
+
+If you would rather not use object storage at all, the manual equivalent is:
 
 ```bash
 # From anywhere with SSH to the host, nightly:
 docker compose cp app:/data/backups ./profitna-backups
 ```
 
-and keep them somewhere that is not that machine. Restoring is:
+Either way, keep them somewhere that is not that machine. Restoring is:
 
 ```bash
 createdb profitna_restored

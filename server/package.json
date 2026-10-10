@@ -16,7 +16,8 @@
     "test:monnify": "node test/monnify.js",
     "test:trial": "node test/trial.js",
     "test:backup": "node test/backup.js",
-    "test:ask": "node test/ask.js"
+    "test:ask": "node test/ask.js",
+    "test:offsite": "node test/offsite.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.0",

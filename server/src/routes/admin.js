@@ -709,6 +709,7 @@ router.patch('/subscriptions/:id', async (req, res, next) => {
 router.get('/backups', async (req, res, next) => {
   try {
     const backup = require('../backup');
+    const offsite = require('../offsite');
     const tool = await backup.compatibility();
     const canWrite = backup.writable();
     const last = backup.lastAttempt();
@@ -748,6 +749,21 @@ router.get('/backups', async (req, res, next) => {
               'use Run now rather than waiting.')
         : hoursOld >= backup.intervalHours() * 2 ? 'The newest backup is ' + hoursOld + ' hours old.'
         : 'Backups are running.',
+      // Where the second copy goes, and whether the last one got there. A
+      // dump that only exists on the machine it was taken from covers a bad
+      // migration and nothing worse, so this is reported separately rather
+      // than folded into `healthy` — they are different promises.
+      offsite: Object.assign(offsite.describe(), {
+        lastCopy: last && last.offsite ? last.offsite : null,
+        note: !offsite.configured()
+          ? 'Off. Dumps are on the same machine as the database, which covers a bad ' +
+            'migration but not losing the server. Set BACKUP_S3_* to close that.'
+          : last && last.offsite && !last.offsite.ok
+            ? 'The last copy failed: ' + last.offsite.error
+            : last && last.offsite && last.offsite.ok
+              ? 'The last dump was copied to ' + last.offsite.key + '.'
+              : 'Configured. Nothing has been copied yet this run — use Run now to prove it.'
+      }),
       totalBytes: all.reduce((n, b) => n + b.bytes, 0),
       backups: all.slice(0, 30)
     });

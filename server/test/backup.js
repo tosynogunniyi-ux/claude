@@ -112,6 +112,65 @@ const stale = (file) => fs.utimesSync(file, new Date('2020-01-01'), new Date('20
   process.env.PATH = realPath2;
   fs.rmSync(fakeBin, { recursive: true, force: true });
 
+  // test/offsite.js proves the copy itself — the signature against AWS's own
+  // signer, and an upload against a store that answers like S3. What is left
+  // to prove here is that a real backup run actually reaches for it, and that
+  // a store having a bad night cannot cost us the dump we already have.
+  console.log('\ngetting it off the machine');
+  const http = require('http');
+  const held = new Map();
+  let refuse = false;
+  const store = http.createServer((req, res) => {
+    const chunks = [];
+    req.on('data', (c) => chunks.push(c));
+    req.on('end', () => {
+      if (refuse) { res.writeHead(500); return res.end('nope'); }
+      if (req.method === 'PUT') { held.set(req.url, Buffer.concat(chunks)); res.writeHead(200); return res.end(); }
+      if (req.method === 'HEAD') {
+        const o = held.get(req.url);
+        if (!o) { res.writeHead(404); return res.end(); }
+        res.writeHead(200, { 'content-length': String(o.length) });
+        return res.end();
+      }
+      res.writeHead(405); res.end();
+    });
+  });
+  const port = await new Promise((r) => store.listen(0, '127.0.0.1', () => r(store.address().port)));
+  Object.assign(process.env, {
+    BACKUP_S3_ENDPOINT: 'http://127.0.0.1:' + port,
+    BACKUP_S3_BUCKET: 'profitna-test',
+    BACKUP_S3_REGION: 'us-east-1',
+    BACKUP_S3_ACCESS_KEY_ID: 'AKIAIOSFODNN7EXAMPLE',
+    BACKUP_S3_SECRET_ACCESS_KEY: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
+    BACKUP_S3_PREFIX: 'nightly',
+    BACKUP_S3_PATH_STYLE: 'on'
+  });
+
+  const copied = await backup.once('test');
+  check('a backup now goes somewhere else as well', copied.ok && copied.offsite && copied.offsite.ok,
+    copied.offsite && copied.offsite.error);
+  check('and the far end holds the same bytes as the file on disk',
+    copied.ok && held.get('/profitna-test/nightly/' + copied.name) &&
+    held.get('/profitna-test/nightly/' + copied.name).length ===
+      fs.statSync(path.join(DIR, copied.name)).size);
+
+  refuse = true;
+  const stranded = await backup.once('test');
+  // The dump is taken and verified before the copy is attempted. Throwing it
+  // away because somebody else's endpoint was down would turn a small problem
+  // into a real one.
+  check('a failed copy does not fail the backup', stranded.ok === true, stranded.error);
+  check('the dump is still on disk', fs.existsSync(path.join(DIR, stranded.name)));
+  check('and the failure is reported rather than swallowed',
+    stranded.offsite && stranded.offsite.ok === false && /500/.test(stranded.offsite.error),
+    JSON.stringify(stranded.offsite));
+
+  await new Promise((r) => store.close(r));
+  for (const k of Object.keys(process.env)) if (k.startsWith('BACKUP_S3_')) delete process.env[k];
+  const local = await backup.once('test');
+  check('with nowhere configured, a backup is local and says so',
+    local.ok === true && local.offsite === null, JSON.stringify(local.offsite));
+
   console.log('\nswitches');
   process.env.BACKUP_ENABLED = 'off';
   check('backups can be turned off', backup.enabled() === false);

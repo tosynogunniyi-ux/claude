@@ -201,12 +201,13 @@ ways out — back to the dashboard, reload, sign out.
 
 ## Still open
 
-- **Copy the backups off the machine.** Nightly dumps run, are verified, and
-  show up in the Control Center under Subscriptions → Backups. They sit on the same VPS as the database. That covers a bad
-  migration or a wrong `DELETE`; it does not cover losing the server. A
-  scheduled `docker compose cp app:/data/backups ...` to anywhere else closes
-  it. Check `GET /api/admin/backups` says `healthy: true` after the first
-  night.
+- **Point the off-site copy at a bucket.** The app now copies each verified
+  dump to object storage as soon as it is taken, and checks it arrived — but
+  only once `BACKUP_S3_*` is set in Easypanel. Until then the Control Center's
+  Backups card says, in amber, that the dumps are on the same machine as the
+  database. Any S3-compatible store works; Backblaze B2 is the cheapest of the
+  usual ones. Set it, redeploy, press **Back up now**, and the card says where
+  the copy went.
 - **The billing scheduler now charges real cards** every hour it finds a term
   that has ended. Worth watching the Control Center's Subscriptions page for
   the first few renewals.
@@ -214,9 +215,10 @@ ways out — back to the dashboard, reload, sign out.
 - **The read-only Settings question** on Mideops Professional Services Ltd —
   `server/diagnose-role.sql` answers it; the output has not been looked at yet.
 - **The repository's default branch on GitHub is `backend-for-profitna`**,
-  which is months stale. All work is on `main`. Worth checking Easypanel
-  deploys `main`, and worth changing the default so nothing deploys the old
-  branch by accident.
+  which is months stale — `main` is 35 commits ahead of it and the old branch
+  has nothing of its own, so switching costs nothing. GitHub → Settings →
+  General → Default branch → `main`. Worth checking Easypanel deploys `main`
+  too, so nothing ships the old branch by accident.
 - **Google sign-in** is still in Testing on the consent screen, so only
   tosyn.ogunniyi@gmail.com can use it. Publish it to open it up.
 - **Ask Profitna needs its key.** The code is live but the screen will keep
@@ -243,7 +245,7 @@ ways out — back to the dashboard, reload, sign out.
 `SEED_DEMO_DATA=true` fills each new account with eight months of sample
 Nigerian books. Leave it unset in production so real accounts start empty.
 
-Seven test suites, 414 checks, run against a live server and a real database:
+Eight test suites, 453 checks, run against a live server and a real database:
 
 | Command | Checks | Covers |
 |---|---|---|
@@ -252,5 +254,6 @@ Seven test suites, 414 checks, run against a live server and a real database:
 | `npm run test:billing` | 49 | A trial through to a charge, a decline, a retry, a recovery |
 | `npm run test:monnify` | 84 | The processor, amounts, webhooks, and the live switch |
 | `npm run test:ask` | 60 | What Profitna AI may read, and that its tables are the database's |
-| `npm run test:backup` | 21 | A real dump, read back, plus retention and the ways it fails |
+| `npm run test:backup` | 27 | A real dump, read back, copied off the machine, plus retention |
+| `npm run test:offsite` | 33 | The AWS signature against AWS's own signer, and a real upload |
 | `npm run test:trial` | 16 | That changing the trial length leaves running trials alone |
