@@ -5,7 +5,7 @@ const { one, many, query } = require('../db');
 const totp = require('../totp');
 const pricing = require('../pricing');
 const billing = require('../billing');
-const paystack = require('../integrations/paystack');
+const gateway = require('../integrations/gateway');
 const {
   requireAdmin,
   adminAudit,
@@ -788,10 +788,11 @@ router.post('/backups/run', async (req, res, next) => {
 
 router.get('/billing', async (req, res, next) => {
   try {
-    const [last, waiting, ready, recent] = await Promise.all([
+    const [last, waiting, ready, stranded, recent] = await Promise.all([
       billing.lastRun(),
       billing.outstanding(),
       billing.due(200),
+      billing.unrenewable(),
       many(
         `SELECT id, trigger, started_at AS "startedAt", finished_at AS "finishedAt",
                 considered, charged, failed, amount, error
@@ -803,7 +804,12 @@ router.get('/billing', async (req, res, next) => {
       scheduler: {
         on: billing.enabled(),
         everyMinutes: Math.round(billing.intervalMs() / 60000),
-        processor: paystack.configured(),
+        // Whichever processor is actually in use. Asking Paystack directly —
+        // which this did — reported "nothing to charge with" on a deployment
+        // billing live through Monnify, and greyed out the Run now button
+        // with it.
+        processor: gateway.configured(),
+        processorName: gateway.name(),
         maxAttempts: billing.MAX_ATTEMPTS,
         retryDays: billing.RETRY_DAYS
       },
@@ -812,6 +818,10 @@ router.get('/billing', async (req, res, next) => {
       // the subscriptions sitting out a retry window.
       dueNow: ready.length,
       outstanding: waiting.map((w) => Object.assign(w, { amount: undefined })),
+      // Paid, but with no card kept, so the scheduler will never see them.
+      // This is what card tokenisation being off at the processor looks like
+      // from in here, a month before the customer finds out.
+      unrenewable: stranded,
       runs: recent.map((r) => Object.assign(r, { amount: Number(r.amount) }))
     });
   } catch (err) {

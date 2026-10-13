@@ -294,8 +294,41 @@ function subscriptionFor(orgId) {
   check('every pass is recorded', Boolean(last) && Boolean(last.finishedAt));
   check('with what it charged', Number(last.amount) === PER_USER_MONTHLY * 2, String(last.amount));
 
+  // A subscription that paid but kept no card is the shape card tokenisation
+  // being off at the processor leaves behind. It is not due — there is
+  // nothing to charge — and that is exactly why it has to be visible: the
+  // scheduler's own lists are the wrong place to look for it.
+  console.log('\npaid, but with no card kept');
+  const tokenless = await makeSubscription(stamp + 9, TRIAL_DAYS + 3);
+  await query(
+    `UPDATE subscriptions
+        SET provider_authorization_code = NULL, status = 'active',
+            current_period_end = CURRENT_DATE + 9
+      WHERE organization_id = $1`,
+    [tokenless.orgId]
+  );
+
+  const stranded = await billing.unrenewable();
+  const mine = stranded.find((r) => r.organizationId === tokenless.orgId);
+  check('it is reported', Boolean(mine), 'nothing would ever say this account cannot renew');
+  check('with when its term runs out', Boolean(mine) && Number(mine.daysLeft) === 9,
+    mine && String(mine.daysLeft));
+  check('and it is not on the due list, because there is nothing to charge',
+    !(await billing.due(500)).some((r) => r.organizationId === tokenless.orgId));
+  check('nor among the outstanding',
+    !(await billing.outstanding()).some((r) => r.organizationId === tokenless.orgId));
+
+  await query(
+    `UPDATE subscriptions SET provider_authorization_code = 'AUTH_now_stored'
+      WHERE organization_id = $1`,
+    [tokenless.orgId]
+  );
+  check('once a card is kept it stops being reported',
+    !(await billing.unrenewable()).some((r) => r.organizationId === tokenless.orgId),
+    'this is what one more payment, with tokenisation on, should do');
+
   // ----------------------------------------------------------------- tidy up
-  for (const id of [over.orgId, running.orgId, unpaid.orgId]) {
+  for (const id of [over.orgId, running.orgId, unpaid.orgId, tokenless.orgId]) {
     await query('DELETE FROM organizations WHERE id = $1', [id]);
   }
   await query('DELETE FROM users WHERE email LIKE $1', ['billing-test-%@example.ng']);

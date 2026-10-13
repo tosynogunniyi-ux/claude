@@ -75,6 +75,36 @@ function outstanding() {
   );
 }
 
+// Accounts that have paid but have no card kept, so nothing will renew them.
+//
+// Both queries above require provider_authorization_code, which is right —
+// there is nothing to charge without it — but it also means these accounts
+// are invisible in a console that only lists what is due. They reach the end
+// of their term, nothing happens, and the first anybody knows is the customer
+// finding the books locked behind the paywall.
+//
+// The usual cause is card tokenisation not being switched on at the processor
+// when the payment was taken. It is enabled per merchant account and the
+// payment succeeds either way, so the gap only shows up a month later.
+function unrenewable() {
+  return many(
+    `SELECT s.organization_id AS "organizationId",
+            s.status,
+            s.cycle,
+            s.provider,
+            COALESCE(s.current_period_end, s.trial_start + COALESCE(s.trial_days, ${TRIAL_DAYS})) AS "dueOn",
+            COALESCE(s.current_period_end, s.trial_start + COALESCE(s.trial_days, ${TRIAL_DAYS}))
+              - CURRENT_DATE AS "daysLeft",
+            o.name AS "orgName"
+       FROM subscriptions s
+       JOIN organizations o ON o.id = s.organization_id
+      WHERE s.status IN ('active', 'past_due')
+        AND s.provider_authorization_code IS NULL
+      ORDER BY 5
+      LIMIT 25`
+  );
+}
+
 async function markCharged(organizationId) {
   await query(
     `UPDATE subscriptions
@@ -216,6 +246,7 @@ module.exports = {
   runOnce,
   due,
   outstanding,
+  unrenewable,
   lastRun,
   enabled,
   intervalMs,

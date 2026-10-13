@@ -17,6 +17,7 @@ const totp = require('../src/totp');
 // Read directly for the scheduling checks: which subscriptions are due, and
 // when a declined one comes round again, is decided here rather than over HTTP.
 const billingModule = require('../src/billing');
+const gateway = require('../src/integrations/gateway');
 
 const BASE = process.env.SMOKE_BASE || 'http://localhost:4000';
 
@@ -308,11 +309,23 @@ async function makeOwner(email, password) {
   const billing = await admin('GET', '/api/admin/billing');
   check('billing status loads', billing.status === 200, 'status ' + billing.status);
   check('it reports whether the scheduler is on', typeof billing.body.scheduler.on === 'boolean');
+  // Asking Paystack directly — which this did, and which the route did —
+  // reported "nothing to charge with" on a deployment billing live through
+  // Monnify, and greyed out the Run now button with it. Whichever processor
+  // is in use is the only right answer here.
   check(
-    'it is honest about having no processor',
-    billing.body.scheduler.processor === Boolean(process.env.PAYSTACK_SECRET_KEY),
+    'it reports the processor actually in use',
+    billing.body.scheduler.processor === gateway.configured(),
     JSON.stringify(billing.body.scheduler)
   );
+  check(
+    'and names it, so a card charged through the wrong one is visible',
+    billing.body.scheduler.processorName === gateway.name(),
+    billing.body.scheduler.processorName + ' vs ' + gateway.name()
+  );
+  check('it lists accounts that paid but kept no card',
+    Array.isArray(billing.body.unrenewable),
+    JSON.stringify(billing.body.unrenewable));
   check('it counts what is due', typeof billing.body.dueNow === 'number');
 
   // The subscription was pushed to 2020 above, so it is overdue — but it has

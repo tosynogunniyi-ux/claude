@@ -869,13 +869,15 @@
   function billingCard(b) {
     var s = b.scheduler;
     var last = b.lastRun;
-    var warn = !s.on || !s.processor || (last && last.error);
+    var stranded = b.unrenewable || [];
+    var warn = !s.on || !s.processor || (last && last.error) || stranded.length > 0;
 
     var status = !s.on
       ? 'Switched off — BILLING_SCHEDULER is set to off, so nothing will be charged.'
       : !s.processor
-        ? 'Idle — PAYSTACK_SECRET_KEY is not set, so there is nothing to charge with.'
-        : 'On — checks every ' + s.everyMinutes + ' minute' + (s.everyMinutes === 1 ? '' : 's') +
+        ? 'Idle — no payment processor is configured, so there is nothing to charge with.'
+        : 'On via ' + esc(s.processorName || 'the processor') +
+          ' — checks every ' + s.everyMinutes + ' minute' + (s.everyMinutes === 1 ? '' : 's') +
           '. A declined card is retried ' + s.maxAttempts + ' times over ' +
           s.retryDays.reduce(function (a, n) { return a + n; }, 0) + ' days, then left past due.';
 
@@ -904,6 +906,30 @@
           '<button class="btn" id="billing-run"' + (s.processor ? '' : ' disabled') + '>Run now</button>' +
         '</div>' +
       '</div>' +
+      // The quiet failure: these have paid, so nothing looks wrong, but no
+      // card was kept and the scheduler cannot see them. They lapse at the
+      // end of their term and the customer finds out before we do.
+      (stranded.length
+        ? '<div style="margin-top:14px; border-top:1px solid var(--line); padding-top:12px;">' +
+            '<div class="label" style="margin-bottom:4px; color:var(--amber);">' +
+              'Paid, but no card kept — these will not renew themselves</div>' +
+            '<div style="font-size:12px; color:var(--muted); margin-bottom:8px;">' +
+              'Card tokenisation was off at the processor when they paid. Switching it on ' +
+              'does not reach back: each of these needs one more payment before a card is ' +
+              'stored.</div>' +
+            stranded.map(function (o) {
+              return '<div style="display:flex; justify-content:space-between; gap:12px; padding:5px 0; font-size:13px;">' +
+                '<span>' + esc(o.orgName) + '</span>' +
+                '<span class="mono" style="font-size:12px; color:var(--muted);">' +
+                  esc(o.status) + ' · ' + esc(o.cycle) +
+                  ' · term ends ' + esc(o.dueOn) +
+                  ' (' + (Number(o.daysLeft) < 0
+                    ? Math.abs(Number(o.daysLeft)) + ' days ago'
+                    : Number(o.daysLeft) + ' days') + ')' +
+                '</span></div>';
+            }).join('') +
+          '</div>'
+        : '') +
       (problems.length
         ? '<div style="margin-top:14px; border-top:1px solid var(--line); padding-top:12px;">' +
             '<div class="label" style="margin-bottom:8px;">Retrying after a declined card</div>' +

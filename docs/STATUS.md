@@ -158,7 +158,12 @@ Then:
    `https://profitna.com/api/webhooks/monnify`. Sandbox registrations do not
    carry over.
 3. **Confirm Card Tokenisation is enabled on the live account.** Without it
-   customers can pay but nothing renews itself.
+   customers can pay but nothing renews itself. Switching it on does not reach
+   back: an account that paid while it was off has no card stored and needs
+   one more payment before it can renew. The Control Center's billing card now
+   lists those accounts under "Paid, but no card kept", which is the only
+   reliable confirmation — a dashboard toggle says what should happen, that
+   list says what did.
 4. Save, redeploy, then open the processor check below.
 5. Take one small real payment before trusting it.
 
@@ -245,14 +250,14 @@ ways out — back to the dashboard, reload, sign out.
 `SEED_DEMO_DATA=true` fills each new account with eight months of sample
 Nigerian books. Leave it unset in production so real accounts start empty.
 
-Eight test suites, 453 checks, run against a live server and a real database:
+Eight test suites, 461 checks, run against a live server and a real database:
 
 | Command | Checks | Covers |
 |---|---|---|
 | `npm run smoke` | 98 | Signup, ledger, invoices, inventory, imports, tenant isolation |
-| `npm run smoke:admin` | 86 | The Control Center, its auth and its second factor |
-| `npm run test:billing` | 49 | A trial through to a charge, a decline, a retry, a recovery |
-| `npm run test:monnify` | 84 | The processor, amounts, webhooks, and the live switch |
+| `npm run smoke:admin` | 88 | The Control Center, its auth and its second factor |
+| `npm run test:billing` | 54 | A trial through to a charge, a decline, a retry, a recovery |
+| `npm run test:monnify` | 85 | The processor, amounts, webhooks, and the live switch |
 | `npm run test:ask` | 60 | What Profitna AI may read, and that its tables are the database's |
 | `npm run test:backup` | 27 | A real dump, read back, copied off the machine, plus retention |
 | `npm run test:offsite` | 33 | The AWS signature against AWS's own signer, and a real upload |

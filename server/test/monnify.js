@@ -299,12 +299,21 @@ const LOGIN_OK = {
   reset();
   handlers['/api/v1/auth/login'] = LOGIN_OK;
   handlers['/api/v2/transactions/'] = {
-    json: { requestSuccessful: true, responseBody: { paymentStatus: 'PAID', amountPaid: 5000, cardDetails: {} } }
+    json: {
+      requestSuccessful: true,
+      responseBody: {
+        paymentStatus: 'PAID', amountPaid: 5000,
+        cardDetails: { last4: '4081', expMonth: '09', expYear: '2030', cardType: 'VISA' }
+      }
+    }
   };
   const noToken = await monnify.verify('MNFY|notoken');
   check('a payment without tokenisation still verifies',
     noToken !== null && noToken.authorizationCode === null,
     'they have paid; it just will not auto-renew');
+  check('and what can be shown of the card still comes back',
+    noToken.card && noToken.card.last4 === '4081',
+    'the last four are for the customer to recognise, not for charging');
 
   // =========================================================================
   console.log('\ncharging a stored card');
