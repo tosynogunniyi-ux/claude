@@ -3,6 +3,7 @@ const { many, one, query, tx: transaction } = require('../db');
 const { requireOrg, audit } = require('../auth');
 const shape = require('../shape');
 const { byKeyword } = require('../categorize');
+const money = require('../money');
 const banking = require('./banking');
 const anthropic = require('../integrations/anthropic');
 
@@ -193,19 +194,44 @@ function documentRoutes({ path, table, contactTable, contactColumn, nameColumn, 
           ? { prefix: 'PLG-', base: 301 }
           : { prefix, base };
         const number = b.number || (await nextNumber(client, req.orgId, table, series.prefix, series.base));
+        const draft = b.base === 'draft';
+
+        // Invoices carry the Smart Invoicing columns as well: the amount in
+        // integer kobo, and when it was issued. Written on the way in rather
+        // than backfilled later, so the two representations never drift from
+        // the moment this deploys. Bills have no such columns, hence the
+        // branch rather than one shared statement.
+        const extraColumns = table === 'invoices' ? ', total_kobo, subtotal_kobo, issued_at' : '';
+        const extraValues = table === 'invoices' ? ', $11, $11, $12' : '';
+        const args = [
+          req.orgId, number, contact ? contact.id : null, partyName,
+          b.issue || today(), b.due || today(), total,
+          b.fund || null, b.notes || null,
+          draft ? 'draft' : 'sent'
+        ];
+        if (table === 'invoices') {
+          args.push(money.toKobo(total), draft ? null : new Date().toISOString());
+        }
+
         const doc = (await client.query(
           `INSERT INTO ${table}
-             (organization_id, number, ${contactColumn}, ${nameColumn}, issue_date, due_date, total, fund, notes, base_status)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+             (organization_id, number, ${contactColumn}, ${nameColumn}, issue_date, due_date, total, fund, notes, base_status${extraColumns})
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10${extraValues})
            RETURNING id, number, ${contactColumn} AS party_id, ${nameColumn} AS party_name,
                      issue_date, due_date, total, base_status, 0 AS paid`,
-          [
-            req.orgId, number, contact ? contact.id : null, partyName,
-            b.issue || today(), b.due || today(), total,
-            b.fund || null, b.notes || null,
-            b.base === 'draft' ? 'draft' : 'sent'
-          ]
+          args
         )).rows[0];
+
+        // The timeline starts here. Append-only, so what it shows is a record
+        // of what happened rather than a reading of the current state.
+        if (table === 'invoices') {
+          await client.query(
+            `INSERT INTO invoice_events (invoice_id, organization_id, event, actor_user_id)
+             VALUES ($1, $2, 'created', $3)` + (draft ? '' : `,
+                    ($1, $2, 'finalised', $3)`),
+            [doc.id, req.orgId, req.user.id]
+          );
+        }
 
         return { doc: shape.docShape(doc), contact: createdContact };
       });
