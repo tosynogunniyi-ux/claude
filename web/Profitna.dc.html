@@ -1958,6 +1958,42 @@ const API = {
 
 const EMPTY_BOOK = () => ({ clients: [], vendors: [], tx: [], inv: [], bills: [], inventory: [], bank: [], imported: false, cats: [], income: [], accounts: [] });
 
+// Meta ads tracking, the browser half.
+//
+// Loaded only when the server reports a pixel id, so a deployment that does
+// not advertise fetches nothing from Meta and sets no cookies. The server
+// sends the same events itself (server/src/integrations/meta.js); both halves
+// carry the same eventID for the same action and Meta keeps one, so an event
+// blocked here is not a lost sale and an event that arrives twice is not two.
+const Meta = {
+  id: null,
+  load(pixelId) {
+    if (this.id || !pixelId || window.fbq) return;
+    this.id = pixelId;
+    /* eslint-disable */
+    !function (f, b, e, v, n, t, s) {
+      if (f.fbq) return; n = f.fbq = function () {
+        n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments);
+      };
+      if (!f._fbq) f._fbq = n;
+      n.push = n; n.loaded = true; n.version = '2.0'; n.queue = [];
+      t = b.createElement(e); t.async = true; t.src = v;
+      s = b.getElementsByTagName(e)[0]; s.parentNode.insertBefore(t, s);
+    }(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
+    /* eslint-enable */
+    window.fbq('init', pixelId);
+    window.fbq('track', 'PageView');
+  },
+  // Never throws and never blocks: a blocked or missing fbq is the expected
+  // case for a good share of visitors, and the server's copy covers it.
+  track(event, params, eventId) {
+    try {
+      if (!this.id || !window.fbq) return;
+      window.fbq('track', event, params || {}, eventId ? { eventID: eventId } : undefined);
+    } catch (e) { /* the server half still reports it */ }
+  }
+};
+
 class Component extends DCLogic {
   constructor(props) {
     super(props);
@@ -2006,6 +2042,13 @@ class Component extends DCLogic {
       : null);
 
     API.get('/auth/config')
+      .then((c) => {
+        // Before the setState, and from the reply rather than from state:
+        // setState has not landed yet, and a PageView that fires after the
+        // visitor has already clicked is a PageView nobody counts.
+        Meta.load(c.metaPixelId);
+        return c;
+      })
       .then((c) => this.setState({
         googleReady: Boolean(c.google), googleClientId: c.googleClientId,
         paystackReady: Boolean(c.paystack && c.paystackPublicKey),
@@ -2229,12 +2272,25 @@ class Component extends DCLogic {
     const inApp = this.state.screen === 'settings';
     this.setState({ payBusy: true, payErr: '' });
 
+    // Opening the processor's window is the last thing a visitor does before
+    // paying, so it is the signal worth optimising ads against while there
+    // are too few sales to learn from. Browser-only: the server has nothing
+    // to confirm at this point, and an abandoned checkout is not a sale.
+    Meta.track('InitiateCheckout', { value: Number(ses.amount) || undefined, currency: 'NGN' },
+      'checkout-' + ses.orgId + '-' + Date.now());
+
     return API.post(this.orgPath('/subscription/checkout'), {})
       .then((checkout) => (checkout.provider === 'monnify'
         ? this.monnifyAuthorise(checkout)
         : this.paystackAuthorise(ses.email, ses.amount)))
       .then((reference) => API.post(this.orgPath('/subscription/activate'), { paymentReference: reference }))
-      .then(() => API.get('/auth/me'))
+      .then((activated) => {
+        // The amount comes from the server, which got it from the processor.
+        // The browser's idea of the price is not what was charged.
+        Meta.track('Purchase', { value: Number(ses.amount) || undefined, currency: 'NGN' },
+          activated && activated.metaEventId);
+        return API.get('/auth/me');
+      })
       .then((r) => {
         this.setState({ payBusy: false, payErr: '' });
         return this.applySession(r.session, inApp);
@@ -3154,6 +3210,9 @@ class Component extends DCLogic {
         team: invited
       })
         .then((r) => {
+          // The server has already reported this registration under the same
+          // id. Whichever copy reaches Meta first is the one that counts.
+          Meta.track('CompleteRegistration', { content_name: A.book === 'church' ? 'church books' : 'business books' }, r.metaEventId);
           this.setState((s) => ({
             auth: { ...s.auth, pw: '', err: '', busy: false, googleCredential: null },
             // Held only in memory: the server stores a hash, so this response

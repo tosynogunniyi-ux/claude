@@ -89,6 +89,13 @@ database produced. Without an API key nothing is faked: the pill says
 "Simulated · no model connected" and the screen answers the six questions it
 can work out for itself.
 
+**Meta ads tracking** — a pixel in the browser and the Conversions API on the
+server, reporting the same events under the same ids so Meta counts each one
+once. The sale is reported from the server, after the processor has confirmed
+the payment, so it cannot be blocked by an ad blocker or faked by a browser.
+Email and name are SHA-256 hashed before they leave; nothing about a
+customer's books is ever sent. Unset `META_PIXEL_ID` and none of it runs.
+
 **Trial length, per account** — the default is 14 days for new sign-ups. It
 went 14 → 30 → 14, and the second change could not work like the first: the
 length is now recorded on each subscription when it is created, so lowering
@@ -226,6 +233,11 @@ ways out — back to the dashboard, reload, sign out.
   too, so nothing ships the old branch by accident.
 - **Google sign-in** is still in Testing on the consent screen, so only
   tosyn.ogunniyi@gmail.com can use it. Publish it to open it up.
+- **A privacy note for the ad tracking.** Once `META_PIXEL_ID` is set, the
+  site sets Meta's cookies and sends hashed identifiers to Meta. Nigeria's
+  NDPR expects visitors to be told that in a privacy policy, and Meta's own
+  terms require it. Nothing in the product says it yet — there is no privacy
+  page and no cookie notice.
 - **Ask Profitna needs its key.** The code is live but the screen will keep
   saying "Simulated · no model connected" until `ANTHROPIC_API_KEY` is set in
   Easypanel → your app service → Environment. `GET /api/health` reports
@@ -250,15 +262,16 @@ ways out — back to the dashboard, reload, sign out.
 `SEED_DEMO_DATA=true` fills each new account with eight months of sample
 Nigerian books. Leave it unset in production so real accounts start empty.
 
-Eight test suites, 461 checks, run against a live server and a real database:
+Nine test suites, 503 checks, run against a live server and a real database:
 
 | Command | Checks | Covers |
 |---|---|---|
-| `npm run smoke` | 98 | Signup, ledger, invoices, inventory, imports, tenant isolation |
+| `npm run smoke` | 99 | Signup, ledger, invoices, inventory, imports, tenant isolation |
 | `npm run smoke:admin` | 88 | The Control Center, its auth and its second factor |
 | `npm run test:billing` | 54 | A trial through to a charge, a decline, a retry, a recovery |
 | `npm run test:monnify` | 85 | The processor, amounts, webhooks, and the live switch |
 | `npm run test:ask` | 60 | What Profitna AI may read, and that its tables are the database's |
 | `npm run test:backup` | 27 | A real dump, read back, copied off the machine, plus retention |
-| `npm run test:offsite` | 33 | The AWS signature against AWS's own signer, and a real upload |
+| `npm run test:offsite` | 33 | The AWS signature against AWS’s own signer, and a real upload |
+| `npm run test:meta` | 41 | Ad events, and that no readable email ever leaves the server |
 | `npm run test:trial` | 16 | That changing the trial length leaves running trials alone |

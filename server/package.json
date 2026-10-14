@@ -17,7 +17,8 @@
     "test:trial": "node test/trial.js",
     "test:backup": "node test/backup.js",
     "test:ask": "node test/ask.js",
-    "test:offsite": "node test/offsite.js"
+    "test:offsite": "node test/offsite.js",
+    "test:meta": "node test/meta.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.0",

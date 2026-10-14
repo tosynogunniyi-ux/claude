@@ -115,6 +115,9 @@ app.use((err, req, res, next) => {
 for (const w of require('./integrations/monnify').warnings()) {
   console.warn('WARNING: ' + w);
 }
+for (const w of require('./integrations/meta').warnings()) {
+  console.warn('WARNING: ' + w);
+}
 
 if (require.main === module) {
   // Fail at boot rather than at the first sign-in attempt: a missing secret is

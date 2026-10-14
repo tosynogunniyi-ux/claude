@@ -41,6 +41,7 @@ what it can honestly do:
 | `GOOGLE_CLIENT_ID` | The Google buttons report that sign-in is not configured. |
 | No payment processor | Trials still run, but an expired account cannot be paid for from the app; the paywall says so instead of offering a dead button. |
 | `ANTHROPIC_API_KEY` | Category suggestions fall back to the keyword matcher, which still codes most Nigerian bank narrations, and Ask Profitna says so on the screen and answers six set questions from the figures already on the page. |
+| `META_PIXEL_ID` | No ad tracking at all: no script fetched from Meta, no cookie set, nothing sent. |
 | `MONO_SECRET_KEY` | Bank feeds are unavailable; the CSV / Excel / Sheets import path is unaffected. |
 | `ADMIN_PATH` | The owner's console is served at `/admin`. |
 | `ADMIN_IP_ALLOWLIST` | The console is reachable from any address. |
@@ -548,6 +549,56 @@ replaces a 5xx body with its own HTML page and the sentence never arrives.
 `npm run test:ask` covers it — 60 checks, including the lookups against books
 with figures chosen so every total can be checked by hand, and the loop
 itself against a scripted model, so it runs without an API key.
+
+## Meta ads tracking
+
+Two halves report the same events, and that is the point rather than an
+accident.
+
+The **pixel** runs in the browser. It is the half Meta documents first and the
+half that goes missing: ad blockers, iOS tracking prevention, a tab closed
+before the script finishes. Somewhere between a quarter and a half of real
+visitors never report through it.
+
+The **Conversions API** half runs here, in `src/integrations/meta.js`. It is
+not blockable, and more importantly it fires on what the server *knows*: a
+`Purchase` goes out after `gateway.verify()` has confirmed the payment with
+Monnify, not when a browser claims a payment happened.
+
+Both halves send the same `event_id` for the same action, and Meta keeps one.
+Without that shared id the two halves double-count every conversion; with it,
+a blocked browser event costs nothing. The ids:
+
+| Event | Where | `event_id` |
+|---|---|---|
+| `PageView` | browser | — |
+| `InitiateCheckout` | browser | per click |
+| `CompleteRegistration` | **both** | `signup-<user id>` |
+| `Purchase` | **both** | `purchase-<processor reference>` |
+
+Using the processor's own reference means a customer who activates twice — a
+double click, a retried request — is still one purchase at Meta's end.
+
+**What leaves this server.** An email address, a first and last name and the
+user id, each SHA-256 hashed after normalising the way Meta specifies, plus
+the IP, the user agent, and the `_fbp` / `_fbc` cookies Meta itself set on our
+domain. Never a raw address, never a card, never anything about the contents
+of a customer's books. `npm run test:meta` asserts that no readable email or
+name appears anywhere in an outgoing request, which is the check worth having
+because everything else can be right while that one thing is wrong.
+
+**It cannot break a signup.** `track()` is never awaited and never throws. If
+Meta is slow, down, or rejecting the token, the customer's signup and payment
+proceed untouched; the failure is logged and shown in the Control Center.
+
+Setup is three values — see `.env.example`. Keep `META_TEST_EVENT_CODE` set
+until you have watched events arrive in Events Manager → Test Events, then
+remove it: while it is set **nothing reaches your ad reporting**, which looks
+identical to working. The server warns about that at every boot.
+
+`GET /api/admin/billing` reports the state under `meta`: whether it is
+configured, which pixel, how many events have been sent and failed, the last
+result, and whether test mode is still on.
 
 ## Automatic billing
 

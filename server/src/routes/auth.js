@@ -11,6 +11,7 @@ const paystack = require('../integrations/paystack');
 const monnify = require('../integrations/monnify');
 const gateway = require('../integrations/gateway');
 const google = require('../integrations/google');
+const meta = require('../integrations/meta');
 
 const router = express.Router();
 
@@ -232,8 +233,29 @@ router.post('/signup', async (req, res, next) => {
     await recordLogin(req, created.userId);
     issue(req, res, { id: created.userId, email });
 
+    // Told to Meta from here as well as from the browser, under one id so the
+    // two copies collapse into one event. Not awaited: an advertising network
+    // having a bad minute must not slow a signup down, let alone fail one.
+    const metaEventId = 'signup-' + created.userId;
+    const [firstName, ...rest] = name.split(/\s+/);
+    meta.track({
+      name: 'CompleteRegistration',
+      id: metaEventId,
+      sourceUrl: team.publicOrigin(req) + '/',
+      user: Object.assign(meta.from(req), {
+        email,
+        firstName,
+        lastName: rest.join(' '),
+        externalId: created.userId
+      }),
+      custom: { content_name: book === 'church' ? 'church books' : 'business books', status: 'trial' }
+    });
+
     res.status(201).json({
       session: await sessionFor(created.userId),
+      // The browser fires the same event with this id. Meta keeps whichever
+      // arrives first and discards the other.
+      metaEventId,
       // Shown once, for the subscriber to copy and send. Nothing stores the
       // raw token, so this response is the only place these links exist.
       invites: created.issued.map((i) => ({
@@ -333,7 +355,10 @@ router.get('/config', (req, res) => {
     // and cannot authorise anything on its own. The secret key never leaves
     // the server.
     monnifyApiKey: monnify.configured() ? (monnify.conf('MONNIFY_API_KEY') || null) : null,
-    monnifyContractCode: monnify.configured() ? (monnify.conf('MONNIFY_CONTRACT_CODE') || null) : null
+    monnifyContractCode: monnify.configured() ? (monnify.conf('MONNIFY_CONTRACT_CODE') || null) : null,
+    // Public by design — a pixel id is in the page source of every site that
+    // advertises. Null and the page loads no tracking script at all.
+    metaPixelId: meta.browserConfigured() ? meta.pixelId() : null
   });
 });
 

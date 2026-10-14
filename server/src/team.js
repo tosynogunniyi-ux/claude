@@ -26,13 +26,18 @@ function newToken() {
   return crypto.randomBytes(24).toString('base64url');
 }
 
-// What the subscriber copies and sends. Built from the request so it is right
-// behind a proxy, on a custom domain, and in development alike.
-function inviteLink(req, token) {
+// Where this deployment is, as the browser sees it. Built from the request so
+// it is right behind a proxy, on a custom domain, and in development alike.
+function publicOrigin(req) {
   const base =
     process.env.PUBLIC_URL ||
     (req.get('x-forwarded-proto') || req.protocol) + '://' + req.get('host');
-  return base.replace(/\/+$/, '') + '/?invite=' + token;
+  return base.replace(/\/+$/, '');
+}
+
+// What the subscriber copies and sends.
+function inviteLink(req, token) {
+  return publicOrigin(req) + '/?invite=' + token;
 }
 
 function normaliseRole(value, fallback) {
@@ -174,6 +179,7 @@ module.exports = {
   hashToken,
   newToken,
   inviteLink,
+  publicOrigin,
   normaliseRole,
   seatUse,
   seatMessage,

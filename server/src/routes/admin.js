@@ -818,6 +818,10 @@ router.get('/billing', async (req, res, next) => {
       // the subscriptions sitting out a retry window.
       dueNow: ready.length,
       outstanding: waiting.map((w) => Object.assign(w, { amount: undefined })),
+      // Whether the ad tracking is reaching Meta, and whether it is still in
+      // test mode — which makes every number in Ads Manager read zero while
+      // looking, from in here, like it is working.
+      meta: require('../integrations/meta').describe(),
       // Paid, but with no card kept, so the scheduler will never see them.
       // This is what card tokenisation being off at the processor looks like
       // from in here, a month before the customer finds out.

@@ -70,6 +70,14 @@ async function signup(call, email, book, org) {
   check('signup creates an SME account', a.status === 201 && a.body.session.book === 'sme', 'status ' + a.status);
   const orgA = a.body.session.orgId;
 
+  // The id the browser needs to pair its own CompleteRegistration with the
+  // one the server sends, so Meta counts one signup rather than two. Returned
+  // whether or not tracking is configured: the page should not have to ask
+  // twice, and an unconfigured server simply sends nothing.
+  check('signup hands back an id for pairing the ad event',
+    typeof a.body.metaEventId === 'string' && a.body.metaEventId.length > 6,
+    String(a.body.metaEventId));
+
   const b = await signup(church, 'smoke-church-' + stamp + '@gracechapel.ng', 'church', 'Grace Chapel International');
   check('signup creates a church account', b.status === 201 && b.body.session.book === 'church');
   const orgB = b.body.session.orgId;

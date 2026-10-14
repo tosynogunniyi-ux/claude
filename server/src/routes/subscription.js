@@ -5,6 +5,7 @@ const { requireOrg, audit } = require('../auth');
 const paystack = require('../integrations/paystack');
 const monnify = require('../integrations/monnify');
 const gateway = require('../integrations/gateway');
+const meta = require('../integrations/meta');
 const { PER_USER_MONTHLY, PER_USER_ANNUAL, TRIAL_DAYS, amountFor } = require('../pricing');
 const team = require('../team');
 
@@ -148,7 +149,16 @@ async function activate(organizationId, { reference, email, userId }) {
     seats: sub.seats
   });
 
-  return { ok: true };
+  // Handed back so the caller can report the sale with the figure the
+  // processor confirmed, rather than the figure the browser hoped for.
+  return {
+    ok: true,
+    amount: Number(payment.amount),
+    currency: payment.currency || 'NGN',
+    reference: payment.reference,
+    cycle: sub.cycle,
+    seats: sub.seats
+  };
 }
 
 router.post('/subscription/activate', requireOrg('admin'), async (req, res, next) => {
@@ -160,8 +170,29 @@ router.post('/subscription/activate', requireOrg('admin'), async (req, res, next
     });
     if (!result.ok) return res.status(result.status || 400).json({ error: result.error });
 
+    // The sale, told to Meta from the one place that knows it really
+    // happened. The processor's own reference is the event id, so a customer
+    // who activates twice — a double click, a retried request — is still one
+    // purchase at Meta's end.
+    const metaEventId = 'purchase-' + result.reference;
+    meta.track({
+      name: 'Purchase',
+      id: metaEventId,
+      sourceUrl: team.publicOrigin(req) + '/',
+      user: Object.assign(meta.from(req), {
+        email: req.user.email,
+        externalId: req.user.id
+      }),
+      custom: {
+        value: result.amount,
+        currency: result.currency,
+        content_name: result.cycle === 'annual' ? 'Profitna annual' : 'Profitna monthly',
+        num_items: result.seats
+      }
+    });
+
     const updated = await one('SELECT * FROM subscriptions WHERE organization_id = $1', [req.orgId]);
-    res.json({ subscription: view(updated) });
+    res.json({ subscription: view(updated), metaEventId });
   } catch (err) {
     next(err);
   }
