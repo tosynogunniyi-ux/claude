@@ -932,6 +932,175 @@ window.__resources = {
         </div>
       </sc-if>
 
+      <!-- ============ SMART INVOICING ============ -->
+      <sc-if value="{{ isInvoicing }}" hint-placeholder-val="{{ false }}">
+        <div>
+          <div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 18px;">
+            <div style="min-width: 0;">
+              <div style="font-size: 12.5px; color: #5C5850;">{{ sales.windowLabel }}</div>
+              <sc-if value="{{ sales.ledgerWarn }}" hint-placeholder-val="{{ false }}">
+                <div style="font-size: 12.5px; color: #8A2F1D; margin-top: 3px;">{{ sales.ledgerNote }}</div>
+              </sc-if>
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ sales.newInvoice }}" style="border: 0; background: #1B2A4A; color: #FFFFFF; border-radius: 6px; padding: 9px 16px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;" style-hover="background: #27406E;">+ Create invoice</button>
+              <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ sales.recordPayment }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 9px 14px; font-size: 12.5px; cursor: pointer; white-space: nowrap;" style-hover="background: #F4F3EE;">Record payment</button>
+              <button onClick="{{ sales.exportCsv }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 9px 14px; font-size: 12.5px; cursor: pointer; white-space: nowrap;" style-hover="background: #F4F3EE;">Export</button>
+              <button onClick="{{ go.reports }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 9px 14px; font-size: 12.5px; cursor: pointer; white-space: nowrap;" style-hover="background: #F4F3EE;">Reports</button>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(176px, 1fr)); gap: 12px;">
+            <sc-for list="{{ sales.cards }}" as="c" hint-placeholder-count="6">
+              <div data-om="card" style="background: #FFFFFF; border: 1px solid #E5E1D8; border-left: 3px solid {{ c.tone }}; border-radius: 6px; padding: 16px 16px 15px;">
+                <div style="font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: #5C5850; font-weight: 600;">{{ c.label }}</div>
+                <div style="font-family: 'IBM Plex Mono', monospace; font-size: 19px; font-weight: 600; margin-top: 7px; color: {{ c.fg }}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ c.value }}</div>
+                <div style="font-size: 11.5px; color: #8A857C; margin-top: 3px;">{{ c.sub }}</div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; margin-top: 16px;">
+            <div data-om="card" style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; padding: 22px;">
+              <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap;">
+                <h2 style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 17px; font-weight: 600; margin: 0;">Invoiced and collected</h2>
+                <div style="font-size: 11.5px; color: #5C5850;"><span style="color: #1B2A4A;">&#9632;</span> invoiced &nbsp; <span style="color: #0E7C86;">&#9632;</span> collected</div>
+              </div>
+              <div style="display: flex; align-items: flex-end; gap: 0; margin-top: 18px; height: 150px; border-bottom: 1px solid #E7E3DA;">
+                <sc-for list="{{ sales.chart }}" as="m" hint-placeholder-count="12">
+                  <div style="flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; gap: 2px;">
+                    <div style="display: flex; align-items: flex-end; gap: 2px; width: 100%; justify-content: center; height: 128px;">
+                      <div style="width: 7px; background: #1B2A4A; height: {{ m.a }}px; border-radius: 1px 1px 0 0;"></div>
+                      <div style="width: 7px; background: #0E7C86; height: {{ m.b }}px; border-radius: 1px 1px 0 0;"></div>
+                    </div>
+                    <div style="font-size: 9.5px; color: #8A857C; white-space: nowrap;">{{ m.label }}</div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+
+            <div data-om="card" style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; padding: 22px;">
+              <h2 style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 17px; font-weight: 600; margin: 0 0 4px;">Receivables ageing</h2>
+              <div style="font-size: 12px; color: #5C5850; margin-bottom: 16px;">{{ sales.ageingNote }}</div>
+              <sc-for list="{{ sales.ageing }}" as="a" hint-placeholder-count="5">
+                <div style="margin-bottom: 11px;">
+                  <div style="display: flex; justify-content: space-between; gap: 12px; font-size: 12.5px; margin-bottom: 4px;">
+                    <span>{{ a.label }}</span>
+                    <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: {{ a.fg }};">{{ a.value }}</span>
+                  </div>
+                  <div style="height: 7px; background: #EEF1F4; border-radius: 1px;">
+                    <div style="height: 7px; background: {{ a.fg }}; border-radius: 1px; width: {{ a.pct }}%;"></div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-top: 16px;">
+            <div data-om="card" style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; padding: 22px;">
+              <h2 style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 16px; font-weight: 600; margin: 0 0 12px;">Owing the most</h2>
+              <sc-for list="{{ sales.owing }}" as="o" hint-placeholder-count="5">
+                <div style="display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid #F2EFE8; font-size: 13px;">
+                  <span style="min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ o.party }}</span>
+                  <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; white-space: nowrap;">{{ o.amount }}</span>
+                </div>
+              </sc-for>
+              <sc-if value="{{ sales.noOwing }}" hint-placeholder-val="{{ false }}">
+                <div style="font-size: 13px; color: #5C5850; padding: 6px 0;">Nobody owes you anything.</div>
+              </sc-if>
+            </div>
+
+            <div data-om="card" style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; padding: 22px;">
+              <h2 style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 16px; font-weight: 600; margin: 0 0 12px;">Overdue</h2>
+              <sc-for list="{{ sales.overdue }}" as="o" hint-placeholder-count="5">
+                <div style="display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid #F2EFE8; font-size: 13px;">
+                  <span style="min-width: 0;">
+                    <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;">{{ o.party }}</span>
+                    <span style="font-size: 11.5px; color: #8A2F1D;">{{ o.sub }}</span>
+                  </span>
+                  <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; white-space: nowrap; color: #8A2F1D;">{{ o.amount }}</span>
+                </div>
+              </sc-for>
+              <sc-if value="{{ sales.noOverdue }}" hint-placeholder-val="{{ true }}">
+                <div style="font-size: 13px; color: #0B6B4F; padding: 6px 0;">Nothing is overdue.</div>
+              </sc-if>
+            </div>
+
+            <div data-om="card" style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; padding: 22px;">
+              <h2 style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 16px; font-weight: 600; margin: 0 0 12px;">Recently paid</h2>
+              <sc-for list="{{ sales.recent }}" as="r" hint-placeholder-count="5">
+                <div style="display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid #F2EFE8; font-size: 13px;">
+                  <span style="min-width: 0;">
+                    <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;">{{ r.party }}</span>
+                    <span style="font-size: 11.5px; color: #8A857C;">{{ r.sub }}</span>
+                  </span>
+                  <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; white-space: nowrap; color: #0B6B4F;">{{ r.amount }}</span>
+                </div>
+              </sc-for>
+              <sc-if value="{{ sales.noRecent }}" hint-placeholder-val="{{ false }}">
+                <div style="font-size: 13px; color: #5C5850; padding: 6px 0;">No payments recorded yet.</div>
+              </sc-if>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 20px 0 12px;">
+            <input value="{{ sales.q }}" onChange="{{ sales.onQ }}" placeholder="Search invoice number or customer" style="flex: 1 1 260px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 11px; font-size: 13px; background: #FFFFFF;" />
+            <sc-raw-select value="{{ sales.status }}" onChange="{{ sales.onStatus }}" style="border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 10px; font-size: 13px; background: #FFFFFF;">
+              <option value="all">All invoices</option>
+              <option value="unpaid">Unpaid</option>
+              <option value="part">Partly paid</option>
+              <option value="overdue">Overdue</option>
+              <option value="paid">Paid</option>
+              <option value="draft">Drafts</option>
+              <option value="void">Voided</option>
+            </sc-raw-select>
+            <div style="font-size: 12.5px; color: #5C5850;">{{ sales.listNote }}</div>
+          </div>
+
+          <div data-om="card" style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; overflow: hidden; overflow-x: auto;">
+            <sc-raw-table style="width: 100%; min-width: 860px; font-size: 13.5px;">
+              <sc-raw-thead>
+                <sc-raw-tr style="background: #F8F9FB; border-bottom: 1px solid #E5E1D8;">
+                  <sc-raw-th style="text-align: left; padding: 11px 14px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850;">Invoice</sc-raw-th>
+                  <sc-raw-th style="text-align: left; padding: 11px 14px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850;">Customer</sc-raw-th>
+                  <sc-raw-th style="text-align: left; padding: 11px 14px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850;">Date</sc-raw-th>
+                  <sc-raw-th style="text-align: left; padding: 11px 14px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850;">Due</sc-raw-th>
+                  <sc-raw-th style="text-align: right; padding: 11px 14px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850;">Total</sc-raw-th>
+                  <sc-raw-th style="text-align: right; padding: 11px 14px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850;">Paid</sc-raw-th>
+                  <sc-raw-th style="text-align: right; padding: 11px 14px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850;">Balance</sc-raw-th>
+                  <sc-raw-th style="text-align: left; padding: 11px 14px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850;">Status</sc-raw-th>
+                  <sc-raw-th style="text-align: right; padding: 11px 14px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850;">&nbsp;</sc-raw-th>
+                </sc-raw-tr>
+              </sc-raw-thead>
+              <sc-raw-tbody>
+                <sc-for list="{{ sales.rows }}" as="r" hint-placeholder-count="8">
+                  <sc-raw-tr style="border-bottom: 1px solid #F2EFE8;">
+                    <sc-raw-td style="padding: 11px 14px; font-family: 'IBM Plex Mono', monospace; font-size: 12px;">{{ r.number }}</sc-raw-td>
+                    <sc-raw-td style="padding: 11px 14px;">{{ r.party }}</sc-raw-td>
+                    <sc-raw-td style="padding: 11px 14px; color: #5C5850;">{{ r.issue }}</sc-raw-td>
+                    <sc-raw-td style="padding: 11px 14px; color: {{ r.dueFg }};">{{ r.due }}</sc-raw-td>
+                    <sc-raw-td style="padding: 11px 14px; text-align: right; font-family: 'IBM Plex Mono', monospace; font-size: 12.5px;">{{ r.total }}</sc-raw-td>
+                    <sc-raw-td style="padding: 11px 14px; text-align: right; font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; color: #5C5850;">{{ r.paid }}</sc-raw-td>
+                    <sc-raw-td style="padding: 11px 14px; text-align: right; font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; font-weight: 600;">{{ r.balance }}</sc-raw-td>
+                    <sc-raw-td style="padding: 11px 14px;"><span style="font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: {{ r.bg }}; color: {{ r.fg }}; white-space: nowrap;">{{ r.label }}</span></sc-raw-td>
+                    <sc-raw-td style="padding: 11px 14px; text-align: right; white-space: nowrap;">
+                      <button onClick="{{ r.open }}" style="border: 1px solid #DCD6CA; background: #FFFFFF; border-radius: 5px; padding: 5px 10px; font-size: 11.5px; cursor: pointer;" style-hover="background: #F4F3EE;">{{ r.openLabel }}</button>
+                      <button onClick="{{ r.pdf }}" style="border: 1px solid #DCD6CA; background: #FFFFFF; border-radius: 5px; padding: 5px 10px; font-size: 11.5px; cursor: pointer; margin-left: 5px;" style-hover="background: #F4F3EE;">PDF</button>
+                    </sc-raw-td>
+                  </sc-raw-tr>
+                </sc-for>
+              </sc-raw-tbody>
+            </sc-raw-table>
+            <sc-if value="{{ sales.noRows }}" hint-placeholder-val="{{ false }}">
+              <div style="padding: 36px 24px; text-align: center;">
+                <div style="font-size: 15px; font-weight: 600;">No invoices here yet</div>
+                <div style="font-size: 13px; color: #5C5850; margin-top: 4px;">Create one and it will appear with its number, status and balance.</div>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+      </sc-if>
+
       <!-- ============ ASK PROFITINA ============ -->
       <sc-if value="{{ isAI }}" hint-placeholder-val="{{ false }}">
         <div style="max-width: 900px;">
@@ -1771,6 +1940,130 @@ window.__resources = {
   </sc-if>
 
   <!-- ======================= MODAL ======================= -->
+  <!-- ============ INVOICE BUILDER ============ -->
+  <sc-if value="{{ bld.open }}" hint-placeholder-val="{{ false }}">
+    <div style="position: fixed; inset: 0; background: rgba(16,24,40,.55); z-index: 70; display: flex; align-items: flex-start; justify-content: center; overflow-y: auto; padding: 24px 16px;">
+      <div data-om="card" style="background: #FFFFFF; border-radius: 10px; width: 100%; max-width: 1020px; box-shadow: 0 24px 64px -12px rgba(16,24,40,.45); overflow: hidden;">
+
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 18px 24px; border-bottom: 1px solid #E5E1D8; background: #F8F9FB; flex-wrap: wrap;">
+          <div style="min-width: 0;">
+            <div style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 19px; font-weight: 600;">{{ bld.title }}</div>
+            <div style="font-size: 12.5px; color: #5C5850; margin-top: 1px;">{{ bld.subtitle }}</div>
+          </div>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button onClick="{{ bld.close }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 14px; font-size: 12.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Close</button>
+            <button disabled="{{ bld.busy }}" onClick="{{ bld.saveDraft }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 14px; font-size: 12.5px; cursor: pointer; opacity: {{ bld.opacity }};" style-hover="background: #F4F3EE;">Save draft</button>
+            <button disabled="{{ bld.busy }}" onClick="{{ bld.issue }}" style="border: 0; background: #1B2A4A; color: #FFFFFF; border-radius: 6px; padding: 8px 18px; font-size: 12.5px; font-weight: 600; cursor: pointer; opacity: {{ bld.opacity }};" style-hover="background: #27406E;">{{ bld.issueLabel }}</button>
+          </div>
+        </div>
+
+        <sc-if value="{{ bld.hasError }}" hint-placeholder-val="{{ false }}">
+          <div style="background: #FBEBE7; color: #8A2F1D; padding: 11px 24px; font-size: 13px; border-bottom: 1px solid #F3D6CE;">{{ bld.error }}</div>
+        </sc-if>
+        <sc-if value="{{ bld.identityGap }}" hint-placeholder-val="{{ false }}">
+          <div style="background: #FDF6E7; color: #7A5A0C; padding: 11px 24px; font-size: 12.5px; border-bottom: 1px solid #F0E2C0;">{{ bld.identityNote }} <span style="text-decoration: underline; cursor: pointer;" onClick="{{ bld.goSettings }}">Open Settings</span></div>
+        </sc-if>
+
+        <div style="padding: 22px 24px;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px;">
+            <div>
+              <div style="font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: #8A857C; font-weight: 600; margin-bottom: 5px;">From</div>
+              <div style="font-size: 13.5px; font-weight: 600;">{{ bld.businessName }}</div>
+              <div style="font-size: 12px; color: #5C5850; line-height: 1.5;">{{ bld.businessLines }}</div>
+            </div>
+            <div>
+              <div style="font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: #8A857C; font-weight: 600; margin-bottom: 5px;">Bill to</div>
+              <input value="{{ bld.party }}" onChange="{{ bld.onParty }}" placeholder="Customer name" style="width: 100%; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 11px; font-size: 13.5px; background: #FFFFFF;" />
+              <sc-if value="{{ bld.hasCustomers }}" hint-placeholder-val="{{ true }}">
+                <sc-raw-select value="{{ bld.pick }}" onChange="{{ bld.onPick }}" style="width: 100%; border: 1px solid #E5E1D8; border-radius: 6px; padding: 6px 9px; font-size: 12px; margin-top: 6px; background: #FCFCFB; color: #5C5850;">
+                  <sc-for list="{{ bld.customers }}" as="c" hint-placeholder-count="5">
+                    <option value="{{ c.value }}">{{ c.label }}</option>
+                  </sc-for>
+                </sc-raw-select>
+              </sc-if>
+              <textarea value="{{ bld.billingAddress }}" onChange="{{ bld.onBilling }}" placeholder="Billing address (optional)" rows="2" style="width: 100%; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 11px; font-size: 12.5px; margin-top: 7px; background: #FFFFFF; resize: vertical;"></textarea>
+            </div>
+            <div>
+              <div style="font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: #8A857C; font-weight: 600; margin-bottom: 5px;">Dates and reference</div>
+              <div style="display: flex; gap: 7px; flex-wrap: wrap;">
+                <input type="date" value="{{ bld.issueDate }}" onChange="{{ bld.onIssue }}" style="flex: 1 1 110px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 7px 9px; font-size: 12.5px; background: #FFFFFF;" />
+                <input type="date" value="{{ bld.dueDate }}" onChange="{{ bld.onDue }}" style="flex: 1 1 110px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 7px 9px; font-size: 12.5px; background: #FFFFFF;" />
+              </div>
+              <input value="{{ bld.purchaseOrder }}" onChange="{{ bld.onPo }}" placeholder="Their PO number (optional)" style="width: 100%; border: 1px solid #C9C3B7; border-radius: 6px; padding: 7px 9px; font-size: 12.5px; margin-top: 7px; background: #FFFFFF;" />
+            </div>
+          </div>
+
+          <div style="margin-top: 20px; border: 1px solid #E5E1D8; border-radius: 7px; overflow: hidden; overflow-x: auto;">
+            <sc-raw-table style="width: 100%; min-width: 760px; font-size: 13px;">
+              <sc-raw-thead>
+                <sc-raw-tr style="background: #F8F9FB; border-bottom: 1px solid #E5E1D8;">
+                  <sc-raw-th style="text-align: left; padding: 9px 12px; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850;">Description</sc-raw-th>
+                  <sc-raw-th style="text-align: right; padding: 9px 8px; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850; width: 74px;">Qty</sc-raw-th>
+                  <sc-raw-th style="text-align: right; padding: 9px 8px; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850; width: 118px;">Unit price</sc-raw-th>
+                  <sc-raw-th style="text-align: right; padding: 9px 8px; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850; width: 86px;">Disc %</sc-raw-th>
+                  <sc-raw-th style="text-align: left; padding: 9px 8px; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850; width: 112px;">VAT</sc-raw-th>
+                  <sc-raw-th style="text-align: right; padding: 9px 12px; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850; width: 122px;">Amount</sc-raw-th>
+                  <sc-raw-th style="width: 34px;">&nbsp;</sc-raw-th>
+                </sc-raw-tr>
+              </sc-raw-thead>
+              <sc-raw-tbody>
+                <sc-for list="{{ bld.lines }}" as="l" hint-placeholder-count="3">
+                  <sc-raw-tr style="border-bottom: 1px solid #F2EFE8;">
+                    <sc-raw-td style="padding: 6px 12px;"><input value="{{ l.description }}" onChange="{{ l.onDescription }}" placeholder="What are you charging for?" style="width: 100%; border: 1px solid transparent; border-radius: 5px; padding: 6px 8px; font-size: 13px; background: transparent;" style-focus="border-color: #1B2A4A; background: #FFFFFF;" /></sc-raw-td>
+                    <sc-raw-td style="padding: 6px 8px;"><input value="{{ l.qty }}" onChange="{{ l.onQty }}" style="width: 100%; border: 1px solid transparent; border-radius: 5px; padding: 6px 8px; font-size: 13px; text-align: right; background: transparent;" style-focus="border-color: #1B2A4A; background: #FFFFFF;" /></sc-raw-td>
+                    <sc-raw-td style="padding: 6px 8px;"><input value="{{ l.unitPrice }}" onChange="{{ l.onPrice }}" style="width: 100%; border: 1px solid transparent; border-radius: 5px; padding: 6px 8px; font-size: 13px; text-align: right; background: transparent;" style-focus="border-color: #1B2A4A; background: #FFFFFF;" /></sc-raw-td>
+                    <sc-raw-td style="padding: 6px 8px;"><input value="{{ l.discount }}" onChange="{{ l.onDiscount }}" style="width: 100%; border: 1px solid transparent; border-radius: 5px; padding: 6px 8px; font-size: 13px; text-align: right; background: transparent;" style-focus="border-color: #1B2A4A; background: #FFFFFF;" /></sc-raw-td>
+                    <sc-raw-td style="padding: 6px 8px;">
+                      <sc-raw-select value="{{ l.treatment }}" onChange="{{ l.onTreatment }}" style="width: 100%; border: 1px solid #E5E1D8; border-radius: 5px; padding: 5px 6px; font-size: 12px; background: #FFFFFF;">
+                        <option value="standard">{{ bld.vatLabel }}</option>
+                        <option value="zero_rated">Zero-rated</option>
+                        <option value="exempt">Exempt</option>
+                        <option value="no_vat">No VAT</option>
+                      </sc-raw-select>
+                    </sc-raw-td>
+                    <sc-raw-td style="padding: 6px 12px; text-align: right; font-family: 'IBM Plex Mono', monospace; font-size: 12.5px;">{{ l.amount }}</sc-raw-td>
+                    <sc-raw-td style="padding: 6px 4px; text-align: center;"><button onClick="{{ l.remove }}" style="border: 0; background: transparent; color: #8A857C; font-size: 17px; line-height: 1; cursor: pointer; padding: 2px 6px;" style-hover="color: #8A2F1D;">&times;</button></sc-raw-td>
+                  </sc-raw-tr>
+                </sc-for>
+              </sc-raw-tbody>
+            </sc-raw-table>
+            <div style="padding: 9px 12px; background: #FCFCFB;">
+              <button onClick="{{ bld.addLine }}" style="border: 1px dashed #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 7px 13px; font-size: 12.5px; cursor: pointer; color: #1B2A4A;" style-hover="border-color: #1B2A4A; background: #F4F7FB;">+ Add a line</button>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-top: 18px;">
+            <div>
+              <div style="font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: #8A857C; font-weight: 600; margin-bottom: 5px;">Notes on the invoice</div>
+              <textarea value="{{ bld.notes }}" onChange="{{ bld.onNotes }}" placeholder="Anything the customer should read" rows="3" style="width: 100%; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 11px; font-size: 12.5px; background: #FFFFFF; resize: vertical;"></textarea>
+              <div style="font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: #8A857C; font-weight: 600; margin: 12px 0 5px;">Design</div>
+              <sc-raw-select value="{{ bld.template }}" onChange="{{ bld.onTemplate }}" style="width: 100%; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 10px; font-size: 13px; background: #FFFFFF;">
+                <sc-for list="{{ bld.templates }}" as="t" hint-placeholder-count="5">
+                  <option value="{{ t.name }}">{{ t.label }}</option>
+                </sc-for>
+              </sc-raw-select>
+            </div>
+            <div>
+              <div style="border: 1px solid #E5E1D8; border-radius: 7px; overflow: hidden;">
+                <sc-for list="{{ bld.totals }}" as="t" hint-placeholder-count="3">
+                  <div style="display: flex; justify-content: space-between; gap: 14px; padding: 9px 14px; border-bottom: 1px solid #F2EFE8; font-size: 13px;">
+                    <span style="color: #5C5850;">{{ t.label }}</span>
+                    <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12.5px;">{{ t.value }}</span>
+                  </div>
+                </sc-for>
+                <div style="display: flex; justify-content: space-between; gap: 14px; padding: 12px 14px; background: #1B2A4A; color: #FFFFFF;">
+                  <span style="font-weight: 600; font-size: 13.5px;">Total due</span>
+                  <span style="font-family: 'IBM Plex Mono', monospace; font-size: 14px; font-weight: 600;">{{ bld.grandTotal }}</span>
+                </div>
+              </div>
+              <div style="font-size: 11.5px; color: #8A857C; margin-top: 8px; text-wrap: pretty;">{{ bld.totalsNote }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
   <sc-if value="{{ modalOpen }}" hint-placeholder-val="{{ false }}">
     <div style="position: fixed; inset: 0; background: rgba(14,14,13,0.62); display: flex; align-items: flex-start; justify-content: center; padding: 48px 20px; overflow-y: auto; z-index: 50;">
       <div style="background: #FFFFFF; border-radius: 4px; width: 100%; max-width: 560px; box-shadow: 0 24px 60px rgba(0,0,0,0.3);">
@@ -2009,6 +2302,10 @@ class Component extends DCLogic {
       // a model is connected; aiAnswer holds the live one, aiKey the
       // worked-out-on-this-page one, and they are never both set.
       aiStatus: null, aiBusy: false, aiAnswer: null, aiThread: [], aiAsking: '',
+      // Smart Invoicing. `dash` is the dashboard payload, `builder` the
+      // invoice being written — null when the builder is closed.
+      dash: null, dashBusy: false, invList: null, invFilter: { q: '', status: 'all' },
+      builder: null, builderBusy: false, builderErr: '', bootstrap: null,
       newIncome: '', newExpense: '', newExpensePct: '100',
       imp: { open: false, step: 'source', source: 'csv', paste: '', url: '', fileName: '', rows: [] },
       booted: false, googleReady: false,
@@ -2375,6 +2672,422 @@ class Component extends DCLogic {
   askKey(key, q) { return () => this.runAsk(q, key); }
   confirmReminders(rows) { this.setState({ modal: 'reminders', form: { rows } }); }
 
+  // ---------------- Smart Invoicing ----------------
+
+  // All invoicing figures arrive from the server already in integer kobo and
+  // already computed. The browser formats them and nothing else: an invoice
+  // the screen disagrees with the PDF about is the one fault this whole
+  // feature cannot afford.
+  naira(kobo) {
+    const n = Math.round(Number(kobo) || 0);
+    const sign = n < 0 ? '-' : '';
+    const abs = Math.abs(n);
+    const whole = String(Math.floor(abs / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return sign + '₦' + whole + '.' + String(abs % 100).padStart(2, '0');
+  }
+
+  loadInvoicing(force) {
+    if (this.state.dashBusy) return Promise.resolve();
+    if (this.state.dash && !force) return Promise.resolve();
+    this.setState({ dashBusy: true });
+    return Promise.all([
+      API.get(this.orgPath('/invoicing/dashboard')),
+      API.get(this.orgPath('/invoicing/list?limit=25&status=' + (this.state.invFilter.status || 'all') +
+        '&q=' + encodeURIComponent(this.state.invFilter.q || '')))
+    ])
+      .then(([dash, list]) => this.setState({ dash, invList: list, dashBusy: false }))
+      .catch((err) => { this.setState({ dashBusy: false }); this.flash(err.message); });
+  }
+
+  reloadInvoiceList() {
+    const f = this.state.invFilter;
+    return API.get(this.orgPath('/invoicing/list?limit=25&status=' + (f.status || 'all') +
+      '&q=' + encodeURIComponent(f.q || '')))
+      .then((invList) => this.setState({ invList }))
+      .catch(() => {});
+  }
+
+  invoicingVals() {
+    const st = this.state;
+    const d = st.dash;
+    const money = (k) => this.naira(k);
+    const blank = { cards: [], chart: [], ageing: [], owing: [], overdue: [], recent: [], rows: [] };
+
+    if (!d) {
+      return Object.assign({}, blank, {
+        windowLabel: st.dashBusy ? 'Reading your invoices…' : 'No invoicing data yet.',
+        ledgerWarn: false, ledgerNote: '', ageingNote: '', listNote: '',
+        noOwing: true, noOverdue: true, noRecent: true, noRows: true,
+        q: '', status: 'all',
+        onQ: () => {}, onStatus: () => {},
+        newInvoice: () => this.openBuilder(), recordPayment: () => this.go('invoices')(),
+        exportCsv: () => {}
+      });
+    }
+
+    const m = d.metrics;
+    const cards = [
+      { label: 'Invoiced', value: money(m.invoiced), sub: 'in this period', tone: '#1B2A4A', fg: '#101828' },
+      { label: 'Collected', value: money(m.collected), sub: m.collectionRate === null ? 'nothing invoiced yet' : m.collectionRate + '% of invoiced', tone: '#0E7C86', fg: '#0B6B4F' },
+      { label: 'Outstanding', value: money(m.outstanding), sub: (m.unpaidCount + m.partCount) + ' open invoices', tone: '#B8863A', fg: '#101828' },
+      { label: 'Overdue', value: money(m.overdue), sub: m.overdue > 0 ? 'past its due date' : 'nothing late', tone: m.overdue > 0 ? '#B4462C' : '#C9C3B7', fg: m.overdue > 0 ? '#8A2F1D' : '#101828' },
+      { label: 'Paid', value: String(m.paidCount), sub: 'settled in full', tone: '#0B6B4F', fg: '#101828' },
+      { label: 'Unpaid', value: String(m.unpaidCount), sub: 'not yet paid', tone: '#C9C3B7', fg: '#101828' },
+      { label: 'Part paid', value: String(m.partCount), sub: 'partly settled', tone: '#C9C3B7', fg: '#101828' },
+      { label: 'Drafts', value: String(m.draftCount), sub: 'not issued', tone: '#C9C3B7', fg: '#101828' },
+      { label: 'Collection time', value: m.averageCollectionDays + ' days', sub: 'average, invoice to payment', tone: '#1B2A4A', fg: '#101828' },
+      // Said as "not set up" rather than zero, because zero would read as
+      // "none are running" and that is a different statement.
+      { label: 'Recurring', value: m.recurringActive === null ? '—' : String(m.recurringActive), sub: m.recurringActive === null ? 'not set up yet' : 'active', tone: '#C9C3B7', fg: '#8A857C' }
+    ];
+
+    const peak = Math.max(1, ...d.monthly.map((x) => Math.max(x.invoiced, x.collected)));
+    const chart = d.monthly.map((x) => ({
+      label: x.month.slice(5) + '/' + x.month.slice(2, 4),
+      a: Math.max(2, Math.round((x.invoiced / peak) * 124)),
+      b: Math.max(2, Math.round((x.collected / peak) * 124))
+    }));
+
+    const buckets = d.ageing.buckets;
+    const ageTotal = Math.max(1, d.ageing.total);
+    const ageing = [
+      ['Current', buckets.current, '#0B6B4F'],
+      ['1–30 days', buckets.d1_30, '#7A5A0C'],
+      ['31–60 days', buckets.d31_60, '#B8863A'],
+      ['61–90 days', buckets.d61_90, '#B4462C'],
+      ['Over 90 days', buckets.d90_plus, '#8A2F1D']
+    ].map(([label, value, fg]) => ({
+      label, fg, value: money(value), pct: Math.round((value / ageTotal) * 100)
+    }));
+
+    const list = st.invList || { invoices: [], total: 0, outstanding: 0 };
+    const STATUS = {
+      paid: ['Paid', '#E8F3EC', '#0B6B4F'],
+      unpaid: ['Unpaid', '#FAEEDA', '#7A5A0C'],
+      part: ['Part paid', '#FAEEDA', '#7A5A0C'],
+      overdue: ['Overdue', '#FBEBE7', '#8A2F1D'],
+      draft: ['Draft', '#F0EFEA', '#5C5850'],
+      void: ['Void', '#F0EFEA', '#8A857C']
+    };
+
+    return {
+      windowLabel: d.window.from + ' to ' + d.window.to + ' · ' + list.total +
+        (list.total === 1 ? ' invoice' : ' invoices') + ' · ' + money(list.outstanding) + ' outstanding',
+      // The ledger disagreeing with the invoice list is worth saying out loud
+      // rather than quietly showing two different numbers.
+      ledgerWarn: d.ageing.reconciles === false,
+      ledgerNote: 'Receivables do not reconcile with the ledger. Open Settings → post pending entries.',
+      cards,
+      chart,
+      ageing,
+      ageingNote: money(d.ageing.total) + ' owed in total',
+      owing: d.owing.map((o) => ({ party: o.party, amount: money(o.owed) })),
+      noOwing: d.owing.length === 0,
+      overdue: d.overdueInvoices.map((o) => ({
+        party: o.party, amount: money(o.outstanding),
+        sub: o.number + ' · ' + o.daysOverdue + ' days late'
+      })),
+      noOverdue: d.overdueInvoices.length === 0,
+      recent: d.recentPayments.map((r) => ({
+        party: r.party, amount: money(r.amount), sub: r.number + ' · ' + fmtDate(r.date)
+      })),
+      noRecent: d.recentPayments.length === 0,
+      rows: list.invoices.map((r) => {
+        const s = STATUS[r.status] || STATUS.unpaid;
+        return {
+          number: r.number, party: r.party, issue: fmtDate(r.issue), due: fmtDate(r.due),
+          dueFg: r.status === 'overdue' ? '#8A2F1D' : '#5C5850',
+          total: money(r.total), paid: money(r.paid), balance: money(r.outstanding),
+          label: s[0], bg: s[1], fg: s[2],
+          openLabel: r.status === 'draft' ? 'Edit' : 'View',
+          open: () => (r.status === 'draft' ? this.openBuilder(r.id) : this.openInvoicePdf(r.id)),
+          pdf: () => this.openInvoicePdf(r.id)
+        };
+      }),
+      noRows: list.invoices.length === 0,
+      listNote: list.total > list.invoices.length
+        ? 'Showing ' + list.invoices.length + ' of ' + list.total : '',
+      q: st.invFilter.q,
+      status: st.invFilter.status,
+      onQ: (e) => {
+        const q = e.target.value;
+        this.setState((p) => ({ invFilter: Object.assign({}, p.invFilter, { q }) }));
+        clearTimeout(this._invT);
+        this._invT = setTimeout(() => this.reloadInvoiceList(), 280);
+      },
+      onStatus: (e) => {
+        const status = e.target.value;
+        this.setState((p) => ({ invFilter: Object.assign({}, p.invFilter, { status }) }),
+          () => this.reloadInvoiceList());
+      },
+      newInvoice: () => this.openBuilder(),
+      recordPayment: () => this.go('invoices')(),
+      exportCsv: () => this.exportInvoices()
+    };
+  }
+
+  openInvoicePdf(id) {
+    // Opened rather than fetched: the browser's own viewer is where printing
+    // and saving already live, and a blob would only reimplement them worse.
+    window.open('/api' + this.orgPath('/invoices/' + id + '/pdf'), '_blank');
+  }
+
+  exportInvoices() {
+    const rows = ((this.state.invList || {}).invoices) || [];
+    if (!rows.length) return this.flash('Nothing to export.');
+    const head = ['Number', 'Customer', 'Date', 'Due', 'Total', 'Paid', 'Balance', 'Status'];
+    const body = rows.map((r) => [r.number, r.party, r.issue, r.due,
+      (r.total / 100).toFixed(2), (r.paid / 100).toFixed(2), (r.outstanding / 100).toFixed(2), r.status]);
+    const csv = [head].concat(body)
+      .map((line) => line.map((c) => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'profitna-invoices.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // ---------------- the builder ----------------
+
+  blankLine() {
+    return { description: '', qty: '1', unitPrice: '', discount: '', treatment: 'standard' };
+  }
+
+  openBuilder(id) {
+    this.setState({ builderBusy: true, builderErr: '' });
+    const boot = this.state.bootstrap
+      ? Promise.resolve(this.state.bootstrap)
+      : API.get(this.orgPath('/invoices/new'));
+
+    return boot
+      .then((bootstrap) => {
+        const today = iso(TODAY);
+        const due = iso(new Date(TODAY.getTime() + 14 * 86400000));
+        if (!id) {
+          return this.setState({
+            bootstrap,
+            builderBusy: false,
+            builder: {
+              id: null, party: '', billingAddress: '', purchaseOrder: '',
+              issue: today, due,
+              lines: [this.blankLine()],
+              notes: '', template: bootstrap.defaultTemplate,
+              totals: null
+            }
+          });
+        }
+        // Reopening a draft: its lines come back in kobo and thousandths and
+        // are turned back into what a person typed.
+        return API.get(this.orgPath('/invoices/' + id + '/full')).then((full) => this.setState({
+          bootstrap,
+          builderBusy: false,
+          builder: {
+            id,
+            party: full.invoice.party || '',
+            billingAddress: full.invoice.billingAddress || '',
+            purchaseOrder: full.invoice.purchaseOrder || '',
+            issue: full.invoice.issueDate || today,
+            due: full.invoice.dueDate || due,
+            lines: (full.lines || []).map((l) => ({
+              description: l.description || '',
+              qty: String(l.qty / 1000),
+              unitPrice: String(l.unitPrice / 100),
+              discount: '',
+              treatment: l.treatment || 'standard'
+            })),
+            notes: full.invoice.notes || '',
+            template: full.template || bootstrap.defaultTemplate,
+            totals: full.totals
+          }
+        }));
+      })
+      .then(() => this.previewTotals())
+      .catch((err) => this.setState({ builderBusy: false, builderErr: err.message }));
+  }
+
+  patchBuilder(patch) {
+    this.setState((p) => ({ builder: Object.assign({}, p.builder, patch) }));
+  }
+
+  patchLine(index, patch) {
+    this.setState((p) => ({
+      builder: Object.assign({}, p.builder, {
+        lines: p.builder.lines.map((l, i) => (i === index ? Object.assign({}, l, patch) : l))
+      })
+    }), () => this.previewTotals());
+  }
+
+  // The server adds the invoice up, even while it is being typed. The
+  // alternative is two implementations of Nigerian VAT that agree until the
+  // day they do not.
+  previewTotals() {
+    const b = this.state.builder;
+    if (!b) return Promise.resolve();
+    clearTimeout(this._pvT);
+    return new Promise((resolve) => {
+      this._pvT = setTimeout(() => {
+        API.post(this.orgPath('/invoices/preview'), { lines: this.builderLines() })
+          .then((r) => this.setState((p) => (p.builder
+            ? { builder: Object.assign({}, p.builder, { totals: r.totals }) } : {})))
+          .catch(() => {})
+          .then(resolve);
+      }, 220);
+    });
+  }
+
+  builderLines() {
+    const b = this.state.builder;
+    if (!b) return [];
+    return b.lines
+      .filter((l) => String(l.description).trim() || Number(l.unitPrice))
+      .map((l) => ({
+        description: l.description,
+        qty: l.qty === '' ? 1 : l.qty,
+        unitPrice: l.unitPrice,
+        discountPercent: l.discount === '' ? undefined : l.discount,
+        taxTreatment: l.treatment
+      }));
+  }
+
+  saveInvoice(status) {
+    const b = this.state.builder;
+    if (!b) return Promise.resolve();
+    const lines = this.builderLines();
+    if (!String(b.party).trim()) {
+      return Promise.resolve(this.setState({ builderErr: 'Enter who this invoice is for.' }));
+    }
+    if (!lines.length) {
+      return Promise.resolve(this.setState({ builderErr: 'Add at least one line with an amount.' }));
+    }
+
+    this.setState({ builderBusy: true, builderErr: '' });
+    return API.post(this.orgPath('/invoices/build'), {
+      id: b.id, party: b.party, billingAddress: b.billingAddress,
+      purchaseOrder: b.purchaseOrder, issue: b.issue, due: b.due,
+      notes: b.notes, template: b.template, lines, status
+    })
+      .then((r) => {
+        this.setState({ builder: null, builderBusy: false, builderErr: '' });
+        this.flash(status === 'draft'
+          ? 'Draft saved.'
+          : 'Invoice ' + r.invoice.number + ' issued for ' + this.naira(r.totals.total) + '.');
+        // The books moved: the dashboard, the list and the ledger all have to
+        // be re-read rather than patched in place and hoped about.
+        return Promise.all([this.loadInvoicing(true), this.loadBook(this.state.session)]);
+      })
+      .catch((err) => this.setState({ builderBusy: false, builderErr: err.message }));
+  }
+
+  builderVals() {
+    const st = this.state;
+    const b = st.builder;
+    const boot = st.bootstrap;
+    if (!b) {
+      return { open: false, lines: [], customers: [], items: [], templates: [], totals: [],
+        title: '', subtitle: '', error: '', hasError: false, identityGap: false, identityNote: '',
+        businessName: '', businessLines: '', party: '', pick: '', hasCustomers: false,
+        billingAddress: '', purchaseOrder: '', issueDate: '', dueDate: '', notes: '',
+        template: '', grandTotal: '', totalsNote: '', vatLabel: 'VAT', issueLabel: 'Issue invoice',
+        busy: false, opacity: '1',
+        close: () => {}, saveDraft: () => {}, issue: () => {}, addLine: () => {},
+        onParty: () => {}, onPick: () => {}, onBilling: () => {}, onPo: () => {},
+        onIssue: () => {}, onDue: () => {}, onNotes: () => {}, onTemplate: () => {},
+        goSettings: () => {} };
+    }
+
+    const biz = (boot && boot.business) || {};
+    const t = b.totals;
+    const money = (k) => this.naira(k);
+
+    const totalsRows = [];
+    if (t) {
+      totalsRows.push({ label: 'Subtotal', value: money(t.net) });
+      if (t.discount) totalsRows.push({ label: 'Discount', value: '-' + money(t.discount) });
+      if (t.tax) totalsRows.push({ label: 'VAT', value: money(t.tax) });
+      if (t.wht) {
+        totalsRows.push({ label: 'Less withholding tax', value: '-' + money(t.wht) });
+        totalsRows.push({ label: 'Payable now', value: money(t.payableNow) });
+      }
+    }
+
+    const identity = [biz.address, biz.phone, biz.email, biz.tin ? 'TIN ' + biz.tin : null]
+      .filter(Boolean).join(' · ');
+
+    return {
+      open: true,
+      busy: Boolean(st.builderBusy),
+      opacity: st.builderBusy ? '0.6' : '1',
+      title: b.id ? 'Edit draft invoice' : 'New invoice',
+      subtitle: b.id ? 'Issued invoices cannot be edited — this is still a draft.'
+        : 'Next number: ' + ((boot && boot.nextNumber) || '—'),
+      error: st.builderErr || '',
+      hasError: Boolean(st.builderErr),
+      // Prompted rather than printed blank: an invoice without a TIN or an
+      // address is one a customer's accounts department will send back.
+      identityGap: Boolean(biz.missing && biz.missing.length),
+      identityNote: biz.missing && biz.missing.length
+        ? 'Your ' + biz.missing.join(', ') + ' will be blank on this invoice.' : '',
+      businessName: biz.name || '',
+      businessLines: identity || 'Add your address and TIN in Settings.',
+      party: b.party,
+      pick: '',
+      hasCustomers: Boolean(boot && boot.customers && boot.customers.length),
+      customers: [{ value: '', label: 'Pick an existing customer…' }].concat(
+        ((boot && boot.customers) || []).map((c) => ({ value: c.name, label: c.name }))
+      ),
+      items: (boot && boot.items) || [],
+      billingAddress: b.billingAddress,
+      purchaseOrder: b.purchaseOrder,
+      issueDate: b.issue,
+      dueDate: b.due,
+      notes: b.notes,
+      template: b.template,
+      templates: (boot && boot.templates) || [],
+      vatLabel: biz.vatRegistered ? 'VAT ' + biz.vatRate + '%' : 'Standard',
+      lines: b.lines.map((l, i) => ({
+        description: l.description, qty: l.qty, unitPrice: l.unitPrice,
+        discount: l.discount, treatment: l.treatment,
+        amount: t && t.lines && t.lines[i] ? money(t.lines[i].net) : '—',
+        onDescription: (e) => this.patchLine(i, { description: e.target.value }),
+        onQty: (e) => this.patchLine(i, { qty: e.target.value }),
+        onPrice: (e) => this.patchLine(i, { unitPrice: e.target.value }),
+        onDiscount: (e) => this.patchLine(i, { discount: e.target.value }),
+        onTreatment: (e) => this.patchLine(i, { treatment: e.target.value }),
+        remove: () => this.setState((p) => ({
+          builder: Object.assign({}, p.builder, {
+            // Never none: an empty grid has nothing to type into.
+            lines: p.builder.lines.length > 1
+              ? p.builder.lines.filter((x, j) => j !== i) : [this.blankLine()]
+          })
+        }), () => this.previewTotals())
+      })),
+      totals: totalsRows,
+      grandTotal: t ? money(t.total) : '—',
+      totalsNote: t && t.wht
+        ? 'Withholding tax is deducted by your customer and paid to the revenue service. The invoice is still owed in full.'
+        : biz.vatRegistered
+          ? 'Worked out by the server, so this agrees with the PDF exactly.'
+          : 'This business is not registered for VAT, so none is charged.',
+      issueLabel: b.id ? 'Issue invoice' : 'Issue invoice',
+      close: () => this.setState({ builder: null, builderErr: '' }),
+      saveDraft: () => this.saveInvoice('draft'),
+      issue: () => this.saveInvoice('issued'),
+      addLine: () => this.setState((p) => ({
+        builder: Object.assign({}, p.builder, { lines: p.builder.lines.concat([this.blankLine()]) })
+      })),
+      onParty: (e) => this.patchBuilder({ party: e.target.value }),
+      onPick: (e) => { if (e.target.value) this.patchBuilder({ party: e.target.value }); },
+      onBilling: (e) => this.patchBuilder({ billingAddress: e.target.value }),
+      onPo: (e) => this.patchBuilder({ purchaseOrder: e.target.value }),
+      onIssue: (e) => this.patchBuilder({ issue: e.target.value }),
+      onDue: (e) => this.patchBuilder({ due: e.target.value }),
+      onNotes: (e) => this.patchBuilder({ notes: e.target.value }),
+      onTemplate: (e) => this.patchBuilder({ template: e.target.value }),
+      goSettings: () => this.setState({ builder: null }, () => this.go('settings')())
+    };
+  }
+
   aiVals(d, o, months, catTotals, forecast, cash) {
     const st = this.state, church = st.mode === 'church';
     const openInv = d.inv.filter((i) => this.balance(i) > 0);
@@ -2612,6 +3325,9 @@ class Component extends DCLogic {
     return () => {
       if (!this.leaveScreen(screen)) return;
       this.setState({ screen, search: '', txType: 'all' });
+      // Read when the screen is opened rather than at boot: a business that
+      // never opens Invoicing should not pay for the query on every sign-in.
+      if (screen === 'invoicing') this.loadInvoicing();
     };
   }
 
@@ -3880,6 +4596,7 @@ class Component extends DCLogic {
     const incomeWord = church ? 'Giving' : 'Revenue';
 
     const navDefs = [['dashboard', 'Dashboard', ''], ['ai', 'Ask Profitna', ''],
+      ['invoicing', 'Invoicing', ''],
       ['invoices', church ? 'Pledges' : 'Invoices', String(d.inv.filter((i) => this.balance(i) > 0).length || '')],
       ['contacts', church ? 'Members & Vendors' : 'Customers & Suppliers', ''],
       ['bills', 'Bills', String(d.bills.filter((b) => this.balance(b) > 0).length || '')],
@@ -3891,6 +4608,7 @@ class Component extends DCLogic {
       dashboard: 'M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z',
       transactions: 'M7 7h13M7 7l3-3M7 7l3 3M17 17H4m13 0l-3-3m3 3l-3 3',
       invoices: 'M6 2h9l3 3v17l-3-2-3 2-3-2-3 2V2zm3 6h6M9 12h6M9 16h4',
+      invoicing: 'M3 5h18v6H3V5zm0 8h8v6H3v-6zm11 0h7v6h-7v-6z',
       bills: 'M6 2h12v20l-3-2-3 2-3-2-3 2V2zm4 7h4m-4 4h4',
       contacts: 'M16 20v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M9.5 4a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7zM19 8v6m3-3h-6',
       inventory: 'M3 8l9-5 9 5v8l-9 5-9-5V8zm0 0l9 5 9-5m-9 5v8',
@@ -3899,7 +4617,7 @@ class Component extends DCLogic {
       settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM4 12H2m20 0h-2M12 4V2m0 20v-2M6 6L4.5 4.5M19.5 19.5L18 18M18 6l1.5-1.5M4.5 19.5L6 18',
       ai: 'M12 3l1.9 4.6L18.5 9.5 13.9 11.4 12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3zM18 16.5l.8 1.9 1.9.8-1.9.8-.8 1.9-.8-1.9-1.9-.8 1.9-.8.8-1.9z'
     };
-    const GROUPS = [['Overview', ['dashboard', 'ai']], ['Sales', ['invoices', 'contacts']], ['Purchases', ['bills', 'transactions']], ['Inventory', ['inventory']], ['Accounting', ['reconcile', 'reports']], ['Workspace', ['settings']]];
+    const GROUPS = [['Overview', ['dashboard', 'ai']], ['Sales', ['invoicing', 'invoices', 'contacts']], ['Purchases', ['bills', 'transactions']], ['Inventory', ['inventory']], ['Accounting', ['reconcile', 'reports']], ['Workspace', ['settings']]];
     const navMap = {};
     navDefs.forEach((n) => {
       const on = st.screen === n[0];
@@ -4293,11 +5011,14 @@ class Component extends DCLogic {
       navShut: !navOpen, navChevron: navOpen ? '\u2039\u2039' : '\u203a\u203a',
       toggleNav: () => this.setState((s) => ({ navOpen: s.navOpen === false })),
       presets, crumb: st.screen === 'dashboard' ? this.longDate() : o.name + ' · ' + o.type,
-      title: ({ dashboard: this.greeting() + ', ' + this.firstName(), ai: 'Profitna AI', transactions: church ? 'Giving & Spending' : 'Expenses & Income', invoices: church ? 'Pledges & Receivables' : 'Invoices & Receivables', bills: 'Bills & Payables', contacts: church ? 'Members & Vendors' : 'Customers & Suppliers', inventory: 'Products & Stock', reconcile: 'Bank Reconciliation', reports: 'Financial Reports', settings: 'Settings' })[st.screen] || 'Dashboard',
-      subtitle: ({ dashboard: "Here's how your business is doing today.", ai: 'Your intelligent financial assistant.', transactions: 'Every naira in and out, coded to an account.', invoices: 'Who owes you, and how long it has been outstanding.', bills: 'What you owe, and when it falls due.', contacts: 'Customers, suppliers and what they are worth to you.', inventory: 'Stock on hand, cost and value.', reconcile: 'Match your bank against your books.', reports: 'Statements you can hand to an accountant.', settings: 'Business profile, accounts, team and subscription.' })[st.screen] || '',
+      title: ({ dashboard: this.greeting() + ', ' + this.firstName(), ai: 'Profitna AI', invoicing: 'Invoicing', transactions: church ? 'Giving & Spending' : 'Expenses & Income', invoices: church ? 'Pledges & Receivables' : 'Invoices & Receivables', bills: 'Bills & Payables', contacts: church ? 'Members & Vendors' : 'Customers & Suppliers', inventory: 'Products & Stock', reconcile: 'Bank Reconciliation', reports: 'Financial Reports', settings: 'Settings' })[st.screen] || 'Dashboard',
+      subtitle: ({ dashboard: "Here's how your business is doing today.", ai: 'Your intelligent financial assistant.', invoicing: 'Create, send and collect \u2014 and the books keep themselves.', transactions: 'Every naira in and out, coded to an account.', invoices: 'Who owes you, and how long it has been outstanding.', bills: 'What you owe, and when it falls due.', contacts: 'Customers, suppliers and what they are worth to you.', inventory: 'Stock on hand, cost and value.', reconcile: 'Match your bank against your books.', reports: 'Statements you can hand to an accountant.', settings: 'Business profile, accounts, team and subscription.' })[st.screen] || '',
       newTxLabel: church ? 'Record giving' : 'New transaction',
       incomeWord, partyWord: church ? 'Member / Vendor' : 'Client / Vendor', fundWord: church ? 'Fund' : 'Method',
       isDashboard: st.screen === 'dashboard', isTx: st.screen === 'transactions', isAI: st.screen === 'ai',
+      isInvoicing: st.screen === 'invoicing',
+      sales: this.invoicingVals(),
+      bld: this.builderVals(),
       isLedgerDoc: st.screen === 'invoices' || st.screen === 'bills', isContacts: st.screen === 'contacts',
       isInventory: st.screen === 'inventory', isReconcile: st.screen === 'reconcile',
       isReports: st.screen === 'reports', isSettings: st.screen === 'settings',

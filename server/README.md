@@ -686,6 +686,61 @@ name could land on either. Migration 010 merges them and a unique index on
 organisations, 13,807 entries, 27,615 lines, every balance sheet balancing and
 every receivable reconciling.
 
+## The invoicing screens
+
+**Sales → Invoicing** is the dashboard: ten metric cards, invoiced against
+collected by month, receivables ageing, who owes the most, what is overdue,
+what was recently paid, and a searchable table with status, balance and a PDF
+on every row. Every figure comes from `GET /invoicing/dashboard`, computed
+from that organisation's own rows with the window stated on the screen, so
+nothing on the page is a number whose meaning has to be guessed.
+
+Two things it says that most dashboards do not. Recurring invoices read
+"— not set up yet" rather than 0, because zero would claim none are running
+when the feature does not exist. And if receivables stop reconciling with the
+ledger, the screen says so in red instead of quietly showing two different
+totals for what is owed.
+
+**The builder** opens over it. Company identity, customers, products,
+templates and the next invoice number arrive in one call, so the form is never
+half-populated while a second request is in flight. A business with a blank
+address or TIN is told those will print blank, with a link to Settings, rather
+than finding out from a customer.
+
+**The totals are the server's.** Every keystroke in the line grid is sent to
+`POST /invoices/preview` and the figures come back. Two implementations of
+Nigerian VAT would agree until the day they did not, and the day they do not
+is the day an invoice disagrees with its own PDF.
+
+    GET  /orgs/:id/invoicing/dashboard   every figure on the screen
+    GET  /orgs/:id/invoicing/list        filtered, searched and paged server-side
+    GET  /orgs/:id/invoices/new          what the builder opens with
+    POST /orgs/:id/invoices/build        create or update, with lines
+    POST /orgs/:id/invoices/preview      totals while typing
+    GET  /orgs/:id/invoices/:id/full     an invoice, its lines and its timeline
+
+A draft takes no number from the series, so an abandoned one leaves no hole.
+An issued invoice cannot be edited — it answers 409 and says to issue a
+credit note — and it posts to the ledger once, inside the same transaction
+that wrote it.
+
+### Three faults the UI work found
+
+**A binding collision.** The invoicing vals were keyed `inv`, which the invite
+screen already used, and `...this.authVals()` is spread in afterwards — so
+every figure silently rendered blank while the layout looked perfect. Renamed
+to `sales`.
+
+**Bare table tags.** The runtime maps `<td>` to `sc-raw-td`; a plain `<td>`
+renders as loose text. The invoice table came out as a run-on paragraph with
+all the right content and no grid.
+
+**No way to register for VAT.** `vat_registered` existed and defaulted to
+false, and nothing could set it — so 7.5% could never have been applied to
+anything. The smoke suite found it by asserting VAT appeared and getting
+zero. `PATCH /orgs/:id` now carries it, along with the address, phone, email,
+website, TIN and RC number an invoice has to print.
+
 ## Invoice PDFs
 
 Rendered server-side with **@react-pdf/renderer**, in `src/invoicing/pdf.js`.

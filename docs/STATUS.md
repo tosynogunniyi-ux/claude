@@ -262,11 +262,11 @@ ways out — back to the dashboard, reload, sign out.
 `SEED_DEMO_DATA=true` fills each new account with eight months of sample
 Nigerian books. Leave it unset in production so real accounts start empty.
 
-Twelve test suites, 681 checks, run against a live server and a real database:
+Twelve test suites, 711 checks, run against a live server and a real database:
 
 | Command | Checks | Covers |
 |---|---|---|
-| `npm run smoke` | 99 | Signup, ledger, invoices, inventory, imports, tenant isolation |
+| `npm run smoke` | 129 | Signup, ledger, invoices, inventory, imports, tenant isolation |
 | `npm run smoke:admin` | 88 | The Control Center, its auth and its second factor |
 | `npm run test:billing` | 54 | A trial through to a charge, a decline, a retry, a recovery |
 | `npm run test:monnify` | 85 | The processor, amounts, webhooks, and the live switch |

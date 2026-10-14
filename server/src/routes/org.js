@@ -76,6 +76,8 @@ router.patch('/', requireOrg('admin'), async (req, res, next) => {
       const n = Number(String(v).replace(/,/g, ''));
       return Number.isFinite(n) ? n : fallback;
     };
+    // An omitted field keeps what is stored; an empty one clears it.
+    const text = (v, fallback) => (v === undefined ? fallback : (String(v).trim() || null));
     const current = await one('SELECT * FROM organizations WHERE id = $1', [req.orgId]);
 
     const updated = await one(
@@ -84,7 +86,11 @@ router.patch('/', requireOrg('admin'), async (req, res, next) => {
       // Accepting it here would let the profile form quietly overwrite them.
       `UPDATE organizations
           SET name = $2, business_type = $3, state = $4, vat_rate = $5,
-              owner_contributions = $6, fixed_assets = $7
+              owner_contributions = $6, fixed_assets = $7,
+              address = $8, phone = $9, email = $10, website = $11,
+              tin = $12, rc_number = $13,
+              vat_registered = $14, prices_include_vat = $15, default_wht_bp = $16,
+              invoice_terms = $17, payment_instructions = $18
         WHERE id = $1
         RETURNING *`,
       [
@@ -94,7 +100,23 @@ router.patch('/', requireOrg('admin'), async (req, res, next) => {
         b.state === undefined ? current.state : String(b.state),
         num(b.vatRate, current.vat_rate),
         num(b.contributions, current.owner_contributions),
-        num(b.fixedAssets, current.fixed_assets)
+        num(b.fixedAssets, current.fixed_assets),
+        // What an invoice has to carry. Absent leaves what is there, so a
+        // screen that posts a subset cannot wipe the rest.
+        text(b.address, current.address),
+        text(b.phone, current.phone),
+        text(b.email, current.email),
+        text(b.website, current.website),
+        text(b.tin, current.tin),
+        text(b.rcNumber, current.rc_number),
+        // Whether this business charges VAT at all. Without a way to say yes,
+        // 7.5% could never be applied to anything — which is how the smoke
+        // suite found that the switch had nowhere to live.
+        b.vatRegistered === undefined ? current.vat_registered : Boolean(b.vatRegistered),
+        b.pricesIncludeVat === undefined ? current.prices_include_vat : Boolean(b.pricesIncludeVat),
+        b.whtRate === undefined ? current.default_wht_bp : Math.round(Number(b.whtRate) * 100) || 0,
+        text(b.invoiceTerms, current.invoice_terms),
+        text(b.paymentInstructions, current.payment_instructions)
       ]
     );
     await audit(req.orgId, req.user.id, 'organization.updated', 'organization', req.orgId);

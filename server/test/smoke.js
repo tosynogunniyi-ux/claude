@@ -433,6 +433,126 @@ async function signup(call, email, book, org) {
   check('while what they entered stays',
     (await boss('GET', '/api/orgs/' + teamOrg + '/data')).body.book.tx.some((t) => t.description === 'now allowed'));
 
+  // ---------------------------------------------------- Smart Invoicing
+  //
+  // The builder, the dashboard and the list, through the API a browser uses.
+  // Two things worth proving above the rest: that the totals the server
+  // records are its own rather than whatever the browser sent, and that an
+  // issued invoice is in the ledger exactly once.
+  console.log('\nsmart invoicing');
+
+  const boot = await sme('GET', '/api/orgs/' + orgA + '/invoices/new');
+  check('the builder loads what it needs', boot.status === 200 &&
+    Array.isArray(boot.body.templates) && boot.body.templates.length === 5,
+    'status ' + boot.status);
+  check('with the next number it will use', /^INV-/.test(String(boot.body.nextNumber)), boot.body.nextNumber);
+  check('and the company identity to print', 'tin' in boot.body.business);
+
+  const built = await sme('POST', '/api/orgs/' + orgA + '/invoices/build', {
+    party: 'Builder Customer Ltd',
+    issue: '2026-10-01', due: '2026-10-15',
+    lines: [
+      { description: 'Consulting', qty: 2, unitPrice: '150000', taxRate: '7.5' },
+      { description: 'Expenses', qty: 1, unitPrice: '25000', taxTreatment: 'exempt' }
+    ],
+    // Deliberately wrong, and deliberately ignored: the figure of record is
+    // the one the server works out.
+    total: 1, subtotal: 1,
+    status: 'issued'
+  });
+  check('an invoice is built', built.status === 201, 'status ' + built.status);
+  check('with a number from the series', /^INV-\d{4}-\d{5}$/.test(built.body.invoice.number), built.body.invoice.number);
+  check('and the server\'s own total, not the browser\'s',
+    built.body.totals.net === 32500000, String(built.body.totals.net));
+  // Nil, because this business has not said it is registered. A rate typed
+  // on a line must not override that: charging VAT a business is not
+  // registered to collect is worse than charging none.
+  check('an unregistered business charges no VAT, whatever the line says',
+    built.body.totals.tax === 0, String(built.body.totals.tax));
+
+  const registered = await sme('PATCH', '/api/orgs/' + orgA, { vatRegistered: true, vatRate: 7.5, tin: '01234567-0001' });
+  check('a business can register for VAT', registered.status === 200 &&
+    registered.body.org.vatRegistered === true, 'status ' + registered.status);
+  const withVat = await sme('POST', '/api/orgs/' + orgA + '/invoices/build', {
+    party: 'VAT Customer Ltd',
+    lines: [
+      { description: 'Consulting', qty: 2, unitPrice: '150000' },
+      { description: 'Disbursements', qty: 1, unitPrice: '25000', taxTreatment: 'exempt' }
+    ],
+    status: 'issued'
+  });
+  check('and then VAT applies', withVat.body.totals.tax === 2250000, String(withVat.body.totals.tax));
+  check('only to the standard-rated line',
+    withVat.body.totals.net === 32500000, String(withVat.body.totals.net));
+  check('and the exempt amount is reported apart from it',
+    withVat.body.totals.byTreatment.exempt === 2500000,
+    JSON.stringify(withVat.body.totals.byTreatment));
+
+  const full = await sme('GET', '/api/orgs/' + orgA + '/invoices/' + built.body.invoice.id + '/full');
+  check('its lines are stored', full.body.lines.length === 2, String(full.body.lines.length));
+  check('and its timeline records the issue',
+    full.body.events.some((e) => e.event === 'finalised'),
+    full.body.events.map((e) => e.event).join(','));
+
+  const draft = await sme('POST', '/api/orgs/' + orgA + '/invoices/build', {
+    party: 'Draft Customer', lines: [{ description: 'TBC', qty: 1, unitPrice: '5000' }], status: 'draft'
+  });
+  check('a draft saves', draft.status === 201);
+  check('without taking a number from the series',
+    !/^INV-\d{4}-\d{5}$/.test(draft.body.invoice.number),
+    'an abandoned draft must not leave a hole in the numbering');
+
+  const edit = await sme('POST', '/api/orgs/' + orgA + '/invoices/build', {
+    id: built.body.invoice.id, party: 'Builder Customer Ltd',
+    lines: [{ description: 'Changed', qty: 1, unitPrice: '1' }], status: 'issued'
+  });
+  check('an issued invoice cannot be edited', edit.status === 409, 'status ' + edit.status);
+  check('and says what to do instead', /credit note/i.test(String(edit.body.error)), edit.body.error);
+
+  const empty = await sme('POST', '/api/orgs/' + orgA + '/invoices/build', {
+    party: 'Nobody', lines: [], status: 'issued'
+  });
+  check('an invoice with no lines is refused', empty.status === 400);
+
+  const dash = await sme('GET', '/api/orgs/' + orgA + '/invoicing/dashboard');
+  check('the dashboard loads', dash.status === 200);
+  check('counting the issued invoices but not the draft',
+    dash.body.metrics.draftCount === 1 && dash.body.metrics.unpaidCount >= 2,
+    JSON.stringify({ d: dash.body.metrics.draftCount, u: dash.body.metrics.unpaidCount }));
+  check('with twelve months of history', dash.body.monthly.length === 13, String(dash.body.monthly.length));
+  check('and receivables that reconcile with the ledger',
+    dash.body.ageing.reconciles === true,
+    'the screen must not show two different figures for what is owed');
+
+  const listed = await sme('GET', '/api/orgs/' + orgA + '/invoicing/list?status=draft');
+  check('the list filters by status',
+    listed.body.invoices.length === 1 && listed.body.invoices[0].status === 'draft',
+    JSON.stringify(listed.body.invoices.map((i) => i.status)));
+  const searched = await sme('GET', '/api/orgs/' + orgA + '/invoicing/list?q=Builder');
+  check('and searches by customer', searched.body.invoices.length >= 1, String(searched.body.invoices.length));
+
+  const health = await sme('GET', '/api/orgs/' + orgA + '/ledger/health');
+  check('the ledger balances after all of that', health.body.balanced === true,
+    'difference ' + health.body.difference);
+
+  const pdfRes = await fetch(BASE + '/api/orgs/' + orgA + '/invoices/' + built.body.invoice.id + '/pdf',
+    { headers: { cookie: smeCookie() } });
+  check('the invoice downloads as a PDF',
+    pdfRes.status === 200 && /application\/pdf/.test(pdfRes.headers.get('content-type')),
+    pdfRes.status + ' ' + pdfRes.headers.get('content-type'));
+
+  console.log('\nand none of it leaks to another business');
+  check('the dashboard is per organisation',
+    (await church('GET', '/api/orgs/' + orgA + '/invoicing/dashboard')).status === 404);
+  check('so is the list',
+    (await church('GET', '/api/orgs/' + orgA + '/invoicing/list')).status === 404);
+  check('so is the builder',
+    (await church('POST', '/api/orgs/' + orgA + '/invoices/build', {
+      party: 'X', lines: [{ description: 'X', qty: 1, unitPrice: '1' }], status: 'draft'
+    })).status === 404);
+  check('and so is one invoice',
+    (await church('GET', '/api/orgs/' + orgA + '/invoices/' + built.body.invoice.id + '/full')).status === 404);
+
   console.log('\npersistence');
   const fresh = client();
   const back = await fresh('POST', '/api/auth/login', {

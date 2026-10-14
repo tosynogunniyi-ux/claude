@@ -67,7 +67,19 @@ const orgShape = (r) => ({
   // Whether there is a logo, and when it last changed — the bytes come from
   // /logo, and this timestamp is what busts the browser's cache for them.
   hasLogo: Boolean(r.logo_mime),
-  logoUpdatedAt: r.logo_updated_at || null
+  logoUpdatedAt: r.logo_updated_at || null,
+  // What an invoice has to carry, and how this business is taxed.
+  address: r.address || '',
+  phone: r.phone || '',
+  email: r.email || '',
+  website: r.website || '',
+  tin: r.tin || '',
+  rcNumber: r.rc_number || '',
+  vatRegistered: Boolean(r.vat_registered),
+  pricesIncludeVat: Boolean(r.prices_include_vat),
+  whtRate: String((r.default_wht_bp || 0) / 100),
+  invoiceTerms: r.invoice_terms || '',
+  paymentInstructions: r.payment_instructions || ''
 });
 
 module.exports = { txShape, docShape, contactShape, itemShape, bankShape, orgShape };
