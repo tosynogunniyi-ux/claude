@@ -262,7 +262,7 @@ ways out — back to the dashboard, reload, sign out.
 `SEED_DEMO_DATA=true` fills each new account with eight months of sample
 Nigerian books. Leave it unset in production so real accounts start empty.
 
-Ten test suites, 567 checks, run against a live server and a real database:
+Eleven test suites, 619 checks, run against a live server and a real database:
 
 | Command | Checks | Covers |
 |---|---|---|
@@ -275,4 +275,5 @@ Ten test suites, 567 checks, run against a live server and a real database:
 | `npm run test:offsite` | 33 | The AWS signature against AWS’s own signer, and a real upload |
 | `npm run test:meta` | 41 | Ad events, and that no readable email ever leaves the server |
 | `npm run test:invoicing` | 64 | Invoice money in integer kobo, Nigerian VAT and WHT, numbering under load |
+| `npm run test:pdf` | 52 | A4 invoice PDFs: the naira glyph, pagination, five designs, isolation |
 | `npm run test:trial` | 16 | That changing the trial length leaves running trials alone |

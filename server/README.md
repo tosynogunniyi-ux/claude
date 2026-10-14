@@ -600,6 +600,69 @@ identical to working. The server warns about that at every boot.
 configured, which pixel, how many events have been sent and failed, the last
 result, and whether test mode is still on.
 
+## Invoice PDFs
+
+Rendered server-side with **@react-pdf/renderer**, in `src/invoicing/pdf.js`.
+It was the preferred option and it survived the evaluation, on three counts
+that were checked rather than assumed:
+
+- **Pure JavaScript.** No Chromium, no native module, nothing to compile
+  against musl — so the Alpine image stays small and a deploy cannot fail on
+  a binary that will not build. `find node_modules -name '*.node'` comes back
+  empty.
+- **Loads from CommonJS with no build step.** This codebase has no bundler and
+  adding one for a PDF would be the tail wagging the dog, so every element is
+  `React.createElement` rather than JSX.
+- **It paginates.** Sixty lines become three A4 pages with the table header
+  repeated and "Page 2 of 3" in the footer, which is the part that separates a
+  document from an HTML print view.
+
+The alternative, had it failed, was **pdfkit** — which is what react-pdf uses
+underneath, equally free of native dependencies, at the cost of writing the
+layout by hand.
+
+### Two things that were nearly shipped broken
+
+**The naira sign.** The fourteen built-in PDF fonts use WinAnsi encoding,
+which has no ₦ (U+20A6). Rendered with Helvetica it silently becomes `0xA6` —
+a broken bar — and every amount on every invoice reads `¦107,500.00`. Nothing
+errors. DejaVu Sans is therefore bundled in `assets/fonts` and embedded in
+each document, and the test asserts `/FontFile2` is present, that U+20A6
+appears in the ToUnicode map, and that the extracted text contains ₦ and not
+¦. Any font swapped in later must contain that glyph.
+
+**A `lineHeight` reaching the footer.** A unitless `lineHeight` anywhere in
+the subtree of an absolutely positioned `fixed` block makes react-pdf lay that
+block out to nothing. The footer stayed in the element tree and was never
+drawn: no page numbers, no attribution, no error. Line spacing is now set only
+on text blocks that are not inside it, and the test reads the footer back out
+of the rendered PDF rather than trusting the element tree.
+
+The lesson both share: a PDF test that checks the file is non-empty passes
+happily while the document is wrong. These are read back the way a customer's
+PDF viewer reads them, with `pdf-parse`.
+
+### Designs
+
+Five themes in `src/invoicing/themes.js` — Executive Minimal, Modern FinTech,
+Professional Classic, Creative Studio, Luxury Business — as one layout
+parameterised by colour, header treatment, table ruling and typographic scale,
+rather than five copies of the same file where the fourth always misses a fix.
+A business may override the accent colour; the value is validated as a hex
+colour because it goes straight into the document.
+
+Deliberately not black and gold: that is the app's identity, and an invoice
+should look like the customer's business rather than like ours. Every document
+carries one small "Powered by Profitna" in the footer.
+
+    GET  /api/orgs/:id/invoices/:invoiceId/pdf        inline, add ?download=1
+    POST /api/orgs/:id/invoices/preview               totals without rendering
+    GET  /api/orgs/:id/invoice-templates              the five designs
+
+`npm run test:pdf` — 52 checks, including that one organisation's invoice id
+cannot be fetched under another's books, and that an invoice written before
+line items existed still renders.
+
 ## Automatic billing
 
 `src/billing.js` is what makes a trial end. It runs inside the server process

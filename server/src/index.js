@@ -16,6 +16,7 @@ const ledgerRoutes = require('./routes/ledger');
 const bankRoutes = require('./routes/bank');
 const subscriptionRoutes = require('./routes/subscription');
 const aiRoutes = require('./routes/ai');
+const invoicingRoutes = require('./routes/invoicing');
 
 const app = express();
 app.set('trust proxy', 1);
@@ -94,6 +95,7 @@ orgScoped.use(bankingRoutes.router);
 orgScoped.use(ledgerRoutes.router);
 orgScoped.use(bankRoutes.router);
 orgScoped.use(aiRoutes.router);
+orgScoped.use(invoicingRoutes.router);
 app.use('/api/orgs/:orgId', requireAuth, orgScoped);
 
 // The prototype is served from here, so the API is same-origin and the session
