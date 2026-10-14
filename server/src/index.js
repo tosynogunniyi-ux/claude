@@ -56,7 +56,17 @@ app.get('/api/health', async (req, res) => {
     paymentProvider: require('./integrations/gateway').name(),
     // Whether Ask Profitna has a model behind it, and which one. No key is
     // revealed by either answer.
-    askModel: require('./ai/ask').configured() ? require('./ai/ask').model() : null
+    askModel: require('./ai/ask').configured() ? require('./ai/ask').model() : null,
+    // Which halves of the ad tracking have what they need. Names a state, not
+    // a value: the pixel id is public anyway and the token appears nowhere.
+    // "off" here with the code deployed means the variables are not reaching
+    // this container, which is a different problem from the code being old
+    // and is otherwise indistinguishable from it.
+    metaTracking: (() => {
+      const m = require('./integrations/meta');
+      if (m.configured()) return 'browser and server';
+      return m.browserConfigured() ? 'browser only — no access token' : 'off';
+    })()
   });
 });
 app.use('/api/auth', authRoutes.router);
