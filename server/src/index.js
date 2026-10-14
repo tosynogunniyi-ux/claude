@@ -151,6 +151,7 @@ if (require.main === module) {
     require('./billing').start();
     // Takes a verified pg_dump on a schedule, under its own advisory lock.
     require('./backup').start();
+  require('./accounting/backfill').start();
   });
 }
 

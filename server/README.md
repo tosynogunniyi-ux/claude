@@ -600,6 +600,92 @@ identical to working. The server warns about that at every boot.
 configured, which pixel, how many events have been sent and failed, the last
 result, and whether test mode is still on.
 
+## The general ledger
+
+Profitna kept a single-entry cash book: `transactions` rows with a type and a
+category, every report derived from them. That cannot express a receivable,
+cannot hold output VAT apart from revenue, and cannot produce a balance sheet.
+Accrual invoicing needs all three, so there is now a real double-entry ledger —
+**alongside** the cash book, not instead of it. Nothing in `transactions` was
+moved, rewritten or deleted, and every report that read it still reads it.
+
+    accounts             chart of accounts, one per organisation
+    journal_entries      what happened, and what caused it
+    journal_lines        the debits and credits
+
+**Three things the database guarantees, not the code.** Every entry balances —
+a deferred constraint trigger, so an entry written by any future code path or
+by hand is checked too. A line is a debit or a credit, never both. And a
+document cannot post twice: `source_key` ('invoice:<id>:issue') carries a
+unique index, so a retried request, a replayed webhook or a backfill run twice
+all collapse to one entry. Duplicate revenue is the characteristic failure of
+accounting integrations and a check-then-insert does not prevent it.
+
+**Corrections are reversals.** A posted entry is immutable; to undo it you
+post its mirror and both stay. A reversal carries its own date, so a March
+correction to a January entry lands in March — which is what an auditor
+expects and what a closed January requires.
+
+**Closed periods.** `organizations.books_locked_through` refuses anything
+dated on or before it, so last year's filed accounts cannot move.
+
+### Posting rules
+
+| When | Entry |
+|---|---|
+| Invoice issued | Dr Accounts Receivable · Cr revenue per line · Cr Output VAT |
+| Payment received | Dr bank (or Gateway Clearing) · Cr Accounts Receivable |
+| Bill received | Dr expense · Cr Accounts Payable |
+| Direct sale | Dr bank · Cr revenue |
+| Direct expense | Dr expense · Cr bank |
+
+A payment never re-posts revenue — that was recognised when the invoice was
+issued. Posting it twice is the classic double count, and `test:ledger`
+asserts the income accounts do not move when cash arrives.
+
+### Catching up
+
+`src/accounting/backfill.js` posts everything that predates the ledger, in
+order — opening balances, invoices, bills, payments, then the cash book, so a
+payment never settles a receivable that does not exist yet. It is idempotent,
+batched, takes an advisory lock, and runs twenty seconds after boot.
+
+`GET /api/orgs/:id/ledger/health` says whether it has caught up and whether
+the trial balance balances. `POST .../ledger/post-pending` does one
+organisation now.
+
+    GET  /api/orgs/:id/ledger/trial-balance      ?from= &to=
+    GET  /api/orgs/:id/ledger/profit-and-loss    accrual
+    GET  /api/orgs/:id/ledger/balance-sheet      ?asOf=
+    GET  /api/orgs/:id/ledger/receivables        ageing, reconciled to the ledger
+    GET  /api/orgs/:id/ledger/accounts/:id       one account's movements
+
+### Three faults found on real data
+
+Worth recording because each balanced perfectly while being wrong.
+
+**Payments with no cash-book row.** The payment route writes both an
+`invoice_payments` row and a `transactions` row, but the demo seeder and any
+direct import write only the payment. The backfill read the cash book alone,
+so 396 of 426 invoice payments were invisible and left receivables open
+against money that had arrived. The trial balance still balanced — which is
+why receivables are now reconciled against the ledger explicitly, and why
+that check is its own line in the response.
+
+**New organisations had no chart of accounts.** The migration seeded every
+organisation that existed when it ran; signup was never taught to do the
+same. The first invoice on any new account failed with "no receivable
+account". The seed and the migration now read from one list.
+
+**Two accounts with the same name.** The system chart has "Other Income" and
+so does the default category list, so a P&L listed it twice and a lookup by
+name could land on either. Migration 010 merges them and a unique index on
+(organisation, type, lower(name)) stops it recurring.
+
+`npm run test:ledger` — 62 checks. Verified on the full local database: 138
+organisations, 13,807 entries, 27,615 lines, every balance sheet balancing and
+every receivable reconciling.
+
 ## Invoice PDFs
 
 Rendered server-side with **@react-pdf/renderer**, in `src/invoicing/pdf.js`.

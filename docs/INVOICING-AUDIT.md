@@ -102,10 +102,12 @@ rewritten to read from the GL; accrual and cash basis both offered. This is
 the right end state for a serious accounting product, and it is a project of
 its own with real risk to figures already in use.
 
-**Nothing below depends on which is chosen** — line items, numbering, totals,
-tax arithmetic, delivery, portal and reminders are needed either way. So the
-foundation is being built first and the question stays open, rather than
-blocking the work or being silently decided.
+**Decided: B, accrual.** The ledger is built — `accounts`,
+`journal_entries`, `journal_lines`, a posting engine, and a backfill that put
+every existing invoice, bill, payment and cash-book row into it. The cash book
+is untouched and every existing report still reads it, so no figure a customer
+was already looking at has changed. Accrual reports are new endpoints
+alongside them. See `server/README.md` → The general ledger.
 
 ---
 
@@ -135,7 +137,7 @@ Unchanged from the spec's own Release plan, with the foundation split out
 because everything else sits on it:
 
 1. **Foundation** — line items, numbering, money arithmetic, tax engine,
-   company identity. *(This release.)*
+   company identity, PDFs, and the general ledger. *(Done.)*
 2. **Release 1 rest** — builder UI, PDF, draft/issue lifecycle, dashboard.
 3. **Release 2** — payments, per-tenant gateways, allocations, receipts,
    credit notes.
@@ -148,7 +150,7 @@ because everything else sits on it:
 
 | Needed | For | Status |
 |---|---|---|
-| Accrual-vs-cash decision (§3) | Phase 12 | **Open — needs a decision** |
+| Accrual-vs-cash decision (§3) | Phase 12 | **Decided: accrual. Ledger built.** |
 | Email provider + verified domain | Phase 5 | Not started |
 | Per-tenant gateway credentials | Phase 6 | Design in §4 |
 | WhatsApp Business Platform account | Phase 5 | Not started |

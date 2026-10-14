@@ -12,6 +12,8 @@ const money = require('../money');
 const totals = require('../invoicing/totals');
 const pdf = require('../invoicing/pdf');
 const { THEMES, NAMES, DEFAULT } = require('../invoicing/themes');
+const accounting = require('../accounting/reports');
+const backfill = require('../accounting/backfill');
 
 const router = express.Router({ mergeParams: true });
 
@@ -165,6 +167,78 @@ router.post('/invoices/preview', requireOrg('accountant'), async (req, res, next
   } catch (err) {
     next(err);
   }
+});
+
+// ---------------------------------------------------------- the ledger
+//
+// Read-only and role-gated like everything else: a viewer may read their own
+// organisation's accounts, because they can already read every figure these
+// are derived from.
+
+router.get('/ledger/trial-balance', requireOrg(), async (req, res, next) => {
+  try {
+    res.json(await accounting.trialBalance(req.orgId, { from: req.query.from, to: req.query.to }));
+  } catch (err) { next(err); }
+});
+
+router.get('/ledger/profit-and-loss', requireOrg(), async (req, res, next) => {
+  try {
+    res.json(await accounting.profitAndLoss(req.orgId, { from: req.query.from, to: req.query.to }));
+  } catch (err) { next(err); }
+});
+
+router.get('/ledger/balance-sheet', requireOrg(), async (req, res, next) => {
+  try {
+    res.json(await accounting.balanceSheet(req.orgId, { asOf: req.query.asOf }));
+  } catch (err) { next(err); }
+});
+
+router.get('/ledger/receivables', requireOrg(), async (req, res, next) => {
+  try {
+    res.json(await accounting.receivablesAgeing(req.orgId, { asOf: req.query.asOf }));
+  } catch (err) { next(err); }
+});
+
+router.get('/ledger/accounts/:accountId', requireOrg(), async (req, res, next) => {
+  try {
+    res.json({
+      entries: await accounting.ledgerFor(req.orgId, req.params.accountId, {
+        from: req.query.from, to: req.query.to, limit: req.query.limit
+      })
+    });
+  } catch (err) { next(err); }
+});
+
+// Whether the ledger has caught up with the books, and the one number that
+// says whether any of the above can be trusted.
+router.get('/ledger/health', requireOrg(), async (req, res, next) => {
+  try {
+    const [coverage, tb] = await Promise.all([
+      accounting.coverage(req.orgId),
+      accounting.trialBalance(req.orgId)
+    ]);
+    res.json({
+      coverage,
+      balanced: tb.balanced,
+      difference: tb.difference,
+      note: !tb.balanced
+        ? 'The ledger does not balance. Nothing derived from it should be relied on until this is looked at.'
+        : coverage.complete
+          ? 'Every invoice and cash entry is posted.'
+          : coverage.unpostedTransactions + coverage.unpostedInvoices +
+            ' documents are still being posted. The ledger catches up in the background.'
+    });
+  } catch (err) { next(err); }
+});
+
+// Post whatever is outstanding for this organisation now, rather than waiting
+// for the background pass. Admin only: it writes to the ledger.
+router.post('/ledger/post-pending', requireOrg('admin'), async (req, res, next) => {
+  try {
+    const result = await backfill.run({ organizationId: req.orgId });
+    await audit(req.orgId, req.user.id, 'ledger.backfilled', 'organization', req.orgId, result);
+    res.json(result);
+  } catch (err) { next(err); }
 });
 
 // The designs on offer, for the settings screen.

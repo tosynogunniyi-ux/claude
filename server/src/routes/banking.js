@@ -1,5 +1,5 @@
 const express = require('express');
-const { one, many, query } = require('../db');
+const { one, many, query, tx } = require('../db');
 const { requireOrg, audit } = require('../auth');
 
 // The company's own accounts, and the branding that goes on its reports.
@@ -136,6 +136,11 @@ router.post('/bank-accounts', requireOrg('admin'), async (req, res, next) => {
         opening, b.openingDate || null, primary, existing.n
       ]
     );
+
+    // Its own ledger account, so a statement reconciles against one account
+    // rather than a pooled "Bank". Done here rather than lazily at posting
+    // time, so the chart is complete the moment the account exists.
+    await tx((client) => require('../accounting/accounts').ensureBankAccount(client, req.orgId, row.id));
 
     await syncOpeningCash(req.orgId);
     await audit(req.orgId, req.user.id, 'bank_account.added', 'bank_account', row.id, { name, opening });

@@ -20,7 +20,8 @@
     "test:offsite": "node test/offsite.js",
     "test:meta": "node test/meta.js",
     "test:invoicing": "node test/invoicing.js",
-    "test:pdf": "node test/pdf.js"
+    "test:pdf": "node test/pdf.js",
+    "test:ledger": "node test/ledger.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.0",
