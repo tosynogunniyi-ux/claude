@@ -340,6 +340,15 @@ async function cashTransaction(client, { orgId, tx, userId }) {
     : null;
   const cashSide = bank || (/cash/i.test(tx.method || '') ? c.system('cash') : c.system('bank'));
 
+  // A customer receipt. Not the same as an invoice payment, because a receipt
+  // may be larger than the invoices it was put against — and the part that is
+  // not against anything is money held in advance, which is a liability and
+  // not a settled receivable. Split here, from the allocations as they stand,
+  // so the entry says which of the two each kobo was.
+  if (tx.source === 'receipt' && tx.ref_customer_payment_id) {
+    return receiptEntry(client, { orgId, tx, amount, cashSide, chartOf: c, userId });
+  }
+
   // A payment against an invoice or a bill settles a receivable or a payable.
   // It is not new revenue or a new expense — that was recognised when the
   // document was issued, and posting it again here would double the books.
@@ -377,6 +386,208 @@ async function cashTransaction(client, { orgId, tx, userId }) {
         { accountId: c.category(tx.category, 'expense'), debit: amount, description: tx.description, party: tx.party },
         { accountId: cashSide, credit: amount, description: tx.description, party: tx.party }
       ]
+  });
+}
+
+// ------------------------------------------------ receipts and credit notes
+
+// The journal entry behind a customer receipt.
+//
+// Three places the money can be sitting and two things it can have settled,
+// and the entry has to say which. A gateway payment that has not settled is
+// in the processor's hands, not the bank's — posting it to the bank would make
+// a bank reconciliation fail by exactly the amount in transit, every day,
+// until somebody worked out why.
+async function receiptEntry(client, { orgId, tx, amount, cashSide, chartOf, userId }) {
+  const c = chartOf || (await chart(client, orgId));
+
+  const receipt = (await client.query(
+    'SELECT * FROM customer_payments WHERE id = $1 AND organization_id = $2',
+    [tx.ref_customer_payment_id, orgId]
+  )).rows[0];
+  if (!receipt) return null;
+
+  const allocated = Number((await client.query(
+    `SELECT COALESCE(SUM(amount_kobo), 0) AS n FROM invoice_payments
+      WHERE customer_payment_id = $1`,
+    [receipt.id]
+  )).rows[0].n);
+
+  const inTransit = receipt.source === 'gateway' && !receipt.settled_at;
+  const debitAccount = inTransit ? c.system('gatewayClearing') : cashSide;
+  const party = receipt.party || tx.party || null;
+  const label = receipt.receipt_number ? 'Receipt ' + receipt.receipt_number : 'Receipt';
+
+  // Allocations cannot exceed the receipt — the database enforces it — so
+  // this is never negative.
+  const advance = amount - Math.min(allocated, amount);
+
+  const lines = [
+    { accountId: debitAccount, debit: amount, description: label, party }
+  ];
+  if (allocated > 0) {
+    lines.push({
+      accountId: c.system('receivable'),
+      credit: Math.min(allocated, amount),
+      description: label + ' — against invoices',
+      party
+    });
+  }
+  if (advance > 0) {
+    // Money received before there is an invoice to put it against. A
+    // liability: the business owes goods, services or a refund, not revenue.
+    lines.push({
+      accountId: c.system('customerDeposits'),
+      credit: advance,
+      description: label + ' — received in advance',
+      party
+    });
+  }
+
+  return post(client, {
+    orgId,
+    date: tx.date,
+    memo: tx.description || (label + (party ? ' from ' + party : '')),
+    sourceType: 'transaction',
+    sourceId: tx.id,
+    sourceKey: 'transaction:' + tx.id,
+    userId,
+    lines
+  });
+}
+
+// An allocation made after the receipt was already posted. The receipt's own
+// entry credited the unallocated part to Customer Deposits; putting some of it
+// against an invoice moves it from there to the receivable. No cash moves, so
+// there is no cash-book row and no bank account involved.
+async function depositApplied(client, { orgId, allocation, invoice, userId }) {
+  const c = await chart(client, orgId);
+  const amount = int(allocation.amount_kobo);
+  if (!amount) return null;
+  const party = invoice.client_name || invoice.party || null;
+
+  return post(client, {
+    orgId,
+    date: allocation.date,
+    memo: 'Advance applied to ' + invoice.number,
+    sourceType: 'payment',
+    sourceId: allocation.id,
+    // Its own namespace. 'payment:' belongs to an allocation that moved cash;
+    // this one moves a liability, and the two must never collide on a key.
+    sourceKey: 'allocation:' + allocation.id,
+    userId,
+    lines: [
+      { accountId: c.system('customerDeposits'), debit: amount, description: 'Advance applied', party },
+      { accountId: c.system('receivable'), credit: amount, description: 'Applied to ' + invoice.number, party }
+    ]
+  });
+}
+
+// A gateway payment settles into the bank. The processor's fee comes out of
+// the settlement, so this is where it is recognised — the customer paid the
+// invoice in full, and the fee is the business's cost of collecting it, not a
+// discount the customer received.
+async function paymentSettled(client, { orgId, receipt, bankAccountId, feeKobo, settledOn, userId }) {
+  const c = await chart(client, orgId);
+  const amount = int(receipt.amount_kobo);
+  const fee = Math.max(int(feeKobo), 0);
+  if (!amount) return null;
+  if (fee > amount) {
+    throw new Error('accounting: a gateway fee of ' + fee + ' kobo cannot exceed the ' +
+      amount + ' kobo received');
+  }
+
+  let bank = c.system('bank');
+  if (bankAccountId) {
+    const { rows } = await client.query(
+      'SELECT account_id FROM bank_accounts WHERE id = $1 AND organization_id = $2',
+      [bankAccountId, orgId]
+    );
+    if (rows[0] && rows[0].account_id) bank = rows[0].account_id;
+  }
+
+  const lines = [
+    { accountId: bank, debit: amount - fee, description: 'Gateway settlement', party: receipt.party }
+  ];
+  if (fee) {
+    lines.push({
+      accountId: c.system('gatewayFees'), debit: fee,
+      description: 'Processing fee on ' + (receipt.receipt_number || receipt.provider_reference || 'payment'),
+      party: receipt.provider || null
+    });
+  }
+  lines.push({
+    accountId: c.system('gatewayClearing'), credit: amount,
+    description: 'Settled ' + (receipt.receipt_number || ''), party: receipt.party
+  });
+
+  return post(client, {
+    orgId,
+    date: settledOn || new Date().toISOString().slice(0, 10),
+    memo: 'Gateway settlement — ' + (receipt.receipt_number || receipt.provider_reference || 'payment'),
+    sourceType: 'payment',
+    sourceId: receipt.id,
+    sourceKey: 'settlement:' + receipt.id,
+    userId,
+    lines
+  });
+}
+
+// A credit note issued: the mirror of an invoice, and the only correct way to
+// change an invoice that has already been sent. Revenue is given back and the
+// VAT with it, because VAT was never the business's money.
+//
+// Nothing is posted when it is applied to a particular invoice. The credit
+// exists against the customer from the moment it is issued; which invoice it
+// is set against is a fact about the receivables subledger, not about the
+// general ledger, and posting it again there would credit the receivable
+// twice.
+async function creditNoteIssued(client, { orgId, note, lines, userId }) {
+  const c = await chart(client, orgId);
+  const party = note.client_name || null;
+  const out = [];
+
+  for (const line of lines || []) {
+    if (!line.net) continue;
+    out.push({
+      accountId: c.category(line.category || note.category, 'income'),
+      debit: line.net,
+      description: line.description || ('Credit note ' + note.number),
+      party
+    });
+  }
+  if (!out.length) {
+    out.push({
+      accountId: c.category(note.category, 'income'),
+      debit: int(note.subtotal_kobo),
+      description: 'Credit note ' + note.number,
+      party
+    });
+  }
+  if (int(note.tax_kobo)) {
+    out.push({
+      accountId: c.system('outputVat'),
+      debit: int(note.tax_kobo),
+      description: 'VAT credited on ' + note.number,
+      party
+    });
+  }
+  out.push({
+    accountId: c.system('receivable'),
+    credit: int(note.total_kobo),
+    description: 'Credit note ' + note.number,
+    party
+  });
+
+  return post(client, {
+    orgId,
+    date: note.issue_date,
+    memo: 'Credit note ' + note.number + (party ? ' to ' + party : ''),
+    sourceType: 'credit_note',
+    sourceId: note.id,
+    sourceKey: 'creditnote:' + note.id + ':issue',
+    userId,
+    lines: out
   });
 }
 
@@ -434,5 +645,6 @@ async function openingBalances(client, { orgId, userId }) {
 
 module.exports = {
   post, reverse, chart, KNOWN,
-  invoiceIssued, invoicePaid, cashTransaction, billIssued, billPaid, openingBalances
+  invoiceIssued, invoicePaid, cashTransaction, billIssued, billPaid, openingBalances,
+  receiptEntry, depositApplied, paymentSettled, creditNoteIssued
 };

@@ -17,6 +17,8 @@ const bankRoutes = require('./routes/bank');
 const subscriptionRoutes = require('./routes/subscription');
 const aiRoutes = require('./routes/ai');
 const invoicingRoutes = require('./routes/invoicing');
+const paymentRoutes = require('./routes/payments');
+const payRoutes = require('./routes/pay');
 
 const app = express();
 app.set('trust proxy', 1);
@@ -26,6 +28,13 @@ app.set('trust proxy', 1);
 app.post('/api/webhooks/paystack', express.raw({ type: '*/*' }), subscriptionRoutes.paystackWebhook);
 app.post('/api/webhooks/monnify', express.raw({ type: '*/*' }), subscriptionRoutes.monnifyWebhook);
 app.post('/api/webhooks/mono', express.json(), bankRoutes.monoWebhook);
+
+// A tenant's own gateway posting about a customer's invoice payment. One URL
+// per organisation per provider, the token in the path being the only thing
+// that says which — never a field in a body that has not been authenticated
+// yet. Raw, for the same reason as the two above: the signature is over the
+// bytes that arrived.
+app.post('/api/pay/hook/:token', express.raw({ type: '*/*' }), payRoutes.hook);
 
 app.use(express.json({ limit: '2mb' }));
 app.use(cookieParser());
@@ -67,9 +76,19 @@ app.get('/api/health', async (req, res) => {
       const m = require('./integrations/meta');
       if (m.configured()) return 'browser and server';
       return m.browserConfigured() ? 'browser only — no access token' : 'off';
-    })()
+    })(),
+    // Whether tenants can connect their own payment accounts, so customers
+    // can pay their invoices online. "off" means CREDENTIALS_KEY is not
+    // reaching this container — the one thing that cannot be worked out from
+    // the outside, and the thing that makes the feature silently absent.
+    merchantCredentials: require('./crypto').configured() ? 'encrypted at rest' : 'off'
   });
 });
+// Where a customer lands after paying, and a reference they can poll. Public
+// by necessity: the payer has no Profitna account. Mounted after the JSON
+// parser because neither reads a body.
+app.use('/api/pay', payRoutes.router);
+
 app.use('/api/auth', authRoutes.router);
 // Following an invitation link happens before there is anything to sign in
 // with, so this is keyed on the token rather than on a session.
@@ -96,6 +115,7 @@ orgScoped.use(ledgerRoutes.router);
 orgScoped.use(bankRoutes.router);
 orgScoped.use(aiRoutes.router);
 orgScoped.use(invoicingRoutes.router);
+orgScoped.use(paymentRoutes.router);
 app.use('/api/orgs/:orgId', requireAuth, orgScoped);
 
 // The prototype is served from here, so the API is same-origin and the session
@@ -128,6 +148,9 @@ for (const w of require('./integrations/monnify').warnings()) {
   console.warn('WARNING: ' + w);
 }
 for (const w of require('./integrations/meta').warnings()) {
+  console.warn('WARNING: ' + w);
+}
+for (const w of require('./crypto').warnings()) {
   console.warn('WARNING: ' + w);
 }
 

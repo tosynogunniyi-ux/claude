@@ -6,10 +6,23 @@ const banking = require('./banking');
 
 const router = express.Router({ mergeParams: true });
 
+// `paid` on this legacy shape means "no longer owed", which since credit
+// notes exist is money received plus credit applied. The two are returned
+// separately as well, so a screen can say which is which — but they are added
+// together here because this is the field every existing screen works status
+// out from, and an invoice that has been credited in full is settled, not
+// overdue forever.
 const INVOICE_SELECT = `
   SELECT i.id, i.number, i.client_id AS party_id, i.client_name AS party_name,
          i.issue_date, i.due_date, i.total, i.base_status,
-         COALESCE((SELECT SUM(p.amount) FROM invoice_payments p WHERE p.invoice_id = i.id), 0) AS paid
+         (COALESCE((SELECT SUM(p.amount_kobo) FROM invoice_payments p WHERE p.invoice_id = i.id), 0)
+          + COALESCE((SELECT SUM(a.amount_kobo) FROM credit_note_applications a
+                        JOIN credit_notes n ON n.id = a.credit_note_id
+                       WHERE a.invoice_id = i.id AND n.status = 'issued'), 0))::numeric / 100 AS paid,
+         COALESCE((SELECT SUM(p.amount_kobo) FROM invoice_payments p WHERE p.invoice_id = i.id), 0)::numeric / 100 AS received,
+         COALESCE((SELECT SUM(a.amount_kobo) FROM credit_note_applications a
+                     JOIN credit_notes n ON n.id = a.credit_note_id
+                    WHERE a.invoice_id = i.id AND n.status = 'issued'), 0)::numeric / 100 AS credited
     FROM invoices i
    WHERE i.organization_id = $1
    ORDER BY i.issue_date DESC, i.created_at DESC`;

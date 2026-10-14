@@ -22,7 +22,13 @@ const docShape = (r) => ({
   issue: r.issue_date,
   due: r.due_date,
   total: r.total,
+  // What is no longer owed, however it stopped being owed.
   paid: r.paid || 0,
+  // The two halves of it, when the query supplied them: money that actually
+  // arrived, and credit notes applied. A screen that shows "paid" without
+  // this distinction is telling a customer they paid something they did not.
+  received: r.received === undefined ? undefined : Number(r.received),
+  credited: r.credited === undefined ? undefined : Number(r.credited),
   base: r.base_status
 });
 

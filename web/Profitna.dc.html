@@ -939,7 +939,9 @@ window.__resources = {
             <div style="min-width: 0;">
               <div style="font-size: 12.5px; color: #5C5850;">{{ sales.windowLabel }}</div>
               <sc-if value="{{ sales.ledgerWarn }}" hint-placeholder-val="{{ false }}">
-                <div style="font-size: 12.5px; color: #8A2F1D; margin-top: 3px;">{{ sales.ledgerNote }}</div>
+                <div style="font-size: 12.5px; color: #8A2F1D; margin-top: 3px;">{{ sales.ledgerNote }}
+                  <span onClick="{{ sales.postPending }}" style="text-decoration: underline; cursor: pointer; white-space: nowrap;">Post them now</span>
+                </div>
               </sc-if>
             </div>
             <div style="display: flex; gap: 8px; flex-wrap: wrap;">
@@ -950,6 +952,15 @@ window.__resources = {
             </div>
           </div>
 
+
+          <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 18px; border-bottom: 1px solid #E5E1D8; padding-bottom: 14px;">
+            <sc-for list="{{ sales.tabs }}" as="t" hint-placeholder-count="4">
+              <button onClick="{{ t.go }}" style="border: 1px solid {{ t.border }}; background: {{ t.bg }}; color: {{ t.fg }}; border-radius: 999px; padding: 7px 16px; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap;" style-hover="border-color: #1B2A4A;">{{ t.label }}</button>
+            </sc-for>
+          </div>
+
+          <sc-if value="{{ sales.tabInvoices }}" hint-placeholder-val="{{ true }}">
+          <div>
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(176px, 1fr)); gap: 12px;">
             <sc-for list="{{ sales.cards }}" as="c" hint-placeholder-count="6">
               <div data-om="card" style="background: #FFFFFF; border: 1px solid #E5E1D8; border-left: 3px solid {{ c.tone }}; border-radius: 6px; padding: 16px 16px 15px;">
@@ -1066,7 +1077,7 @@ window.__resources = {
                   <sc-raw-th style="text-align: left; padding: 11px 14px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850;">Date</sc-raw-th>
                   <sc-raw-th style="text-align: left; padding: 11px 14px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850;">Due</sc-raw-th>
                   <sc-raw-th style="text-align: right; padding: 11px 14px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850;">Total</sc-raw-th>
-                  <sc-raw-th style="text-align: right; padding: 11px 14px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850;">Paid</sc-raw-th>
+                  <sc-raw-th style="text-align: right; padding: 11px 14px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850;">Paid / credited</sc-raw-th>
                   <sc-raw-th style="text-align: right; padding: 11px 14px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850;">Balance</sc-raw-th>
                   <sc-raw-th style="text-align: left; padding: 11px 14px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850;">Status</sc-raw-th>
                   <sc-raw-th style="text-align: right; padding: 11px 14px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850;">&nbsp;</sc-raw-th>
@@ -1086,6 +1097,13 @@ window.__resources = {
                     <sc-raw-td style="padding: 11px 14px; text-align: right; white-space: nowrap;">
                       <button onClick="{{ r.open }}" style="border: 1px solid #DCD6CA; background: #FFFFFF; border-radius: 5px; padding: 5px 10px; font-size: 11.5px; cursor: pointer;" style-hover="background: #F4F3EE;">{{ r.openLabel }}</button>
                       <button onClick="{{ r.pdf }}" style="border: 1px solid #DCD6CA; background: #FFFFFF; border-radius: 5px; padding: 5px 10px; font-size: 11.5px; cursor: pointer; margin-left: 5px;" style-hover="background: #F4F3EE;">PDF</button>
+                      <sc-if value="{{ r.canPay }}" hint-placeholder-val="{{ true }}">
+                        <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ r.pay }}" style="border: 1px solid #DCD6CA; background: #FFFFFF; border-radius: 5px; padding: 5px 10px; font-size: 11.5px; cursor: pointer; margin-left: 5px;" style-hover="background: #F4F3EE;">Pay</button>
+                        <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ r.link }}" style="border: 1px solid #DCD6CA; background: #FFFFFF; border-radius: 5px; padding: 5px 10px; font-size: 11.5px; cursor: pointer; margin-left: 5px;" style-hover="background: #F4F3EE;">Link</button>
+                      </sc-if>
+                      <sc-if value="{{ r.canCredit }}" hint-placeholder-val="{{ true }}">
+                        <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ r.credit }}" style="border: 1px solid #DCD6CA; background: #FFFFFF; border-radius: 5px; padding: 5px 10px; font-size: 11.5px; cursor: pointer; margin-left: 5px;" style-hover="background: #F4F3EE;">Credit</button>
+                      </sc-if>
                     </sc-raw-td>
                   </sc-raw-tr>
                 </sc-for>
@@ -1098,6 +1116,218 @@ window.__resources = {
               </div>
             </sc-if>
           </div>
+          </div>
+          </sc-if>
+
+          <!-- ---------------- PAYMENTS ---------------- -->
+          <sc-if value="{{ sales.tabPayments }}" hint-placeholder-val="{{ false }}">
+            <div>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px;">
+                <input value="{{ recs.q }}" onChange="{{ recs.onQ }}" placeholder="Search receipt number, customer or reference" style="flex: 1 1 260px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 11px; font-size: 13px; background: #FFFFFF;" />
+                <sc-raw-select value="{{ recs.status }}" onChange="{{ recs.onStatus }}" style="border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 10px; font-size: 13px; background: #FFFFFF;">
+                  <option value="all">All receipts</option>
+                  <option value="unallocated">Money on account</option>
+                  <option value="in_transit">Still with the processor</option>
+                  <option value="reversed">Reversed</option>
+                </sc-raw-select>
+                <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ recs.record }}" style="border: 0; background: #1B2A4A; color: #FFFFFF; border-radius: 6px; padding: 9px 16px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;" style-hover="background: #27406E;">+ Record a payment</button>
+              </div>
+              <div style="font-size: 12.5px; color: #5C5850; margin-bottom: 12px;">{{ recs.summary }}</div>
+
+              <div data-om="card" style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; overflow: hidden; overflow-x: auto;">
+                <sc-raw-table style="width: 100%; min-width: 980px; font-size: 13.5px;">
+                  <sc-raw-thead>
+                    <sc-raw-tr style="background: #F8F9FB; border-bottom: 1px solid #E5E1D8;">
+                      <sc-raw-th style="text-align: left; padding: 11px 14px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850;">Receipt</sc-raw-th>
+                      <sc-raw-th style="text-align: left; padding: 11px 14px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850;">Customer</sc-raw-th>
+                      <sc-raw-th style="text-align: left; padding: 11px 14px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850;">Date</sc-raw-th>
+                      <sc-raw-th style="text-align: right; padding: 11px 14px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850;">Received</sc-raw-th>
+                      <sc-raw-th style="text-align: right; padding: 11px 14px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850;">Allocated</sc-raw-th>
+                      <sc-raw-th style="text-align: right; padding: 11px 14px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850;">On account</sc-raw-th>
+                      <sc-raw-th style="text-align: left; padding: 11px 14px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850;">Against</sc-raw-th>
+                      <sc-raw-th style="text-align: left; padding: 11px 14px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850;">How</sc-raw-th>
+                      <sc-raw-th style="text-align: left; padding: 11px 14px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850;">Status</sc-raw-th>
+                      <sc-raw-th style="text-align: right; padding: 11px 14px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850;">&nbsp;</sc-raw-th>
+                    </sc-raw-tr>
+                  </sc-raw-thead>
+                  <sc-raw-tbody>
+                    <sc-for list="{{ recs.rows }}" as="r" hint-placeholder-count="6">
+                      <sc-raw-tr style="border-bottom: 1px solid #F2EFE8;">
+                        <sc-raw-td style="padding: 11px 14px; font-family: 'IBM Plex Mono', monospace; font-size: 12px;">{{ r.number }}</sc-raw-td>
+                        <sc-raw-td style="padding: 11px 14px;">{{ r.party }}</sc-raw-td>
+                        <sc-raw-td style="padding: 11px 14px; color: #5C5850;">{{ r.date }}</sc-raw-td>
+                        <sc-raw-td style="padding: 11px 14px; text-align: right; font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; font-weight: 600;">{{ r.amount }}</sc-raw-td>
+                        <sc-raw-td style="padding: 11px 14px; text-align: right; font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; color: #5C5850;">{{ r.allocated }}</sc-raw-td>
+                        <sc-raw-td style="padding: 11px 14px; text-align: right; font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; color: {{ r.unallocatedFg }};">{{ r.unallocated }}</sc-raw-td>
+                        <sc-raw-td style="padding: 11px 14px; font-size: 12.5px; color: #5C5850;">{{ r.against }}</sc-raw-td>
+                        <sc-raw-td style="padding: 11px 14px; font-size: 12.5px;">{{ r.method }}<div style="font-size: 11px; color: #8A857C;">{{ r.source }}</div></sc-raw-td>
+                        <sc-raw-td style="padding: 11px 14px;"><span style="font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: {{ r.bg }}; color: {{ r.fg }}; white-space: nowrap;">{{ r.label }}</span></sc-raw-td>
+                        <sc-raw-td style="padding: 11px 14px; text-align: right; white-space: nowrap;">
+                          <sc-if value="{{ r.canAllocate }}" hint-placeholder-val="{{ true }}">
+                            <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ r.allocate }}" style="border: 1px solid #DCD6CA; background: #FFFFFF; border-radius: 5px; padding: 5px 10px; font-size: 11.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Allocate</button>
+                          </sc-if>
+                        </sc-raw-td>
+                      </sc-raw-tr>
+                    </sc-for>
+                  </sc-raw-tbody>
+                </sc-raw-table>
+                <sc-if value="{{ recs.noRows }}" hint-placeholder-val="{{ false }}">
+                  <div style="padding: 36px 24px; text-align: center;">
+                    <div style="font-size: 15px; font-weight: 600;">No payments recorded yet</div>
+                    <div style="font-size: 13px; color: #5C5850; margin-top: 4px; text-wrap: pretty;">Record one transfer against several invoices at once, or connect your own payment account in Settings and let customers pay online.</div>
+                  </div>
+                </sc-if>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- ---------------- CREDIT NOTES ---------------- -->
+          <sc-if value="{{ sales.tabCredits }}" hint-placeholder-val="{{ false }}">
+            <div>
+              <div style="font-size: 12.5px; color: #5C5850; margin-bottom: 12px;">{{ cns.summary }}</div>
+              <div data-om="card" style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; overflow: hidden; overflow-x: auto;">
+                <sc-raw-table style="width: 100%; min-width: 920px; font-size: 13.5px;">
+                  <sc-raw-thead>
+                    <sc-raw-tr style="background: #F8F9FB; border-bottom: 1px solid #E5E1D8;">
+                      <sc-raw-th style="text-align: left; padding: 11px 14px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850;">Credit note</sc-raw-th>
+                      <sc-raw-th style="text-align: left; padding: 11px 14px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850;">Customer</sc-raw-th>
+                      <sc-raw-th style="text-align: left; padding: 11px 14px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850;">Corrects</sc-raw-th>
+                      <sc-raw-th style="text-align: left; padding: 11px 14px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850;">Date</sc-raw-th>
+                      <sc-raw-th style="text-align: right; padding: 11px 14px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850;">Total</sc-raw-th>
+                      <sc-raw-th style="text-align: right; padding: 11px 14px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850;">Applied</sc-raw-th>
+                      <sc-raw-th style="text-align: right; padding: 11px 14px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850;">Unapplied</sc-raw-th>
+                      <sc-raw-th style="text-align: left; padding: 11px 14px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850;">Why</sc-raw-th>
+                      <sc-raw-th style="text-align: left; padding: 11px 14px; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: #5C5850;">Status</sc-raw-th>
+                    </sc-raw-tr>
+                  </sc-raw-thead>
+                  <sc-raw-tbody>
+                    <sc-for list="{{ cns.rows }}" as="r" hint-placeholder-count="5">
+                      <sc-raw-tr style="border-bottom: 1px solid #F2EFE8;">
+                        <sc-raw-td style="padding: 11px 14px; font-family: 'IBM Plex Mono', monospace; font-size: 12px;">{{ r.number }}</sc-raw-td>
+                        <sc-raw-td style="padding: 11px 14px;">{{ r.party }}</sc-raw-td>
+                        <sc-raw-td style="padding: 11px 14px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #5C5850;">{{ r.invoice }}</sc-raw-td>
+                        <sc-raw-td style="padding: 11px 14px; color: #5C5850;">{{ r.issue }}</sc-raw-td>
+                        <sc-raw-td style="padding: 11px 14px; text-align: right; font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; font-weight: 600;">{{ r.total }}</sc-raw-td>
+                        <sc-raw-td style="padding: 11px 14px; text-align: right; font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; color: #5C5850;">{{ r.applied }}</sc-raw-td>
+                        <sc-raw-td style="padding: 11px 14px; text-align: right; font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; color: {{ r.unappliedFg }};">{{ r.unapplied }}</sc-raw-td>
+                        <sc-raw-td style="padding: 11px 14px; font-size: 12.5px; color: #5C5850;">{{ r.reason }}</sc-raw-td>
+                        <sc-raw-td style="padding: 11px 14px;"><span style="font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: {{ r.bg }}; color: {{ r.fg }}; white-space: nowrap;">{{ r.label }}</span></sc-raw-td>
+                      </sc-raw-tr>
+                    </sc-for>
+                  </sc-raw-tbody>
+                </sc-raw-table>
+                <sc-if value="{{ cns.noRows }}" hint-placeholder-val="{{ true }}">
+                  <div style="padding: 36px 24px; text-align: center;">
+                    <div style="font-size: 15px; font-weight: 600;">No credit notes</div>
+                    <div style="font-size: 13px; color: #5C5850; margin-top: 4px; text-wrap: pretty;">An invoice that has been sent is corrected with a credit note, not by editing it. Press Credit on any issued invoice.</div>
+                  </div>
+                </sc-if>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- ---------------- RECEIVABLES ---------------- -->
+          <sc-if value="{{ sales.tabReceivables }}" hint-placeholder-val="{{ false }}">
+            <div>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px;">
+                <sc-for list="{{ arv.cards }}" as="c" hint-placeholder-count="4">
+                  <div data-om="card" style="background: #FFFFFF; border: 1px solid #E5E1D8; border-left: 3px solid {{ c.tone }}; border-radius: 6px; padding: 16px 16px 15px;">
+                    <div style="font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: #5C5850; font-weight: 600;">{{ c.label }}</div>
+                    <div style="font-family: 'IBM Plex Mono', monospace; font-size: 19px; font-weight: 600; margin-top: 7px; color: {{ c.fg }}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ c.value }}</div>
+                    <div style="font-size: 11.5px; color: #8A857C; margin-top: 3px;">{{ c.sub }}</div>
+                  </div>
+                </sc-for>
+              </div>
+
+              <sc-if value="{{ arv.warn }}" hint-placeholder-val="{{ false }}">
+                <div style="background: #FBEBE7; border: 1px solid #F3D6CE; color: #8A2F1D; border-radius: 6px; padding: 12px 16px; font-size: 13px; margin-top: 14px; display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap;">
+                  <span style="min-width: 0; text-wrap: pretty;">{{ arv.note }}</span>
+                  <button onClick="{{ arv.postPending }}" style="border: 1px solid #C9A49B; background: #FFFFFF; color: #8A2F1D; border-radius: 6px; padding: 7px 13px; font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap;" style-hover="background: #FBEBE7;">Post them now</button>
+                </div>
+              </sc-if>
+              <sc-if value="{{ arv.collectReady }}" hint-placeholder-val="{{ false }}">
+                <div style="background: #E8F3EC; border: 1px solid #CFE6D7; color: #0B6B4F; border-radius: 6px; padding: 12px 16px; font-size: 13px; margin-top: 14px;">{{ arv.collectNote }}</div>
+              </sc-if>
+
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 16px; margin-top: 16px;">
+                <div data-om="card" style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; padding: 22px;">
+                  <h2 style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 16px; font-weight: 600; margin: 0 0 12px;">Who owes what</h2>
+                  <sc-for list="{{ arv.customers }}" as="c" hint-placeholder-count="6">
+                    <div style="display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid #F2EFE8;">
+                      <span style="min-width: 0;">
+                        <span style="font-size: 13.5px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ c.party }}</span>
+                        <span style="font-size: 11.5px; color: #8A857C;">{{ c.invoices }} · oldest due {{ c.oldest }}</span>
+                      </span>
+                      <span style="text-align: right; white-space: nowrap;">
+                        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; font-weight: 600; display: block;">{{ c.owed }}</span>
+                        <span style="font-size: 11.5px; color: {{ c.overdueFg }};">{{ c.overdue }}</span>
+                      </span>
+                    </div>
+                  </sc-for>
+                  <sc-if value="{{ arv.noCustomers }}" hint-placeholder-val="{{ false }}">
+                    <div style="font-size: 13px; color: #0B6B4F; padding: 6px 0;">Nobody owes you anything.</div>
+                  </sc-if>
+                </div>
+
+                <div data-om="card" style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; padding: 22px;">
+                  <h2 style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 16px; font-weight: 600; margin: 0 0 12px;">Late, and what to do about it</h2>
+                  <sc-for list="{{ arv.overdue }}" as="o" hint-placeholder-count="5">
+                    <div style="padding: 10px 0; border-bottom: 1px solid #F2EFE8;">
+                      <div style="display: flex; justify-content: space-between; gap: 12px;">
+                        <span style="min-width: 0;">
+                          <span style="font-size: 13.5px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ o.party }}</span>
+                          <span style="font-size: 11.5px; color: #8A2F1D;">{{ o.number }} · {{ o.days }}</span>
+                        </span>
+                        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; font-weight: 600; white-space: nowrap; color: #8A2F1D;">{{ o.outstanding }}</span>
+                      </div>
+                      <div style="display: flex; gap: 6px; margin-top: 7px; flex-wrap: wrap;">
+                        <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ o.pay }}" style="border: 1px solid #DCD6CA; background: #FFFFFF; border-radius: 5px; padding: 5px 10px; font-size: 11.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Record payment</button>
+                        <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ o.link }}" style="border: 1px solid #DCD6CA; background: #FFFFFF; border-radius: 5px; padding: 5px 10px; font-size: 11.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Pay link</button>
+                        <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ o.credit }}" style="border: 1px solid #DCD6CA; background: #FFFFFF; border-radius: 5px; padding: 5px 10px; font-size: 11.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Credit</button>
+                      </div>
+                    </div>
+                  </sc-for>
+                  <sc-if value="{{ arv.noOverdue }}" hint-placeholder-val="{{ true }}">
+                    <div style="font-size: 13px; color: #0B6B4F; padding: 6px 0;">Nothing is overdue.</div>
+                  </sc-if>
+                </div>
+
+                <div data-om="card" style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; padding: 22px;">
+                  <h2 style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 16px; font-weight: 600; margin: 0 0 4px;">Money on account</h2>
+                  <div style="font-size: 12px; color: #5C5850; margin-bottom: 12px; text-wrap: pretty;">Received, but not yet put against an invoice. It is a liability until it is.</div>
+                  <sc-for list="{{ arv.unallocated }}" as="u" hint-placeholder-count="4">
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid #F2EFE8;">
+                      <span style="min-width: 0;">
+                        <span style="font-size: 13.5px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ u.party }}</span>
+                        <span style="font-size: 11.5px; color: #8A857C;">{{ u.number }} · {{ u.date }}</span>
+                      </span>
+                      <span style="white-space: nowrap;">
+                        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; font-weight: 600; margin-right: 8px;">{{ u.amount }}</span>
+                        <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ u.allocate }}" style="border: 1px solid #DCD6CA; background: #FFFFFF; border-radius: 5px; padding: 5px 10px; font-size: 11.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Allocate</button>
+                      </span>
+                    </div>
+                  </sc-for>
+                  <sc-if value="{{ arv.noUnallocated }}" hint-placeholder-val="{{ true }}">
+                    <div style="font-size: 13px; color: #5C5850; padding: 6px 0;">Every payment is allocated.</div>
+                  </sc-if>
+
+                  <h2 style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 16px; font-weight: 600; margin: 22px 0 12px;">Credit not yet applied</h2>
+                  <sc-for list="{{ arv.credits }}" as="c" hint-placeholder-count="3">
+                    <div style="display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid #F2EFE8;">
+                      <span style="min-width: 0;">
+                        <span style="font-size: 13.5px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ c.party }}</span>
+                        <span style="font-size: 11.5px; color: #8A857C;">{{ c.number }} · {{ c.issue }}</span>
+                      </span>
+                      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; font-weight: 600; white-space: nowrap;">{{ c.amount }}</span>
+                    </div>
+                  </sc-for>
+                  <sc-if value="{{ arv.noCredits }}" hint-placeholder-val="{{ true }}">
+                    <div style="font-size: 13px; color: #5C5850; padding: 6px 0;">No credit outstanding.</div>
+                  </sc-if>
+                </div>
+              </div>
+            </div>
+          </sc-if>
         </div>
       </sc-if>
 
@@ -1618,6 +1848,77 @@ window.__resources = {
             <button data-a="" disabled="{{ perm.noAdmin }}" onClick="{{ banks.add }}" style="border: 1px dashed #C9C3B7; background: #FCFBF8; border-radius: 6px; padding: 10px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer; width: 100%;" style-hover="border-color: #1a1a1a;">+ Add a bank account</button>
           </div>
 
+          <!-- ============ COLLECTING FROM CUSTOMERS ============ -->
+          <sc-if value="{{ merch.show }}" hint-placeholder-val="{{ false }}">
+            <div data-om="card" style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.04), 0 1px 3px rgba(19,19,19,.06); padding: 24px; grid-column: 1 / -1;">
+              <h2 style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 19px; font-weight: 600; margin: 0 0 6px;">Letting customers pay you online</h2>
+              <p style="font-size: 12.5px; color: #5C5850; margin: 0 0 14px; line-height: 1.5;">{{ merch.note }}</p>
+
+              <sc-if value="{{ merch.storageBlocked }}" hint-placeholder-val="{{ false }}">
+                <div style="background: #FDF6E7; border: 1px solid #F0E2C0; color: #7A5A0C; border-radius: 6px; padding: 12px 15px; font-size: 12.5px; margin-bottom: 16px; text-wrap: pretty;">{{ merch.storageNote }}</div>
+              </sc-if>
+
+              <sc-for list="{{ merch.providers }}" as="p" hint-placeholder-count="2">
+                <div style="border: 1px solid #E5E1D8; border-left: 3px solid {{ p.fg }}; border-radius: 6px; padding: 16px 18px; margin-bottom: 12px; background: #FCFCFB;">
+                  <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap;">
+                    <div style="font-size: 14.5px; font-weight: 600;">{{ p.label }}</div>
+                    <span style="font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: {{ p.bg }}; color: {{ p.fg }}; white-space: nowrap;">{{ p.label_state }}</span>
+                  </div>
+                  <div style="font-size: 12px; color: #5C5850; margin: 5px 0 12px; line-height: 1.5; text-wrap: pretty;">{{ p.instructions }}</div>
+
+                  <sc-if value="{{ p.hasError }}" hint-placeholder-val="{{ false }}">
+                    <div style="background: #FBEBE7; border: 1px solid #F3D6CE; color: #8A2F1D; border-radius: 6px; padding: 10px 13px; font-size: 12.5px; margin-bottom: 12px; text-wrap: pretty;">{{ p.lastError }}</div>
+                  </sc-if>
+
+                  <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <label style="flex: 1 1 200px; min-width: 0;">
+                      <span style="display: block; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #5C5850; margin-bottom: 4px;">{{ p.publicLabel }}</span>
+                      <input disabled="{{ p.disabled }}" value="{{ p.publicKey }}" onChange="{{ p.onPublic }}" placeholder="{{ p.publicPlaceholder }}" style="width: 100%; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 10px; font-size: 12.5px; font-family: 'IBM Plex Mono', monospace; background: #FFFFFF;" />
+                    </label>
+                    <label style="flex: 1 1 200px; min-width: 0;">
+                      <span style="display: block; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #5C5850; margin-bottom: 4px;">Secret key</span>
+                      <input type="password" disabled="{{ p.disabled }}" value="{{ p.secretKey }}" onChange="{{ p.onSecret }}" placeholder="{{ p.secretPlaceholder }}" style="width: 100%; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 10px; font-size: 12.5px; font-family: 'IBM Plex Mono', monospace; background: #FFFFFF;" />
+                    </label>
+                    <sc-if value="{{ p.needsContract }}" hint-placeholder-val="{{ false }}">
+                      <label style="flex: 1 1 150px; min-width: 0;">
+                        <span style="display: block; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #5C5850; margin-bottom: 4px;">Contract code</span>
+                        <input disabled="{{ p.disabled }}" value="{{ p.contractCode }}" onChange="{{ p.onContract }}" style="width: 100%; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 10px; font-size: 12.5px; font-family: 'IBM Plex Mono', monospace; background: #FFFFFF;" />
+                      </label>
+                    </sc-if>
+                    <label style="flex: 0 1 140px; min-width: 0;">
+                      <span style="display: block; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #5C5850; margin-bottom: 4px;">Mode</span>
+                      <sc-raw-select disabled="{{ p.disabled }}" value="{{ p.environment }}" onChange="{{ p.onEnvironment }}" style="width: 100%; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 10px; font-size: 12.5px; background: #FFFFFF;">
+                        <option value="test">Test</option>
+                        <option value="live">Live</option>
+                      </sc-raw-select>
+                    </label>
+                  </div>
+
+                  <div style="display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; align-items: center;">
+                    <button disabled="{{ p.disabled }}" onClick="{{ p.save }}" style="border: 0; background: #1B2A4A; color: #FFFFFF; border-radius: 6px; padding: 8px 15px; font-size: 12.5px; font-weight: 600; cursor: pointer; opacity: {{ p.opacity }};" style-hover="background: #27406E;">Save</button>
+                    <button disabled="{{ p.disabled }}" onClick="{{ p.test }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 14px; font-size: 12.5px; cursor: pointer; opacity: {{ p.opacity }};" style-hover="background: #F4F3EE;">Test</button>
+                    <sc-if value="{{ p.verified }}" hint-placeholder-val="{{ false }}">
+                      <button disabled="{{ p.disabled }}" onClick="{{ p.toggle }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 14px; font-size: 12.5px; cursor: pointer; opacity: {{ p.opacity }};" style-hover="background: #F4F3EE;">{{ p.toggleLabel }}</button>
+                    </sc-if>
+                  </div>
+
+                  <sc-if value="{{ p.hasWebhook }}" hint-placeholder-val="{{ false }}">
+                    <div style="border-top: 1px solid #EDEAE2; margin-top: 14px; padding-top: 12px;">
+                      <div style="font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #5C5850; margin-bottom: 5px;">Webhook URL — paste this into the same dashboard page</div>
+                      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <input value="{{ p.webhookUrl }}" style="flex: 1 1 260px; min-width: 0; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 10px; font-size: 11.5px; font-family: 'IBM Plex Mono', monospace; background: #F8F9FB;" />
+                        <button onClick="{{ p.copyWebhook }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 14px; font-size: 12.5px; cursor: pointer; white-space: nowrap;" style-hover="background: #F4F3EE;">Copy</button>
+                      </div>
+                      <div style="font-size: 11.5px; color: #8A857C; margin-top: 6px; text-wrap: pretty;">This URL is yours alone. Without it a payment still reaches you, but Profitna only learns about it when somebody presses "Check if it is paid".</div>
+                    </div>
+                  </sc-if>
+                </div>
+              </sc-for>
+
+              <div style="font-size: 11.5px; color: #8A857C; margin-top: 4px; text-wrap: pretty;">Your secret key is encrypted before it is stored and no screen or API response will ever show it again — only the last four characters, so you can tell one key from another. Nothing is switched on until the provider itself has accepted the credentials.</div>
+            </div>
+          </sc-if>
+
           <div data-om="card" style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.04), 0 1px 3px rgba(19,19,19,.06); padding: 24px;">
             <h2 style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 19px; font-weight: 600; margin: 0 0 6px;">Report branding</h2>
             <p style="font-size: 12.5px; color: #5C5850; margin: 0 0 14px; line-height: 1.5;">Your logo appears at the top of every report Profitna produces. PNG, JPEG or WebP, under 400KB.</p>
@@ -2064,6 +2365,179 @@ window.__resources = {
     </div>
   </sc-if>
 
+  <!-- ============ RECORD A PAYMENT ============ -->
+  <sc-if value="{{ rcpt.open }}" hint-placeholder-val="{{ false }}">
+    <div style="position: fixed; inset: 0; background: rgba(16,24,40,.55); z-index: 70; display: flex; align-items: flex-start; justify-content: center; overflow-y: auto; padding: 24px 16px;">
+      <div data-om="card" style="background: #FFFFFF; border-radius: 10px; width: 100%; max-width: 920px; box-shadow: 0 24px 64px -12px rgba(16,24,40,.45); overflow: hidden;">
+
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 18px 24px; border-bottom: 1px solid #E5E1D8; background: #F8F9FB; flex-wrap: wrap;">
+          <div style="min-width: 0;">
+            <div style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 19px; font-weight: 600;">{{ rcpt.title }}</div>
+            <div style="font-size: 12.5px; color: #5C5850; margin-top: 1px;">{{ rcpt.subtitle }}</div>
+          </div>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button onClick="{{ rcpt.close }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 14px; font-size: 12.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Close</button>
+            <button disabled="{{ rcpt.disabled }}" onClick="{{ rcpt.save }}" style="border: 0; background: #1B2A4A; color: #FFFFFF; border-radius: 6px; padding: 8px 18px; font-size: 12.5px; font-weight: 600; cursor: pointer; opacity: {{ rcpt.opacity }};" style-hover="background: #27406E;">{{ rcpt.saveLabel }}</button>
+          </div>
+        </div>
+
+        <sc-if value="{{ rcpt.hasError }}" hint-placeholder-val="{{ false }}">
+          <div style="background: #FBEBE7; color: #8A2F1D; padding: 11px 24px; font-size: 13px; border-bottom: 1px solid #F3D6CE;">{{ rcpt.error }}</div>
+        </sc-if>
+
+        <div style="display: grid; grid-template-columns: 1fr 1.25fr; gap: 0;">
+          <div style="padding: 22px 24px; border-right: 1px solid #EDEAE2;">
+            <div style="font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: #5C5850; font-weight: 600; margin-bottom: 9px;">The money</div>
+            <input value="{{ rcpt.party }}" disabled="{{ rcpt.lockMoney }}" onChange="{{ rcpt.onParty }}" placeholder="Who it came from" style="width: 100%; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 11px; font-size: 13.5px; background: #FFFFFF;" />
+            <sc-if value="{{ rcpt.hasCustomers }}" hint-placeholder-val="{{ true }}">
+              <sc-raw-select value="{{ rcpt.pick }}" onChange="{{ rcpt.onPick }}" style="width: 100%; border: 1px solid #E5E1D8; border-radius: 6px; padding: 6px 9px; font-size: 12px; margin-top: 6px; background: #FCFCFB; color: #5C5850;">
+                <option value="">Pick an existing customer…</option>
+                <sc-for list="{{ rcpt.customers }}" as="c" hint-placeholder-count="5">
+                  <option value="{{ c.value }}">{{ c.label }}</option>
+                </sc-for>
+              </sc-raw-select>
+            </sc-if>
+
+            <div style="display: flex; gap: 8px; margin-top: 10px;">
+              <input value="{{ rcpt.amount }}" disabled="{{ rcpt.lockMoney }}" onChange="{{ rcpt.onAmount }}" placeholder="How much, in ₦" style="flex: 1 1 120px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 11px; font-size: 13.5px; background: #FFFFFF; font-family: 'IBM Plex Mono', monospace;" />
+              <input type="date" value="{{ rcpt.date }}" disabled="{{ rcpt.lockMoney }}" onChange="{{ rcpt.onDate }}" style="flex: 1 1 130px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 7px 9px; font-size: 12.5px; background: #FFFFFF;" />
+            </div>
+
+            <sc-raw-select value="{{ rcpt.method }}" disabled="{{ rcpt.lockMoney }}" onChange="{{ rcpt.onMethod }}" style="width: 100%; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 10px; font-size: 13px; margin-top: 10px; background: #FFFFFF;">
+              <sc-for list="{{ rcpt.methods }}" as="m" hint-placeholder-count="5">
+                <option value="{{ m.key }}">{{ m.label }}</option>
+              </sc-for>
+            </sc-raw-select>
+
+            <sc-if value="{{ rcpt.hasBanks }}" hint-placeholder-val="{{ true }}">
+              <sc-raw-select value="{{ rcpt.bankAccountId }}" onChange="{{ rcpt.onBank }}" style="width: 100%; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 10px; font-size: 13px; margin-top: 10px; background: #FFFFFF;">
+                <option value="">No bank account (cash)</option>
+                <sc-for list="{{ rcpt.banks }}" as="b" hint-placeholder-count="3">
+                  <option value="{{ b.id }}">{{ b.name }}</option>
+                </sc-for>
+              </sc-raw-select>
+            </sc-if>
+
+            <input value="{{ rcpt.reference }}" onChange="{{ rcpt.onReference }}" placeholder="Their reference (optional)" style="width: 100%; border: 1px solid #C9C3B7; border-radius: 6px; padding: 7px 9px; font-size: 12.5px; margin-top: 10px; background: #FFFFFF;" />
+            <textarea value="{{ rcpt.notes }}" onChange="{{ rcpt.onNotes }}" placeholder="Anything worth remembering" rows="2" style="width: 100%; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 11px; font-size: 12.5px; margin-top: 10px; background: #FFFFFF; resize: vertical;"></textarea>
+
+            <div style="border-top: 1px solid #EDEAE2; margin-top: 16px; padding-top: 14px;">
+              <div style="display: flex; justify-content: space-between; font-size: 12.5px; padding: 3px 0;">
+                <span style="color: #5C5850;">Received</span>
+                <span style="font-family: 'IBM Plex Mono', monospace;">{{ rcpt.amountLabel }}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; font-size: 12.5px; padding: 3px 0;">
+                <span style="color: #5C5850;">Allocated</span>
+                <span style="font-family: 'IBM Plex Mono', monospace;">{{ rcpt.allocatedLabel }}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; font-size: 13.5px; padding: 6px 0 0; border-top: 1px solid #EDEAE2; margin-top: 6px;">
+                <span style="font-weight: 600;">On account</span>
+                <span style="font-family: 'IBM Plex Mono', monospace; font-weight: 600; color: {{ rcpt.leftFg }};">{{ rcpt.leftLabel }}</span>
+              </div>
+              <div style="font-size: 11.5px; color: #8A857C; margin-top: 6px; text-wrap: pretty;">{{ rcpt.leftNote }}</div>
+            </div>
+          </div>
+
+          <div style="padding: 22px 24px; background: #FCFCFB;">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
+              <div style="font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: #5C5850; font-weight: 600;">What it settles</div>
+              <button onClick="{{ rcpt.suggest }}" style="border: 1px dashed #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 5px 11px; font-size: 11.5px; cursor: pointer; color: #1B2A4A;" style-hover="border-color: #1B2A4A; background: #F4F7FB;">Oldest first</button>
+            </div>
+
+            <sc-for list="{{ rcpt.invoices }}" as="i" hint-placeholder-count="5">
+              <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid #F2EFE8;">
+                <span style="min-width: 0; flex: 1 1 auto;">
+                  <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; display: block;">{{ i.number }}</span>
+                  <span style="font-size: 11.5px; color: #8A857C;">due {{ i.due }} · {{ i.outstanding }} owing</span>
+                </span>
+                <input value="{{ i.value }}" onChange="{{ i.onAmount }}" placeholder="0.00" style="width: 104px; flex: 0 0 104px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 6px 9px; font-size: 12.5px; background: #FFFFFF; font-family: 'IBM Plex Mono', monospace; text-align: right;" />
+                <button onClick="{{ i.full }}" style="border: 1px solid #DCD6CA; background: #FFFFFF; border-radius: 5px; padding: 5px 8px; font-size: 11px; cursor: pointer; flex: 0 0 auto;" style-hover="background: #F4F3EE;">All</button>
+              </div>
+            </sc-for>
+
+            <sc-if value="{{ rcpt.noInvoices }}" hint-placeholder-val="{{ false }}">
+              <div style="font-size: 13px; color: #5C5850; padding: 10px 0; text-wrap: pretty;">{{ rcpt.noInvoicesNote }}</div>
+            </sc-if>
+
+            <div style="font-size: 11.5px; color: #8A857C; margin-top: 14px; text-wrap: pretty;">{{ rcpt.collectNote }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ============ CREDIT NOTE ============ -->
+  <sc-if value="{{ cnote.open }}" hint-placeholder-val="{{ false }}">
+    <div style="position: fixed; inset: 0; background: rgba(16,24,40,.55); z-index: 70; display: flex; align-items: flex-start; justify-content: center; overflow-y: auto; padding: 24px 16px;">
+      <div data-om="card" style="background: #FFFFFF; border-radius: 10px; width: 100%; max-width: 760px; box-shadow: 0 24px 64px -12px rgba(16,24,40,.45); overflow: hidden;">
+
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 18px 24px; border-bottom: 1px solid #E5E1D8; background: #F8F9FB; flex-wrap: wrap;">
+          <div style="min-width: 0;">
+            <div style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 19px; font-weight: 600;">{{ cnote.title }}</div>
+            <div style="font-size: 12.5px; color: #5C5850; margin-top: 1px;">{{ cnote.subtitle }}</div>
+          </div>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button onClick="{{ cnote.close }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 14px; font-size: 12.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Close</button>
+            <button disabled="{{ cnote.busy }}" onClick="{{ cnote.save }}" style="border: 0; background: #1B2A4A; color: #FFFFFF; border-radius: 6px; padding: 8px 18px; font-size: 12.5px; font-weight: 600; cursor: pointer; opacity: {{ cnote.opacity }};" style-hover="background: #27406E;">Issue credit note</button>
+          </div>
+        </div>
+
+        <sc-if value="{{ cnote.hasError }}" hint-placeholder-val="{{ false }}">
+          <div style="background: #FBEBE7; color: #8A2F1D; padding: 11px 24px; font-size: 13px; border-bottom: 1px solid #F3D6CE;">{{ cnote.error }}</div>
+        </sc-if>
+
+        <div style="padding: 22px 24px;">
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;">
+            <input value="{{ cnote.reason }}" onChange="{{ cnote.onReason }}" placeholder="Why — the customer will see this" style="flex: 1 1 260px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 11px; font-size: 13.5px; background: #FFFFFF;" />
+            <input type="date" value="{{ cnote.issue }}" onChange="{{ cnote.onIssue }}" style="flex: 0 1 150px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 7px 9px; font-size: 12.5px; background: #FFFFFF;" />
+          </div>
+
+          <div style="font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: #5C5850; font-weight: 600; margin-bottom: 9px;">What is being credited</div>
+          <sc-for list="{{ cnote.lines }}" as="l" hint-placeholder-count="2">
+            <div style="display: flex; gap: 7px; align-items: center; margin-bottom: 8px; flex-wrap: wrap;">
+              <input value="{{ l.description }}" onChange="{{ l.onDescription }}" placeholder="What it is for" style="flex: 1 1 200px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 7px 10px; font-size: 13px; background: #FFFFFF;" />
+              <input value="{{ l.qty }}" onChange="{{ l.onQty }}" placeholder="Qty" style="flex: 0 0 64px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 7px 8px; font-size: 12.5px; background: #FFFFFF; font-family: 'IBM Plex Mono', monospace; text-align: right;" />
+              <input value="{{ l.unitPrice }}" onChange="{{ l.onPrice }}" placeholder="Unit ₦" style="flex: 0 0 110px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 7px 8px; font-size: 12.5px; background: #FFFFFF; font-family: 'IBM Plex Mono', monospace; text-align: right;" />
+              <sc-raw-select value="{{ l.treatment }}" onChange="{{ l.onTreatment }}" style="flex: 0 0 120px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 7px 8px; font-size: 12px; background: #FFFFFF;">
+                <option value="standard">VAT</option>
+                <option value="zero_rated">Zero rated</option>
+                <option value="exempt">Exempt</option>
+                <option value="no_vat">No VAT</option>
+              </sc-raw-select>
+              <button onClick="{{ l.remove }}" style="border: 1px solid #DCD6CA; background: #FFFFFF; border-radius: 5px; padding: 6px 9px; font-size: 11px; cursor: pointer; color: #8A2F1D; flex: 0 0 auto;" style-hover="background: #FBEBE7;">Remove</button>
+            </div>
+          </sc-for>
+          <button onClick="{{ cnote.addLine }}" style="border: 1px dashed #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 7px 13px; font-size: 12.5px; cursor: pointer; color: #1B2A4A;" style-hover="border-color: #1B2A4A; background: #F4F7FB;">+ Add a line</button>
+
+          <div style="border-top: 1px solid #EDEAE2; margin-top: 18px; padding-top: 14px; font-size: 12.5px; color: #5C5850;">{{ cnote.estimate }}</div>
+          <div style="font-size: 11.5px; color: #8A857C; margin-top: 6px; text-wrap: pretty;">A credit note reduces what the customer owes and gives back the VAT with it. The invoice it corrects is not changed — both documents stay in the record.</div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- ============ PAYMENT LINK ============ -->
+  <sc-if value="{{ plink.open }}" hint-placeholder-val="{{ false }}">
+    <div style="position: fixed; inset: 0; background: rgba(16,24,40,.55); z-index: 72; display: flex; align-items: center; justify-content: center; overflow-y: auto; padding: 24px 16px;">
+      <div data-om="card" style="background: #FFFFFF; border-radius: 10px; width: 100%; max-width: 560px; box-shadow: 0 24px 64px -12px rgba(16,24,40,.45); overflow: hidden;">
+        <div style="padding: 20px 24px 0;">
+          <div style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 19px; font-weight: 600;">{{ plink.title }}</div>
+          <div style="font-size: 12.5px; color: #5C5850; margin-top: 2px;">{{ plink.subtitle }}</div>
+        </div>
+        <div style="padding: 18px 24px 22px;">
+          <div style="background: {{ plink.noteBg }}; color: {{ plink.noteFg }}; border-radius: 6px; padding: 10px 13px; font-size: 12.5px; margin-bottom: 14px; text-wrap: pretty;">{{ plink.note }}</div>
+          <textarea value="{{ plink.url }}" rows="3" style="width: 100%; border: 1px solid #C9C3B7; border-radius: 6px; padding: 9px 11px; font-size: 12px; background: #FCFCFB; font-family: 'IBM Plex Mono', monospace; resize: vertical;"></textarea>
+          <div style="display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap;">
+            <button onClick="{{ plink.copy }}" style="border: 0; background: #1B2A4A; color: #FFFFFF; border-radius: 6px; padding: 9px 16px; font-size: 12.5px; font-weight: 600; cursor: pointer;" style-hover="background: #27406E;">Copy link</button>
+            <button onClick="{{ plink.check }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 9px 14px; font-size: 12.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Check if it is paid</button>
+            <button onClick="{{ plink.close }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 9px 14px; font-size: 12.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Close</button>
+          </div>
+          <div style="font-size: 11.5px; color: #8A857C; margin-top: 14px; text-wrap: pretty;">Your customer types their card into the provider's own page. Nothing resembling a card number reaches Profitna, and the money goes straight to your account — a receipt is written here once the provider confirms it.</div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
   <sc-if value="{{ modalOpen }}" hint-placeholder-val="{{ false }}">
     <div style="position: fixed; inset: 0; background: rgba(14,14,13,0.62); display: flex; align-items: flex-start; justify-content: center; padding: 48px 20px; overflow-y: auto; z-index: 50;">
       <div style="background: #FFFFFF; border-radius: 4px; width: 100%; max-width: 560px; box-shadow: 0 24px 60px rgba(0,0,0,0.3);">
@@ -2236,6 +2710,10 @@ const API = {
       if (res.status === 402 && API.onPaywall) API.onPaywall(data.paywall || {});
       const err = new Error(data.error || 'That did not go through. Try again.');
       err.status = res.status;
+      // The server names some failures, so a caller can tell "no payment
+      // account connected" from any other 409 and send the person to the
+      // screen that fixes it rather than repeating the sentence.
+      err.code = data.code;
       // Some failures carry more than a sentence — whether a model is
       // connected at all, for one — and the caller may need it.
       err.body = data;
@@ -2246,6 +2724,7 @@ const API = {
   get(path) { return API.call('GET', path); },
   post(path, body) { return API.call('POST', path, body); },
   patch(path, body) { return API.call('PATCH', path, body); },
+  put(path, body) { return API.call('PUT', path, body); },
   del(path) { return API.call('DELETE', path); }
 };
 
@@ -2306,6 +2785,18 @@ class Component extends DCLogic {
       // invoice being written — null when the builder is closed.
       dash: null, dashBusy: false, invList: null, invFilter: { q: '', status: 'all' },
       builder: null, builderBusy: false, builderErr: '', bootstrap: null,
+      // Release 2. Which tab of the Invoicing screen is showing, and the
+      // payloads behind each. Each is null until its tab is opened, so the
+      // screen never waits on four calls to show one of them.
+      salesTab: 'invoices',
+      payList: null, payFilter: { q: '', status: 'all' },
+      cnList: null, recv: null,
+      // The forms. Null means closed; the opener builds them, so a form can
+      // never be half-populated from a previous one.
+      payForm: null, payBusy: false, payErr: '',
+      cnForm: null, cnBusy: false, cnErr: '',
+      payLink: null, payLinkBusy: false,
+      merch: null, merchDraft: {}, merchBusy: '',
       newIncome: '', newExpense: '', newExpensePct: '100',
       imp: { open: false, step: 'source', source: 'csv', paste: '', url: '', fileName: '', rows: [] },
       booted: false, googleReady: false,
@@ -2720,8 +3211,13 @@ class Component extends DCLogic {
         noOwing: true, noOverdue: true, noRecent: true, noRows: true,
         q: '', status: 'all',
         onQ: () => {}, onStatus: () => {},
-        newInvoice: () => this.openBuilder(), recordPayment: () => this.go('invoices')(),
-        exportCsv: () => {}
+        newInvoice: () => this.openBuilder(), recordPayment: () => this.openPayment(),
+        exportCsv: () => {},
+        tabs: this.salesTabsVals(),
+        tabInvoices: st.salesTab === 'invoices',
+        tabPayments: st.salesTab === 'payments',
+        tabCredits: st.salesTab === 'credits',
+        tabReceivables: st.salesTab === 'receivables'
       });
     }
 
@@ -2776,7 +3272,8 @@ class Component extends DCLogic {
       // The ledger disagreeing with the invoice list is worth saying out loud
       // rather than quietly showing two different numbers.
       ledgerWarn: d.ageing.reconciles === false,
-      ledgerNote: 'Receivables do not reconcile with the ledger. Open Settings → post pending entries.',
+      ledgerNote: 'Receivables do not reconcile with the ledger yet \u2014 some entries are still being posted.',
+      postPending: () => this.postPending(),
       cards,
       chart,
       ageing,
@@ -2801,7 +3298,15 @@ class Component extends DCLogic {
           label: s[0], bg: s[1], fg: s[2],
           openLabel: r.status === 'draft' ? 'Edit' : 'View',
           open: () => (r.status === 'draft' ? this.openBuilder(r.id) : this.openInvoicePdf(r.id)),
-          pdf: () => this.openInvoicePdf(r.id)
+          pdf: () => this.openInvoicePdf(r.id),
+          // Only on an invoice where each would mean something: nothing is
+          // collected on a draft, and nothing is credited on one either —
+          // a draft is changed, not corrected.
+          canPay: r.status !== 'draft' && r.status !== 'void' && r.outstanding > 0,
+          pay: () => this.openPayment(r.id),
+          link: () => this.makePayLink(r.id),
+          credit: () => this.openCredit(r.id),
+          canCredit: r.status !== 'draft' && r.status !== 'void'
         };
       }),
       noRows: list.invoices.length === 0,
@@ -2821,8 +3326,770 @@ class Component extends DCLogic {
           () => this.reloadInvoiceList());
       },
       newInvoice: () => this.openBuilder(),
-      recordPayment: () => this.go('invoices')(),
-      exportCsv: () => this.exportInvoices()
+      recordPayment: () => this.openPayment(),
+      exportCsv: () => this.exportInvoices(),
+      tabs: this.salesTabsVals(),
+      tabInvoices: st.salesTab === 'invoices',
+      tabPayments: st.salesTab === 'payments',
+      tabCredits: st.salesTab === 'credits',
+      tabReceivables: st.salesTab === 'receivables'
+    };
+  }
+
+  // ---------------- payments, credit notes, receivables ----------------
+  //
+  // Four tabs, four payloads, each fetched when its tab is first opened
+  // rather than all four on the way in: a business that only ever looks at
+  // invoices should not pay for three calls it never reads.
+
+  openSalesTab(tab) {
+    return () => {
+      this.setState({ salesTab: tab });
+      if (tab === 'payments') this.loadPayments();
+      if (tab === 'credits') this.loadCredits();
+      if (tab === 'receivables') this.loadReceivables();
+    };
+  }
+
+  loadPayments(force) {
+    if (this.state.payList && !force) return Promise.resolve();
+    const f = this.state.payFilter;
+    return API.get(this.orgPath('/payments?limit=50&status=' + (f.status || 'all') +
+      '&q=' + encodeURIComponent(f.q || '')))
+      .then((payList) => this.setState({ payList }))
+      .catch((err) => this.flash(err.message));
+  }
+
+  loadCredits(force) {
+    if (this.state.cnList && !force) return Promise.resolve();
+    return API.get(this.orgPath('/credit-notes?limit=50'))
+      .then((cnList) => this.setState({ cnList }))
+      .catch((err) => this.flash(err.message));
+  }
+
+  loadReceivables(force) {
+    if (this.state.recv && !force) return Promise.resolve();
+    return API.get(this.orgPath('/receivables'))
+      .then((recv) => this.setState({ recv }))
+      .catch((err) => this.flash(err.message));
+  }
+
+  // Post whatever this organisation still owes the ledger, now, rather than
+  // waiting for the background pass. The banner that offers this used to say
+  // "post pending entries from Settings", which was a sentence pointing at a
+  // screen that does not have a button on it — so it is a button here instead.
+  postPending() {
+    this.flash('Posting\u2026');
+    return API.post(this.orgPath('/ledger/post-pending'), {})
+      .then(() => {
+        this.flash('Posted. The figures below now come from the ledger.');
+        return this.refreshMoney();
+      })
+      .catch((err) => this.flash(err.message));
+  }
+
+  // Everything the three tabs and the dashboard read, refreshed together
+  // after anything that moves money — otherwise one screen says an invoice is
+  // paid and the next still says it is owed.
+  refreshMoney() {
+    return Promise.all([
+      this.loadInvoicing(true),
+      this.loadPayments(true),
+      this.loadCredits(true),
+      this.loadReceivables(true),
+      this.loadBook(this.state.session)
+    ]).catch(() => {});
+  }
+
+  salesTabsVals() {
+    const tab = this.state.salesTab;
+    return [
+      ['invoices', 'Invoices'],
+      ['payments', 'Payments'],
+      ['credits', 'Credit notes'],
+      ['receivables', 'Receivables']
+    ].map(([key, label]) => ({
+      label,
+      on: tab === key,
+      bg: tab === key ? '#1B2A4A' : '#FFFFFF',
+      fg: tab === key ? '#FFFFFF' : '#403D37',
+      border: tab === key ? '#1B2A4A' : '#C9C3B7',
+      go: this.openSalesTab(key)
+    }));
+  }
+
+  // ---------------- recording a payment ----------------
+
+  openPayment(invoiceId) {
+    this.setState({ payBusy: true, payErr: '' });
+    return API.get(this.orgPath('/payments/new'))
+      .then((boot) => {
+        const picked = invoiceId ? boot.openInvoices.find((i) => i.id === invoiceId) : null;
+        this.setState({
+          payBusy: false,
+          payForm: {
+            boot,
+            party: picked ? picked.party : '',
+            amount: picked ? (picked.outstanding / 100).toFixed(2) : '',
+            date: boot.today,
+            method: 'bank_transfer',
+            bankAccountId: (boot.bankAccounts[0] || {}).id || '',
+            reference: '',
+            notes: '',
+            // invoice id -> typed amount. Only what is filled in is sent, so
+            // an invoice left blank is simply not allocated.
+            alloc: picked ? { [picked.id]: (picked.outstanding / 100).toFixed(2) } : {}
+          }
+        });
+      })
+      .catch((err) => this.setState({ payBusy: false, payErr: err.message }));
+  }
+
+  patchPay(patch) {
+    this.setState((p) => ({ payForm: Object.assign({}, p.payForm, patch), payErr: '' }));
+  }
+
+  patchAlloc(invoiceId, value) {
+    this.setState((p) => ({
+      payForm: Object.assign({}, p.payForm, {
+        alloc: Object.assign({}, p.payForm.alloc, { [invoiceId]: value })
+      }),
+      payErr: ''
+    }));
+  }
+
+  // Oldest first, from the server, so the suggestion the screen offers is the
+  // same rule the books would apply.
+  suggestAlloc() {
+    const f = this.state.payForm;
+    if (!f) return;
+    return API.get(this.orgPath('/payments/suggest?amount=' + encodeURIComponent(f.amount || '0') +
+      '&party=' + encodeURIComponent(f.party || '')))
+      .then((out) => {
+        const alloc = {};
+        for (const row of out.invoices) {
+          if (row.suggested > 0) alloc[row.invoiceId] = (row.suggested / 100).toFixed(2);
+        }
+        this.setState((p) => ({ payForm: Object.assign({}, p.payForm, { alloc }) }));
+        if (!out.invoices.some((r) => r.suggested > 0)) {
+          this.flash('Nothing open for that customer — it will be recorded on account.');
+        }
+      })
+      .catch((err) => this.flash(err.message));
+  }
+
+  savePayment() {
+    const f = this.state.payForm;
+    if (!f) return;
+    const allocations = Object.keys(f.alloc)
+      .map((id) => ({ invoiceId: id, amount: f.alloc[id] }))
+      .filter((a) => Number(String(a.amount).replace(/[^0-9.]/g, '')) > 0);
+
+    this.setState({ payBusy: true, payErr: '' });
+    return API.post(this.orgPath('/payments'), {
+      party: f.party, amount: f.amount, date: f.date, method: f.method,
+      bankAccountId: f.bankAccountId || null, reference: f.reference, notes: f.notes,
+      allocations
+    })
+      .then((out) => {
+        this.setState({ payBusy: false, payForm: null, salesTab: 'payments' });
+        this.flash('Receipt ' + out.receipt.number + ' recorded.');
+        return this.refreshMoney();
+      })
+      .catch((err) => this.setState({ payBusy: false, payErr: err.message }));
+  }
+
+  // Named for the receipt it writes, not for "pay": payVals() already
+  // existed on this class for the subscription paywall, and defining a second
+  // one simply replaced it — the paywall kept working only because the dead
+  // method was mine. Two things called pay in one component is one too many.
+  receiptFormVals() {
+    const f = this.state.payForm;
+    const st = this.state;
+    if (!f) {
+      return { open: false, boot: {}, invoices: [], methods: [], banks: [], customers: [] };
+    }
+    const typed = (v) => Math.round((Number(String(v || '').replace(/[^0-9.]/g, '')) || 0) * 100);
+    const amount = typed(f.amount);
+    const allocated = Object.keys(f.alloc).reduce((a, k) => a + typed(f.alloc[k]), 0);
+    const left = amount - allocated;
+
+    const forParty = f.party
+      ? f.boot.openInvoices.filter((i) => i.party.toLowerCase() === f.party.toLowerCase())
+      : f.boot.openInvoices;
+
+    const allocating = Boolean(f.allocateOnly);
+
+    return {
+      open: true,
+      busy: st.payBusy,
+      opacity: st.payBusy ? '0.6' : '1',
+      hasError: Boolean(st.payErr),
+      error: st.payErr,
+      // Allocating money already received is the same form with the money
+      // half settled: the amount, date and method are facts about a payment
+      // that happened, and editing them here would rewrite a receipt rather
+      // than decide what it paid for.
+      allocating,
+      lockMoney: allocating,
+      title: allocating ? 'Allocate a payment' : 'Record a payment',
+      subtitle: allocating
+        ? 'Choose which invoices this money settles. ' + this.naira(
+          Math.round((Number(String(f.amount || '').replace(/[^0-9.]/g, '')) || 0) * 100)
+        ) + ' is unallocated.'
+        : 'One payment can settle several invoices. Whatever is left over sits on the customer\u2019s account.',
+      saveLabel: allocating ? 'Allocate it' : 'Record it',
+      party: f.party,
+      amount: f.amount,
+      date: f.date,
+      method: f.method,
+      bankAccountId: f.bankAccountId,
+      reference: f.reference,
+      notes: f.notes,
+      methods: f.boot.methods,
+      banks: f.boot.bankAccounts,
+      hasBanks: f.boot.bankAccounts.length > 0,
+      customers: f.boot.customers.map((c) => ({
+        value: c.name,
+        label: c.owing > 0 ? c.name + ' — ' + this.naira(c.owing) + ' owing' : c.name
+      })),
+      hasCustomers: f.boot.customers.length > 0,
+      pick: '',
+      // Collection is the tenant's own, so the screen says so plainly rather
+      // than implying Profitna is holding the money.
+      collectNote: f.boot.collection.message,
+      invoices: forParty.map((i) => ({
+        number: i.number,
+        party: i.party,
+        due: fmtDate(i.due),
+        outstanding: this.naira(i.outstanding),
+        value: f.alloc[i.id] === undefined ? '' : f.alloc[i.id],
+        onAmount: (e) => this.patchAlloc(i.id, e.target.value),
+        full: () => this.patchAlloc(i.id, (i.outstanding / 100).toFixed(2)),
+        clear: () => this.patchAlloc(i.id, '')
+      })),
+      noInvoices: forParty.length === 0,
+      noInvoicesNote: f.party
+        ? 'Nothing open for ' + f.party + '. This will be recorded as money on account.'
+        : 'No open invoices. This will be recorded as money on account.',
+      amountLabel: this.naira(amount),
+      allocatedLabel: this.naira(allocated),
+      leftLabel: this.naira(left),
+      // The one figure somebody is checking before they press Record.
+      leftFg: left < 0 ? '#8A2F1D' : left > 0 ? '#7A5A0C' : '#0B6B4F',
+      leftNote: left < 0
+        ? 'More has been allocated than was received.'
+        : left > 0
+          ? 'This much will sit on the customer’s account until you allocate it.'
+          : amount > 0 ? 'Fully allocated.' : 'Enter how much arrived.',
+      canSave: amount > 0 && left >= 0 && !st.payBusy && Boolean(String(f.party).trim()),
+      disabled: allocating
+        ? !(allocated > 0 && allocated <= amount) || st.payBusy
+        : !(amount > 0 && left >= 0 && Boolean(String(f.party).trim())) || st.payBusy,
+      onParty: (e) => this.patchPay({ party: e.target.value }),
+      onPick: (e) => { if (e.target.value) this.patchPay({ party: e.target.value }); },
+      onAmount: (e) => this.patchPay({ amount: e.target.value }),
+      onDate: (e) => this.patchPay({ date: e.target.value }),
+      onMethod: (e) => this.patchPay({ method: e.target.value }),
+      onBank: (e) => this.patchPay({ bankAccountId: e.target.value }),
+      onReference: (e) => this.patchPay({ reference: e.target.value }),
+      onNotes: (e) => this.patchPay({ notes: e.target.value }),
+      suggest: () => this.suggestAlloc(),
+      save: () => (allocating ? this.saveAllocation() : this.savePayment()),
+      close: () => this.setState({ payForm: null, payErr: '' })
+    };
+  }
+
+  paymentsVals() {
+    const st = this.state;
+    const list = st.payList;
+    if (!list) {
+      return { rows: [], noRows: true, loading: true, summary: 'Reading your receipts…',
+        q: '', status: 'all', onQ: () => {}, onStatus: () => {}, record: () => this.openPayment() };
+    }
+    return {
+      rows: list.payments.map((r) => ({
+        number: r.number || '—',
+        party: r.party,
+        date: fmtDate(r.date),
+        amount: this.naira(r.amount),
+        allocated: this.naira(r.allocated),
+        unallocated: this.naira(r.unallocated),
+        unallocatedFg: r.unallocated > 0 ? '#7A5A0C' : '#8A857C',
+        against: r.against || (r.unallocated > 0 ? 'On account' : '—'),
+        method: r.methodLabel,
+        // Where the money is, said on the row. A gateway payment that has not
+        // settled is with the processor, not in the bank, and a bank
+        // reconciliation that does not know that fails by the amount in
+        // transit every day until somebody works out why.
+        label: r.status === 'reversed' ? 'Reversed'
+          : r.inTransit ? 'In transit'
+            : r.unallocated > 0 ? 'On account' : 'Allocated',
+        bg: r.status === 'reversed' ? '#F0EFEA' : r.inTransit ? '#FAEEDA'
+          : r.unallocated > 0 ? '#FAEEDA' : '#E8F3EC',
+        fg: r.status === 'reversed' ? '#8A857C' : r.inTransit ? '#7A5A0C'
+          : r.unallocated > 0 ? '#7A5A0C' : '#0B6B4F',
+        source: r.source === 'gateway' ? (r.provider || 'Online') : 'Recorded',
+        allocate: () => this.openAllocate(r.id),
+        canAllocate: r.unallocated > 0 && r.status !== 'reversed'
+      })),
+      noRows: list.payments.length === 0,
+      loading: false,
+      summary: list.total + (list.total === 1 ? ' receipt' : ' receipts') + ' · ' +
+        this.naira(list.received) + ' received' +
+        (list.unallocated > 0 ? ' · ' + this.naira(list.unallocated) + ' not yet allocated' : '') +
+        (list.fees > 0 ? ' · ' + this.naira(list.fees) + ' in processor fees' : ''),
+      q: st.payFilter.q,
+      status: st.payFilter.status,
+      onQ: (e) => {
+        const q = e.target.value;
+        this.setState((p) => ({ payFilter: Object.assign({}, p.payFilter, { q }) }));
+        clearTimeout(this._payT);
+        this._payT = setTimeout(() => this.loadPayments(true), 280);
+      },
+      onStatus: (e) => {
+        const status = e.target.value;
+        this.setState((p) => ({ payFilter: Object.assign({}, p.payFilter, { status }) }),
+          () => this.loadPayments(true));
+      },
+      record: () => this.openPayment()
+    };
+  }
+
+  // Allocating money already received. The same form, opened with the amount
+  // fixed and only the invoice choice left.
+  openAllocate(receiptId) {
+    this.setState({ payBusy: true });
+    return Promise.all([
+      API.get(this.orgPath('/payments/' + receiptId)),
+      API.get(this.orgPath('/payments/new'))
+    ])
+      .then(([detail, boot]) => this.setState({
+        payBusy: false, payErr: '',
+        payForm: {
+          boot, allocateOnly: true, receiptId,
+          party: detail.receipt.party,
+          amount: (detail.receipt.unallocated / 100).toFixed(2),
+          date: detail.receipt.date,
+          method: detail.receipt.method,
+          bankAccountId: detail.receipt.bankAccountId || '',
+          reference: detail.receipt.reference || '',
+          notes: '',
+          alloc: {}
+        }
+      }))
+      .catch((err) => this.setState({ payBusy: false, payErr: err.message }));
+  }
+
+  saveAllocation() {
+    const f = this.state.payForm;
+    const allocations = Object.keys(f.alloc)
+      .map((id) => ({ invoiceId: id, amount: f.alloc[id] }))
+      .filter((a) => Number(String(a.amount).replace(/[^0-9.]/g, '')) > 0);
+    if (!allocations.length) return this.setState({ payErr: 'Choose at least one invoice.' });
+
+    this.setState({ payBusy: true, payErr: '' });
+    return API.post(this.orgPath('/payments/' + f.receiptId + '/allocate'), { allocations })
+      .then(() => {
+        this.setState({ payBusy: false, payForm: null });
+        this.flash('Allocated.');
+        return this.refreshMoney();
+      })
+      .catch((err) => this.setState({ payBusy: false, payErr: err.message }));
+  }
+
+  // ---------------- credit notes ----------------
+
+  openCredit(invoiceId) {
+    this.setState({ cnBusy: true, cnErr: '' });
+    return API.get(this.orgPath('/credit-notes/from-invoice/' + invoiceId))
+      .then((draft) => this.setState({
+        cnBusy: false,
+        cnForm: {
+          draft,
+          invoiceId,
+          reason: '',
+          issue: new Date().toISOString().slice(0, 10),
+          lines: draft.lines.map((l) => ({
+            description: l.description,
+            qty: String(l.qty),
+            unitPrice: String(l.unitPrice),
+            taxTreatment: l.taxTreatment,
+            taxRate: String(l.taxRate)
+          }))
+        }
+      }))
+      .catch((err) => this.setState({ cnBusy: false, cnErr: err.message }));
+  }
+
+  patchCredit(patch) {
+    this.setState((p) => ({ cnForm: Object.assign({}, p.cnForm, patch), cnErr: '' }));
+  }
+
+  patchCreditLine(i, patch) {
+    this.setState((p) => ({
+      cnForm: Object.assign({}, p.cnForm, {
+        lines: p.cnForm.lines.map((l, j) => (j === i ? Object.assign({}, l, patch) : l))
+      }),
+      cnErr: ''
+    }));
+  }
+
+  saveCredit() {
+    const f = this.state.cnForm;
+    if (!f) return;
+    this.setState({ cnBusy: true, cnErr: '' });
+    return API.post(this.orgPath('/credit-notes'), {
+      invoiceId: f.invoiceId, issue: f.issue, reason: f.reason, lines: f.lines
+    })
+      .then((out) => {
+        this.setState({ cnBusy: false, cnForm: null, salesTab: 'credits' });
+        this.flash('Credit note ' + out.note.number + ' issued.');
+        return this.refreshMoney();
+      })
+      .catch((err) => this.setState({ cnBusy: false, cnErr: err.message }));
+  }
+
+  creditVals() {
+    const f = this.state.cnForm;
+    const st = this.state;
+    if (!f) return { open: false, lines: [] };
+    const typed = (v) => Number(String(v || '').replace(/[^0-9.]/g, '')) || 0;
+    const total = f.lines.reduce((a, l) => a + Math.round(typed(l.qty) * typed(l.unitPrice) * 100), 0);
+
+    return {
+      open: true,
+      busy: st.cnBusy,
+      opacity: st.cnBusy ? '0.6' : '1',
+      hasError: Boolean(st.cnErr),
+      error: st.cnErr,
+      title: 'Credit note against ' + f.draft.number,
+      subtitle: f.draft.party + ' · ' + this.naira(f.draft.creditable) + ' can still be credited',
+      reason: f.reason,
+      issue: f.issue,
+      // VAT is shown as its own figure, because the server works it out from
+      // the invoice's own treatment and a figure typed here would be a guess.
+      estimate: 'About ' + this.naira(total) + ' before VAT is recalculated on the server.',
+      lines: f.lines.map((l, i) => ({
+        description: l.description,
+        qty: l.qty,
+        unitPrice: l.unitPrice,
+        treatment: l.taxTreatment,
+        onDescription: (e) => this.patchCreditLine(i, { description: e.target.value }),
+        onQty: (e) => this.patchCreditLine(i, { qty: e.target.value }),
+        onPrice: (e) => this.patchCreditLine(i, { unitPrice: e.target.value }),
+        onTreatment: (e) => this.patchCreditLine(i, { taxTreatment: e.target.value }),
+        remove: () => this.setState((p) => ({
+          cnForm: Object.assign({}, p.cnForm, {
+            lines: p.cnForm.lines.length > 1
+              ? p.cnForm.lines.filter((x, j) => j !== i)
+              : [{ description: '', qty: '1', unitPrice: '', taxTreatment: 'no_vat', taxRate: '0' }]
+          })
+        }))
+      })),
+      addLine: () => this.setState((p) => ({
+        cnForm: Object.assign({}, p.cnForm, {
+          lines: p.cnForm.lines.concat([
+            { description: '', qty: '1', unitPrice: '', taxTreatment: 'no_vat', taxRate: '0' }
+          ])
+        })
+      })),
+      onReason: (e) => this.patchCredit({ reason: e.target.value }),
+      onIssue: (e) => this.patchCredit({ issue: e.target.value }),
+      save: () => this.saveCredit(),
+      close: () => this.setState({ cnForm: null, cnErr: '' })
+    };
+  }
+
+  creditsVals() {
+    const list = this.state.cnList;
+    if (!list) return { rows: [], noRows: true, summary: 'Reading your credit notes…' };
+    const TONE = {
+      issued: ['Issued', '#E8F3EC', '#0B6B4F'],
+      draft: ['Draft', '#F0EFEA', '#5C5850'],
+      void: ['Void', '#F0EFEA', '#8A857C']
+    };
+    return {
+      rows: list.creditNotes.map((r) => {
+        const t = TONE[r.status] || TONE.issued;
+        return {
+          number: r.number,
+          party: r.party,
+          invoice: r.invoiceNumber || 'Standalone',
+          issue: fmtDate(r.issue),
+          total: this.naira(r.total),
+          applied: this.naira(r.applied),
+          unapplied: this.naira(r.unapplied),
+          unappliedFg: r.unapplied > 0 ? '#7A5A0C' : '#8A857C',
+          reason: r.reason || '—',
+          label: t[0], bg: t[1], fg: t[2]
+        };
+      }),
+      noRows: list.creditNotes.length === 0,
+      summary: list.creditNotes.length + (list.creditNotes.length === 1 ? ' credit note' : ' credit notes') +
+        (list.outstandingCredit > 0
+          ? ' · ' + this.naira(list.outstandingCredit) + ' of credit still unapplied'
+          : '')
+    };
+  }
+
+  // ---------------- receivables ----------------
+
+  receivablesVals() {
+    const r = this.state.recv;
+    if (!r) {
+      return { cards: [], customers: [], unallocated: [], credits: [], overdue: [],
+        noCustomers: true, noUnallocated: true, noCredits: true, noOverdue: true,
+        note: 'Reading your receivables…', warn: false };
+    }
+    const a = r.ageing;
+    return {
+      cards: [
+        { label: 'Owed', value: this.naira(a.total), sub: 'across every open invoice', tone: '#1B2A4A', fg: '#101828' },
+        { label: 'In the ledger', value: this.naira(a.ledgerReceivable),
+          sub: a.reconciles ? 'agrees with the invoices' : 'does not agree',
+          tone: a.reconciles ? '#0B6B4F' : '#B4462C', fg: a.reconciles ? '#101828' : '#8A2F1D' },
+        { label: 'Held in advance', value: this.naira(a.heldInAdvance),
+          sub: 'received, not yet allocated', tone: '#B8863A', fg: '#101828' },
+        { label: 'Credit unapplied', value: this.naira(a.unappliedCredits),
+          sub: 'credit notes not set against an invoice', tone: '#B8863A', fg: '#101828' }
+      ],
+      note: r.note,
+      warn: a.reconciles === false,
+      postPending: () => this.postPending(),
+      collectNote: r.collection.message,
+      collectReady: r.collection.ready === true,
+      customers: r.byCustomer.map((c) => ({
+        party: c.party,
+        owed: this.naira(c.owed),
+        overdue: c.overdue > 0 ? this.naira(c.overdue) + ' overdue' : 'nothing late',
+        overdueFg: c.overdue > 0 ? '#8A2F1D' : '#8A857C',
+        invoices: c.invoices + (c.invoices === 1 ? ' invoice' : ' invoices'),
+        oldest: fmtDate(c.oldestDue),
+        record: () => this.openPayment()
+      })),
+      noCustomers: r.byCustomer.length === 0,
+      overdue: r.overdue.map((i) => ({
+        number: i.number, party: i.party, due: fmtDate(i.due),
+        days: i.daysOverdue + ' days late',
+        outstanding: this.naira(i.outstanding),
+        pay: () => this.openPayment(i.id),
+        link: () => this.makePayLink(i.id),
+        credit: () => this.openCredit(i.id)
+      })),
+      noOverdue: r.overdue.length === 0,
+      unallocated: r.unallocatedPayments.map((u) => ({
+        number: u.number || '—', party: u.party, date: fmtDate(u.date),
+        amount: this.naira(u.unallocated),
+        allocate: () => this.openAllocate(u.id)
+      })),
+      noUnallocated: r.unallocatedPayments.length === 0,
+      credits: r.openCredits.map((c) => ({
+        number: c.number, party: c.party, issue: fmtDate(c.issue),
+        amount: this.naira(c.unapplied)
+      })),
+      noCredits: r.openCredits.length === 0
+    };
+  }
+
+  // ---------------- asking a customer to pay online ----------------
+
+  makePayLink(invoiceId) {
+    this.setState({ payLinkBusy: true });
+    return API.post(this.orgPath('/invoices/' + invoiceId + '/payment-link'), {})
+      .then((out) => this.setState({ payLinkBusy: false, payLink: out }))
+      .catch((err) => {
+        this.setState({ payLinkBusy: false });
+        // A tenant with no merchant account of their own gets sent to the one
+        // screen that can fix it, rather than a refusal with nowhere to go.
+        if (err.code === 'NO_MERCHANT_ACCOUNT') {
+          this.flash('Connect your own payment account in Settings first.');
+          return this.go('settings')();
+        }
+        return this.flash(err.message);
+      });
+  }
+
+  payLinkVals() {
+    const l = this.state.payLink;
+    if (!l) return { open: false };
+    return {
+      open: true,
+      title: 'Payment link for ' + l.invoice.number,
+      subtitle: l.invoice.party + ' · ' + this.naira(l.amount),
+      url: l.url,
+      note: l.note,
+      live: l.environment === 'live',
+      noteBg: l.environment === 'live' ? '#E8F3EC' : '#FAEEDA',
+      noteFg: l.environment === 'live' ? '#0B6B4F' : '#7A5A0C',
+      copy: () => {
+        const done = () => this.flash('Link copied. Send it to your customer.');
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(l.url).then(done, () => this.flash('Copy it from the box above.'));
+        } else {
+          this.flash('Copy it from the box above.');
+        }
+      },
+      check: () => API.post(this.orgPath('/payment-links/' + l.reference + '/check'), {})
+        .then((out) => {
+          if (out.status === 'paid') {
+            this.setState({ payLink: null });
+            this.flash('Paid. Receipt ' + out.receipt.receipt.number + ' recorded.');
+            return this.refreshMoney();
+          }
+          return this.flash(out.status === 'failed'
+            ? 'The provider says that payment did not go through.'
+            : 'The provider has not confirmed it yet.');
+        })
+        .catch((err) => this.flash(err.message)),
+      close: () => this.setState({ payLink: null })
+    };
+  }
+
+  // ---------------- the tenant's own merchant account ----------------
+
+  loadMerchant(force) {
+    if (this.state.merch && !force) return Promise.resolve();
+    return API.get(this.orgPath('/payment-accounts'))
+      .then((merch) => this.setState({ merch }))
+      // A viewer or accountant is not allowed to see this, and that is not an
+      // error worth a red banner on the Settings screen.
+      .catch(() => this.setState({ merch: { forbidden: true, providers: [] } }));
+  }
+
+  patchMerch(provider, patch) {
+    this.setState((p) => ({
+      merchDraft: Object.assign({}, p.merchDraft, {
+        [provider]: Object.assign({}, p.merchDraft[provider] || {}, patch)
+      })
+    }));
+  }
+
+  saveMerchant(provider) {
+    const d = (this.state.merchDraft[provider] || {});
+    this.setState({ merchBusy: provider });
+    return API.put(this.orgPath('/payment-accounts/' + provider), {
+      environment: d.environment || 'test',
+      publicKey: d.publicKey,
+      contractCode: d.contractCode,
+      secretKey: d.secretKey
+    })
+      .then((out) => {
+        this.setState((p) => ({
+          merch: out.accounts, merchBusy: '',
+          // The secret is cleared from the form once it is stored, so it is
+          // not sitting in the page for the rest of the session.
+          merchDraft: Object.assign({}, p.merchDraft, {
+            [provider]: Object.assign({}, p.merchDraft[provider] || {}, { secretKey: '' })
+          })
+        }));
+        (out.notes || []).forEach((n) => this.flash(n));
+        this.flash(out.next);
+      })
+      .catch((err) => { this.setState({ merchBusy: '' }); this.flash(err.message); });
+  }
+
+  testMerchant(provider) {
+    this.setState({ merchBusy: provider });
+    return API.post(this.orgPath('/payment-accounts/' + provider + '/test'), {})
+      .then((out) => {
+        this.setState({ merch: out.accounts, merchBusy: '' });
+        this.flash(out.mismatch || ('Connected. Customers can now pay your invoices online.'));
+      })
+      .catch((err) => {
+        this.setState({ merchBusy: '' });
+        return API.get(this.orgPath('/payment-accounts'))
+          .then((merch) => this.setState({ merch }))
+          .catch(() => {})
+          .then(() => this.flash(err.message));
+      });
+  }
+
+  toggleMerchant(provider, active) {
+    this.setState({ merchBusy: provider });
+    return API.post(this.orgPath('/payment-accounts/' + provider + '/active'), { active })
+      .then((out) => {
+        this.setState({ merch: out.accounts, merchBusy: '' });
+        this.flash(active ? 'Switched on.' : 'Switched off. Your credentials are kept.');
+      })
+      .catch((err) => { this.setState({ merchBusy: '' }); this.flash(err.message); });
+  }
+
+  merchVals() {
+    const m = this.state.merch;
+    const draft = this.state.merchDraft;
+    if (!m || m.forbidden) {
+      return {
+        show: false, providers: [], storageReady: true, storageBlocked: false,
+        storageNote: '', note: 'Only an admin can connect a payment account.'
+      };
+    }
+    const STATE = {
+      'storage-unavailable': ['Unavailable', '#F0EFEA', '#8A857C'],
+      'not-set-up': ['Not connected', '#F0EFEA', '#5C5850'],
+      incomplete: ['Incomplete', '#FAEEDA', '#7A5A0C'],
+      unverified: ['Not tested', '#FAEEDA', '#7A5A0C'],
+      off: ['Switched off', '#F0EFEA', '#5C5850'],
+      live: ['Collecting', '#E8F3EC', '#0B6B4F']
+    };
+
+    return {
+      show: true,
+      storageReady: m.storageReady,
+      // Said as its own flag rather than a negation inside the template: the
+      // renderer has no `unless`, and `!x` in a binding is not a thing it
+      // evaluates.
+      storageBlocked: m.storageReady === false,
+      storageNote: m.storageRequirement || '',
+      note: 'Customers pay into your own account. Profitna never holds your money — ' +
+        'it records the payment and settles the invoice.',
+      providers: m.providers.map((p) => {
+        const d = draft[p.name] || {};
+        const s = STATE[p.state] || STATE['not-set-up'];
+        return {
+          name: p.name,
+          label: p.label,
+          instructions: p.instructions,
+          dashboard: p.dashboard,
+          label_state: s[0], bg: s[1], fg: s[2],
+          environment: d.environment !== undefined ? d.environment : p.environment,
+          publicKey: d.publicKey !== undefined ? d.publicKey : (p.publicKey || ''),
+          publicLabel: p.fields.find((f) => f.key === 'publicKey').label,
+          publicPlaceholder: p.fields.find((f) => f.key === 'publicKey').placeholder,
+          needsContract: p.fields.some((f) => f.key === 'contractCode'),
+          contractCode: d.contractCode !== undefined ? d.contractCode : (p.contractCode || ''),
+          secretKey: d.secretKey || '',
+          // The mask, so a wrong paste is visible without the key being
+          // readable. There is no endpoint that would return the real one.
+          secretPlaceholder: p.secretHint || 'Paste the secret key',
+          hasSecret: p.hasSecret,
+          webhookUrl: p.webhookUrl || '',
+          hasWebhook: Boolean(p.webhookUrl),
+          verified: Boolean(p.verifiedAt),
+          active: p.active,
+          lastError: p.lastError || '',
+          hasError: Boolean(p.lastError),
+          busy: this.state.merchBusy === p.name,
+          opacity: this.state.merchBusy === p.name ? '0.6' : '1',
+          disabled: !m.storageReady || this.state.merchBusy === p.name,
+          canTest: p.hasSecret && m.storageReady,
+          toggleLabel: p.active ? 'Switch off' : 'Switch on',
+          onEnvironment: (e) => this.patchMerch(p.name, { environment: e.target.value }),
+          onPublic: (e) => this.patchMerch(p.name, { publicKey: e.target.value }),
+          onContract: (e) => this.patchMerch(p.name, { contractCode: e.target.value }),
+          onSecret: (e) => this.patchMerch(p.name, { secretKey: e.target.value }),
+          save: () => this.saveMerchant(p.name),
+          test: () => this.testMerchant(p.name),
+          toggle: () => this.toggleMerchant(p.name, !p.active),
+          copyWebhook: () => {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(p.webhookUrl)
+                .then(() => this.flash('Webhook URL copied. Paste it into your ' + p.label + ' dashboard.'),
+                  () => this.flash('Copy it from the box.'));
+            } else { this.flash('Copy it from the box.'); }
+          }
+        };
+      })
     };
   }
 
@@ -3327,7 +4594,18 @@ class Component extends DCLogic {
       this.setState({ screen, search: '', txType: 'all' });
       // Read when the screen is opened rather than at boot: a business that
       // never opens Invoicing should not pay for the query on every sign-in.
-      if (screen === 'invoicing') this.loadInvoicing();
+      if (screen === 'invoicing') {
+        this.loadInvoicing();
+        // Whichever tab was last open, so returning to the screen does not
+        // silently move somebody back to the invoice list.
+        if (this.state.salesTab === 'payments') this.loadPayments();
+        if (this.state.salesTab === 'credits') this.loadCredits();
+        if (this.state.salesTab === 'receivables') this.loadReceivables();
+      }
+      // The merchant account lives in Settings. Read there and nowhere else,
+      // because it is an admin-only call and every other role would get a 403
+      // on the way into a screen they are allowed to see.
+      if (screen === 'settings' && this.state.role === 'Admin') this.loadMerchant();
     };
   }
 
@@ -5019,6 +6297,16 @@ class Component extends DCLogic {
       isInvoicing: st.screen === 'invoicing',
       sales: this.invoicingVals(),
       bld: this.builderVals(),
+      // Release 2. Each of these is cheap when its screen is closed: the
+      // *Vals methods return a tiny closed shape rather than building a form
+      // nobody is looking at.
+      recs: this.paymentsVals(),
+      cns: this.creditsVals(),
+      arv: this.receivablesVals(),
+      rcpt: this.receiptFormVals(),
+      cnote: this.creditVals(),
+      plink: this.payLinkVals(),
+      merch: this.merchVals(),
       isLedgerDoc: st.screen === 'invoices' || st.screen === 'bills', isContacts: st.screen === 'contacts',
       isInventory: st.screen === 'inventory', isReconcile: st.screen === 'reconcile',
       isReports: st.screen === 'reports', isSettings: st.screen === 'settings',

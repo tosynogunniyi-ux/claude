@@ -8,6 +8,7 @@
 // All figures are integer kobo.
 
 const { many, one } = require('../db');
+const owed = require('../invoicing/outstanding');
 
 // Which way an account's balance normally runs. Assets and expenses increase
 // on the debit side; liabilities, equity and income on the credit. Getting
@@ -136,7 +137,8 @@ async function receivablesAgeing(orgId, { asOf } = {}) {
   const rows = await many(
     `SELECT i.id, i.number, i.client_name AS party, i.due_date,
             i.total_kobo AS total,
-            COALESCE((SELECT SUM(ROUND(p.amount * 100)) FROM invoice_payments p WHERE p.invoice_id = i.id), 0) AS paid
+            ${owed.paid('i')} AS paid,
+            ${owed.credited('i')} AS credited
        FROM invoices i
       WHERE i.organization_id = $1
         AND i.base_status <> 'draft'
@@ -147,8 +149,15 @@ async function receivablesAgeing(orgId, { asOf } = {}) {
 
   const buckets = { current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0 };
   const open = [];
+  // Every invoice's balance, overpaid ones included. The ageing buckets only
+  // hold what is actually owed, but the figure that has to agree with the
+  // ledger is the net of all of them — an overpaid invoice is a credit on the
+  // receivable account and dropping it would make the check fail for a reason
+  // that is not a fault.
+  let net = 0;
   for (const r of rows) {
-    const outstanding = Number(r.total) - Number(r.paid);
+    const outstanding = Number(r.total) - Number(r.paid) - Number(r.credited);
+    net += outstanding;
     if (outstanding <= 0) continue;
     const days = Math.floor((new Date(on) - new Date(r.due_date)) / 86400000);
     const bucket = days <= 0 ? 'current'
@@ -163,26 +172,58 @@ async function receivablesAgeing(orgId, { asOf } = {}) {
   }
 
   const total = Object.values(buckets).reduce((a, x) => a + x, 0);
-  // The ledger's own view of the same number. They should agree; when they do
-  // not, an invoice was posted without a matching payment or the other way
-  // round, and saying so is more use than quietly showing two figures.
-  const ledger = await one(
-    `SELECT COALESCE(SUM(l.debit_kobo - l.credit_kobo), 0) AS balance
-       FROM journal_lines l
-       JOIN accounts a ON a.id = l.account_id
-       JOIN journal_entries e ON e.id = l.entry_id
-      WHERE l.organization_id = $1 AND a.code = '1100' AND e.entry_date <= $2`,
-    [orgId, on]
-  );
+
+  // The ledger's own view of the same number, and the two things that make it
+  // legitimately differ from the invoice table.
+  //
+  // Issuing a credit note credits the receivable immediately; setting it
+  // against a particular invoice is a fact about the subledger and posts
+  // nothing. So a credit that has been issued and not yet applied is in the
+  // ledger's figure and not in the invoices' — which is not a fault, it is a
+  // customer with money on account.
+  //
+  // Money received in advance is not here at all: it credits Customer
+  // Deposits, a liability, and never touches the receivable.
+  const [ledger, credits, deposits] = await Promise.all([
+    one(
+      `SELECT COALESCE(SUM(l.debit_kobo - l.credit_kobo), 0) AS balance
+         FROM journal_lines l
+         JOIN accounts a ON a.id = l.account_id
+         JOIN journal_entries e ON e.id = l.entry_id
+        WHERE l.organization_id = $1 AND a.code = '1100' AND e.entry_date <= $2`,
+      [orgId, on]
+    ),
+    one(
+      `SELECT COALESCE(SUM(${owed.unapplied('n')}), 0) AS unapplied
+         FROM credit_notes n
+        WHERE n.organization_id = $1 AND n.status = 'issued' AND n.issue_date <= $2`,
+      [orgId, on]
+    ),
+    one(
+      `SELECT COALESCE(SUM(${owed.unallocated('c')}), 0) AS held
+         FROM customer_payments c
+        WHERE c.organization_id = $1 AND c.received_on <= $2
+          AND c.status IN ('received', 'pending')`,
+      [orgId, on]
+    )
+  ]);
+
+  const unappliedCredits = Number(credits.unapplied);
+  const expected = net - unappliedCredits;
 
   return {
     asOf: on,
     buckets,
     total,
+    net,
+    unappliedCredits,
+    // Money taken that is not against any invoice yet. A liability, shown here
+    // because this is the screen where somebody is looking for it.
+    heldInAdvance: Number(deposits.held),
     invoices: open.sort((a, b) => b.daysOverdue - a.daysOverdue),
     ledgerReceivable: Number(ledger.balance),
-    reconciles: Number(ledger.balance) === total,
-    difference: Number(ledger.balance) - total
+    reconciles: Number(ledger.balance) === expected,
+    difference: Number(ledger.balance) - expected
   };
 }
 

@@ -101,8 +101,20 @@ function unrenewable() {
       WHERE s.status IN ('active', 'past_due')
         AND s.provider_authorization_code IS NULL
       ORDER BY 5
-      LIMIT 25`
+      LIMIT 200`
   );
+}
+
+// How many there are. The list above is capped, and a card showing
+// twenty-five rows out of forty with nothing saying so is a card that will be
+// read as "twenty-five" — which is the whole point of the list being there.
+function unrenewableCount() {
+  return one(
+    `SELECT COUNT(*)::int AS n
+       FROM subscriptions s
+      WHERE s.status IN ('active', 'past_due')
+        AND s.provider_authorization_code IS NULL`
+  ).then((r) => r.n);
 }
 
 async function markCharged(organizationId) {
@@ -247,6 +259,7 @@ module.exports = {
   due,
   outstanding,
   unrenewable,
+  unrenewableCount,
   lastRun,
   enabled,
   intervalMs,

@@ -32,62 +32,68 @@ let last = null;
 // Organisations with anything still unposted. Asked rather than assumed, so a
 // second run over a finished database does almost no work.
 //
-// `only` narrows it to one organisation — what the Control Center's "post now"
-// uses, and what a test needs so it does not quietly post every other
-// business's history as a side effect of checking its own.
+// The predicate is written once and used for both the whole-database pass and
+// the one-organisation pass, because it was written twice and the two drifted:
+// the one-organisation branch had no clause for payments recorded straight
+// onto a document, so the Control Center's "post now" reported an organisation
+// as complete while its receivable was still overstated by every payment that
+// had no cash-book row behind it. One definition cannot disagree with itself.
+//
+// `only` narrows it to one organisation — what "post now" uses, and what a
+// test needs so it does not quietly post every other business's history as a
+// side effect of checking its own.
+const UNPOSTED = `
+       EXISTS (
+          SELECT 1 FROM transactions t
+           WHERE t.organization_id = o.id
+             AND NOT EXISTS (SELECT 1 FROM journal_entries j
+                              WHERE j.organization_id = o.id AND j.source_key = 'transaction:' || t.id))
+    OR EXISTS (
+          SELECT 1 FROM invoices i
+           WHERE i.organization_id = o.id AND i.base_status <> 'draft'
+             AND NOT EXISTS (SELECT 1 FROM journal_entries j
+                              WHERE j.organization_id = o.id AND j.source_key = 'invoice:' || i.id || ':issue'))
+    OR EXISTS (
+          SELECT 1 FROM credit_notes n
+           WHERE n.organization_id = o.id AND n.status = 'issued'
+             AND NOT EXISTS (SELECT 1 FROM journal_entries j
+                              WHERE j.organization_id = o.id AND j.source_key = 'creditnote:' || n.id || ':issue'))
+    OR EXISTS (
+          SELECT 1 FROM bills b
+           WHERE b.organization_id = o.id AND b.base_status <> 'draft'
+             AND NOT EXISTS (SELECT 1 FROM journal_entries j
+                              WHERE j.organization_id = o.id AND j.source_key = 'bill:' || b.id || ':issue'))
+    OR EXISTS (
+          SELECT 1 FROM invoice_payments p JOIN invoices i ON i.id = p.invoice_id
+           WHERE i.organization_id = o.id
+             AND p.customer_payment_id IS NULL
+             AND NOT EXISTS (SELECT 1 FROM transactions t WHERE t.ref_payment_id = p.id)
+             AND NOT EXISTS (SELECT 1 FROM journal_entries j
+                              WHERE j.organization_id = o.id AND j.source_key = 'payment:' || p.id))
+    OR EXISTS (
+          SELECT 1 FROM bill_payments p JOIN bills b ON b.id = p.bill_id
+           WHERE b.organization_id = o.id
+             AND NOT EXISTS (SELECT 1 FROM transactions t WHERE t.ref_payment_id = p.id)
+             AND NOT EXISTS (SELECT 1 FROM journal_entries j
+                              WHERE j.organization_id = o.id AND j.source_key = 'billpayment:' || p.id))`;
+
 function pending(only) {
   if (only) {
     return many(
-      `SELECT o.id, o.name FROM organizations o WHERE o.id = $1
-        AND (EXISTS (
-              SELECT 1 FROM transactions t
-               WHERE t.organization_id = o.id
-                 AND NOT EXISTS (SELECT 1 FROM journal_entries j
-                                  WHERE j.organization_id = o.id AND j.source_key = 'transaction:' || t.id))
-          OR EXISTS (
-              SELECT 1 FROM invoices i
-               WHERE i.organization_id = o.id AND i.base_status <> 'draft'
-                 AND NOT EXISTS (SELECT 1 FROM journal_entries j
-                                  WHERE j.organization_id = o.id AND j.source_key = 'invoice:' || i.id || ':issue'))
-          OR EXISTS (
-              SELECT 1 FROM bills b
-               WHERE b.organization_id = o.id AND b.base_status <> 'draft'
-                 AND NOT EXISTS (SELECT 1 FROM journal_entries j
-                                  WHERE j.organization_id = o.id AND j.source_key = 'bill:' || b.id || ':issue')))`,
+      `SELECT o.id, o.name FROM organizations o
+        WHERE o.id = $1 AND (${UNPOSTED})`,
       [only]
     );
   }
   return many(
-    `SELECT o.id, o.name
-       FROM organizations o
-      WHERE EXISTS (
-              SELECT 1 FROM transactions t
-               WHERE t.organization_id = o.id
-                 AND NOT EXISTS (SELECT 1 FROM journal_entries j
-                                  WHERE j.organization_id = o.id AND j.source_key = 'transaction:' || t.id))
-         OR EXISTS (
-              SELECT 1 FROM invoices i
-               WHERE i.organization_id = o.id AND i.base_status <> 'draft'
-                 AND NOT EXISTS (SELECT 1 FROM journal_entries j
-                                  WHERE j.organization_id = o.id AND j.source_key = 'invoice:' || i.id || ':issue'))
-         OR EXISTS (
-              SELECT 1 FROM invoice_payments p JOIN invoices i ON i.id = p.invoice_id
-               WHERE i.organization_id = o.id
-                 AND NOT EXISTS (SELECT 1 FROM transactions t WHERE t.ref_payment_id = p.id)
-                 AND NOT EXISTS (SELECT 1 FROM journal_entries j
-                                  WHERE j.organization_id = o.id AND j.source_key = 'payment:' || p.id))
-         OR EXISTS (
-              SELECT 1 FROM bill_payments p JOIN bills b ON b.id = p.bill_id
-               WHERE b.organization_id = o.id
-                 AND NOT EXISTS (SELECT 1 FROM transactions t WHERE t.ref_payment_id = p.id)
-                 AND NOT EXISTS (SELECT 1 FROM journal_entries j
-                                  WHERE j.organization_id = o.id AND j.source_key = 'billpayment:' || p.id))
+    `SELECT o.id, o.name FROM organizations o
+      WHERE ${UNPOSTED}
       ORDER BY o.created_at`
   );
 }
 
 async function organisation(client, orgId) {
-  const counts = { opening: 0, invoices: 0, bills: 0, payments: 0, transactions: 0, skipped: 0 };
+  const counts = { opening: 0, invoices: 0, creditNotes: 0, bills: 0, payments: 0, transactions: 0, skipped: 0 };
 
   // 1. Opening balances, so the cash accounts start where they really started.
   const opened = await post.openingBalances(client, { orgId });
@@ -128,6 +134,28 @@ async function organisation(client, orgId) {
     if (entry && !entry.alreadyPosted) counts.invoices++;
   }
 
+  // 2b. Credit notes, straight after the invoices they correct. A credit note
+  // reduces a receivable, so the receivable has to be there first.
+  const notes = await client.query(
+    `SELECT n.* FROM credit_notes n
+      WHERE n.organization_id = $1 AND n.status = 'issued'
+        AND NOT EXISTS (SELECT 1 FROM journal_entries j
+                         WHERE j.organization_id = $1 AND j.source_key = 'creditnote:' || n.id || ':issue')
+      ORDER BY n.issue_date LIMIT $2`,
+    [orgId, BATCH]
+  );
+  for (const note of notes.rows) {
+    const noteLines = (await client.query(
+      'SELECT * FROM credit_note_lines WHERE credit_note_id = $1 ORDER BY position', [note.id]
+    )).rows;
+    const entry = await post.creditNoteIssued(client, {
+      orgId,
+      note,
+      lines: noteLines.map((l) => ({ description: l.description, net: Number(l.net_kobo) }))
+    });
+    if (entry && !entry.alreadyPosted) counts.creditNotes++;
+  }
+
   // 3. Bills, the mirror of invoices, so payables exist before payments
   // against them.
   const bills = await client.query(
@@ -152,11 +180,18 @@ async function organisation(client, orgId) {
   // Settled from exactly one side: when a cash-book row references the
   // payment, step 5 handles it and this skips it. Posting both would halve
   // the receivable twice.
+  //
+  // An allocation belonging to a receipt is skipped for the same reason. The
+  // receipt has its own cash-book row and its own entry, which already
+  // credits the receivable by everything allocated — so posting the children
+  // as well would credit it a second time, and the books would balance while
+  // being wrong, which is the worst of the available failures.
   const direct = await client.query(
     `SELECT p.*, i.number, i.client_name, i.id AS invoice_id
        FROM invoice_payments p
        JOIN invoices i ON i.id = p.invoice_id
       WHERE i.organization_id = $1
+        AND p.customer_payment_id IS NULL
         AND NOT EXISTS (SELECT 1 FROM transactions t WHERE t.ref_payment_id = p.id)
         AND NOT EXISTS (SELECT 1 FROM journal_entries j
                          WHERE j.organization_id = $1 AND j.source_key = 'payment:' || p.id)
@@ -168,7 +203,7 @@ async function organisation(client, orgId) {
       orgId,
       invoice: { id: p.invoice_id, number: p.number, client_name: p.client_name },
       payment: p,
-      amountKobo: Math.round(Number(p.amount) * 100)
+      amountKobo: Number(p.amount_kobo)
     });
     if (entry && !entry.alreadyPosted) counts.payments++;
   }
@@ -219,7 +254,7 @@ async function run({ limit, organizationId } = {}) {
   const started = Date.now();
   const orgs = await pending(organizationId);
   const todo = limit ? orgs.slice(0, limit) : orgs;
-  const totals = { organisations: 0, opening: 0, invoices: 0, bills: 0, payments: 0, transactions: 0, skipped: 0, failed: [] };
+  const totals = { organisations: 0, opening: 0, invoices: 0, creditNotes: 0, bills: 0, payments: 0, transactions: 0, skipped: 0, failed: [] };
 
   for (const org of todo) {
     const client = await pool.connect();
@@ -230,7 +265,7 @@ async function run({ limit, organizationId } = {}) {
       const counts = await organisation(client, org.id);
       await client.query('COMMIT');
       totals.organisations++;
-      for (const k of ['opening', 'invoices', 'bills', 'payments', 'transactions', 'skipped']) totals[k] += counts[k];
+      for (const k of ['opening', 'invoices', 'creditNotes', 'bills', 'payments', 'transactions', 'skipped']) totals[k] += counts[k];
     } catch (err) {
       await client.query('ROLLBACK').catch(() => {});
       // Reported, not thrown: one organisation with an unpostable row must

@@ -16,8 +16,17 @@ const check = (name, cond, detail) => {
   else { failures.push(name); console.log('  FAIL ' + name + (detail ? ' — ' + detail : '')); }
 };
 
+// Every organisation this creates, so the run leaves the database as it found
+// it. It did not, and the leftovers were real: twenty-six paid subscriptions
+// with no card on file accumulated across runs, which pushed the billing
+// test's own row off the end of a capped list and failed an assertion in an
+// unrelated suite. A test that leaves rows behind eventually fails a
+// different test.
+const made = [];
+
 async function subscriptionStartedDaysAgo(tag, days, paid, trialDays) {
   const org = await one('INSERT INTO organizations (name) VALUES ($1) RETURNING id', ['Trial ' + tag]);
+  made.push(org.id);
   await query(
     `INSERT INTO subscriptions (organization_id, cycle, seats, trial_start, status, current_period_end, trial_days)
      VALUES ($1, 'monthly', 1, CURRENT_DATE - $2::int, $3, $4, $5)`,
@@ -76,6 +85,8 @@ async function subscriptionStartedDaysAgo(tag, days, paid, trialDays) {
     e.periodEnd === paidUntil, e.periodEnd + ' vs ' + paidUntil);
   check('so nobody gets free time they already paid for', e.daysLeft === 7, String(e.daysLeft));
 
+  for (const id of made) await query('DELETE FROM organizations WHERE id = $1', [id]);
+
   console.log('');
   if (failures.length) {
     console.log(passed + ' passed, ' + failures.length + ' failed');
@@ -83,4 +94,8 @@ async function subscriptionStartedDaysAgo(tag, days, paid, trialDays) {
   }
   console.log(passed + ' passed, 0 failed');
   await pool.end();
-})().catch((e) => { console.error(e); process.exit(1); });
+})().catch(async (e) => {
+  console.error(e);
+  for (const id of made) await query('DELETE FROM organizations WHERE id = $1', [id]).catch(() => {});
+  process.exit(1);
+});

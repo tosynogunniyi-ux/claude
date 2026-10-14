@@ -47,6 +47,9 @@ what it can honestly do:
 | `ADMIN_IP_ALLOWLIST` | The console is reachable from any address. |
 | `ADMIN_TOTP` | Two-factor is required. Set it to `off` only if you cannot use an authenticator app. |
 | `BILLING_SCHEDULER` | Trials end and terms renew automatically. Set it to `off` to stop that. |
+| `CREDENTIALS_KEY` | Tenants cannot connect their own Paystack or Monnify account, so invoices offer no online payment link. The Settings panel says so and names this variable; nothing is stored in the clear as a fallback. |
+| `PUBLIC_BASE_URL` | The webhook URL a tenant pastes into their provider's dashboard is built from the request's own host. Set it when the app sits behind a proxy that rewrites `Host`. |
+| `GATEWAY_TIMEOUT_MS` | Calls out to a tenant's gateway give up after 8 seconds, under the proxy's own patience, so our explanation reaches the browser instead of the proxy's error page. |
 
 ## How it fits together
 
@@ -740,6 +743,192 @@ false, and nothing could set it — so 7.5% could never have been applied to
 anything. The smoke suite found it by asserting VAT appeared and getting
 zero. `PATCH /orgs/:id` now carries it, along with the address, phone, email,
 website, TIN and RC number an invoice has to print.
+
+## Payments and receivables
+
+Release 2 of Smart Invoicing: taking money in, deciding what it paid for, and
+giving some of it back.
+
+### The architecture, and why it is the architecture
+
+**Profitna is the accounting platform, not the intermediary.** A tenant's
+customer pays that tenant's own merchant account. Nothing a customer pays
+passes through Profitna's balance, Profitna never holds it, and the
+credentials that make that true are stored per organisation.
+
+This is not a preference. `src/integrations/paystack.js` and
+`src/integrations/monnify.js` read `PAYSTACK_SECRET_KEY`, `MONNIFY_API_KEY`
+and the rest from the environment, and they collect **Profitna's own
+subscription fees** into Profitna's own account. `src/payments/providers.js`
+reads no environment variable at all: every call takes credentials it is
+given, and those come from the organisation whose invoice is being paid.
+There is no code path by which a tenant's customer payment could be initiated
+against Profitna's keys, because those keys are not reachable from there.
+
+### One receipt, many allocations
+
+Before this release Profitna could record "a payment of ₦120,000 against
+invoice 7" and nothing else. A customer who sends ₦500,000 covering four
+invoices and a deposit on a fifth had to be typed in as five payments that
+never happened.
+
+So: `customer_payments` is the money — a date, a method, a bank account, a
+receipt number the customer can be given. `invoice_payments` rows are the
+allocations, and they gain a parent rather than being replaced; every row that
+existed before still means exactly what it meant. The allocations do not have
+to add up to the receipt, and the part that does not is **money received in
+advance** — a liability, not revenue and not a settled receivable.
+
+| What happened | What posts |
+|---|---|
+| Receipt, fully allocated | Dr Bank · Cr Accounts Receivable |
+| Receipt, partly allocated | Dr Bank · Cr Receivable (allocated) · Cr Customer Deposits (the rest) |
+| Allocating that remainder later | Dr Customer Deposits · Cr Receivable |
+| Paid through a gateway | Dr Gateway Clearing · Cr Receivable / Customer Deposits |
+| That payment settling | Dr Bank (net) · Dr Gateway Fees · Cr Gateway Clearing |
+| Credit note issued | Dr Revenue · Dr Output VAT · Cr Receivable |
+| Credit note applied to an invoice | **nothing** |
+
+That last row is the one worth dwelling on. Issuing a credit note credits the
+receivable immediately; which invoice it is set against is a fact about the
+receivables subledger, not about the general ledger. Posting it again on
+application would credit the receivable twice — and the trial balance would
+still balance.
+
+A receipt also writes one cash-book row, so a bank statement can be matched to
+it. A gateway payment that has not settled deliberately carries no bank
+account: the money is with the processor, and showing it on the bank would
+make every reconciliation fail by the amount in transit, every day, until
+somebody worked out why.
+
+### A redirect is not a payment
+
+Every path that could create a gateway receipt ends in a call to the
+provider's own verify endpoint with the tenant's own secret key, and only that
+call writes a receipt. A customer arriving back with `?status=success` on the
+URL has told us nothing — they may have pressed back, they may have edited the
+address bar, the gateway may have redirected before the card settled.
+
+The amount recorded is the amount the provider says arrived, never the amount
+we asked for. A customer who paid less has paid less, and writing down what we
+wanted would settle an invoice that is still owed.
+
+The same payment may be reported many times — a retried webhook, a refreshed
+return page, somebody pressing "Check if it is paid". All of them collapse
+onto one receipt, because the provider's reference is unique per organisation
+in the database and the recorder returns the existing row rather than writing
+a second one.
+
+### Webhooks
+
+Each organisation gets its own webhook path containing a 256-bit token:
+
+    https://profitna.com/api/pay/hook/<token>
+
+The order is not negotiable: find the account from the token in the path,
+check the HMAC with that account's secret, and only then read the body.
+Reading an organisation id out of an unauthenticated payload and then
+verifying against *that* organisation's key would let anybody with a webhook
+URL choose which tenant's secret their forgery is checked against.
+
+An unknown token is a plain 404. A bad signature is a 401 and nothing from the
+body is recorded. A signed event about a payment Profitna did not issue is
+accepted and ignored, so the provider stops retrying it.
+
+### Credentials
+
+A merchant secret key is the one thing in this database worth stealing on its
+own. It is encrypted with AES-256-GCM under `CREDENTIALS_KEY`, which lives in
+the environment and never in the database, so a stolen dump yields ciphertext.
+
+The organisation id and provider are the **additional authenticated data**, so
+a ciphertext copied out of one organisation's row into another's fails to
+decrypt rather than yielding a live key — tenant isolation the database alone
+cannot give, because the database is what leaks.
+
+Without `CREDENTIALS_KEY` the module refuses to encrypt rather than falling
+back to plaintext. The Settings panel says so, names the variable, and the
+fields are disabled. A feature that is clearly switched off is recoverable; a
+secret key sitting in a text column because the fallback seemed friendlier is
+not.
+
+No endpoint returns a secret. `GET /payment-accounts` returns a mask —
+`sk_test_••••••••9f2c` — which is enough to tell a wrong paste from a right
+one and not enough to use. Sending that mask back does not overwrite the
+stored key.
+
+Nothing is active until the provider itself has accepted the credentials.
+Saving sets `active = false`; only a successful test flips it, and changing a
+key un-proves it. An invoice does not offer a Pay button on the strength of
+somebody having typed something into a form.
+
+### What the database guarantees
+
+Two deferred constraint triggers, because the code is not the only thing that
+will ever write to these tables and over-allocating money is the kind of
+mistake discovered months later by a customer:
+
+- allocations may not exceed the payment they belong to;
+- credit note applications may not exceed the note.
+
+Migration 012 adds a third guarantee of the older kind: `invoice_payments`
+gains an integer-kobo column and a tenant, both filled by a BEFORE trigger so
+every write path gets them whether or not it remembers, and both then made
+`NOT NULL`. `amount` in naira is kept in step beside it, so every query and
+screen that already read it still works.
+
+### Routes
+
+| Route | What it does |
+|---|---|
+| `GET /payments/new` | Everything the form needs in one call: open invoices, bank accounts, customers, whether online collection is available |
+| `GET /payments/suggest` | Oldest-first allocation, as a suggestion |
+| `POST /payments` | Record a receipt with its allocations |
+| `POST /payments/:id/allocate` | Put money already received against invoices |
+| `POST /payments/:id/settle` | A gateway payment reaching the bank, with the fee |
+| `POST /payments/:id/reverse` | Admin only. A reversal, never a delete |
+| `POST /credit-notes` | Issue one, applied to the invoice it names |
+| `POST /credit-notes/:id/apply` | Set credit against another invoice |
+| `POST /credit-notes/:id/void` | Admin only. Reverses and reopens |
+| `POST /invoices/:id/payment-link` | A hosted checkout on the tenant's own account |
+| `POST /payment-links/:reference/check` | Ask the provider again, now |
+| `GET /receivables` | The whole screen: ageing, who owes what, money on account, unapplied credit |
+| `PUT /payment-accounts/:provider` | Save credentials. Admin only |
+| `POST /payment-accounts/:provider/test` | Prove them against the provider |
+| `POST /api/pay/hook/:token` | Public. One tenant's gateway posting an event |
+| `GET /api/pay/return/:reference` | Public. Where the customer lands, which verifies before it says anything |
+
+`npm run test:payments` — 151 checks against a real database and a fake
+Paystack and Monnify, because the questions worth asking are what happens when
+a provider says "pending", reports a smaller amount than we asked for, replays
+a webhook, or has its signature forged, and none of those can be arranged
+against a real gateway.
+
+### Two faults this release found in older code
+
+**The ledger's "post now" skipped direct payments.** `backfill.pending()` had
+its predicate written twice — once for the whole database and once for a
+single organisation — and the two had drifted. The single-organisation branch
+had no clause for payments recorded straight onto a document, so the Control
+Center reported an organisation as complete while its receivable was still
+overstated by every payment with no cash-book row behind it. The predicate is
+now written once.
+
+**A test suite failing a different test suite.** `test/trial.js` created
+organisations and never deleted them. Twenty-six paid subscriptions with no
+card on file accumulated across runs, which pushed `test/billing.js`'s own row
+off the end of a capped list and failed an assertion nothing had touched. The
+list's cap was also raised and its total is now reported, because a Control
+Center card showing twenty-five of forty rows with nothing saying so will be
+read as "twenty-five".
+
+### Not in this release
+
+Nigeria Revenue Service e-invoicing is not implemented and nothing in the
+product claims an invoice has been transmitted to or verified by it. Refunds
+back to a card are not implemented either: a credit note handles the
+accounting, and a refund paid out is recorded in the cash book like any other
+payment.
 
 ## Invoice PDFs
 

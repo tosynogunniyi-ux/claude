@@ -139,8 +139,9 @@ because everything else sits on it:
 1. **Foundation** — line items, numbering, money arithmetic, tax engine,
    company identity, PDFs, and the general ledger. *(Done.)*
 2. **Release 1 rest** — builder UI, PDF, draft/issue lifecycle, dashboard.
+   *(Done.)*
 3. **Release 2** — payments, per-tenant gateways, allocations, receipts,
-   credit notes.
+   credit notes. *(Done.)*
 4. **Release 3** — email, portal, reminders, recurring, quotations.
 5. **Release 4** — AI drafting, insights, e-invoicing, reconciliation.
 
@@ -152,7 +153,7 @@ because everything else sits on it:
 |---|---|---|
 | Accrual-vs-cash decision (§3) | Phase 12 | **Decided: accrual. Ledger built.** |
 | Email provider + verified domain | Phase 5 | Not started |
-| Per-tenant gateway credentials | Phase 6 | Design in §4 |
+| Per-tenant gateway credentials | Phase 6 | **Built.** Stored per organisation, encrypted with AES-256-GCM under `CREDENTIALS_KEY`, bound to the organisation and provider as authenticated data. Needs `CREDENTIALS_KEY` set on live before any tenant can connect one. |
 | WhatsApp Business Platform account | Phase 5 | Not started |
 | NRS access point and credentials | Phase 13 | Not started; adapter to ship inactive and clearly labelled |
 | `ANTHROPIC_API_KEY` | Phase 14 | Already wired for Ask Profitna; unset on live |

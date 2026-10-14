@@ -17,6 +17,7 @@ const pdf = require('../invoicing/pdf');
 const { THEMES, NAMES, DEFAULT } = require('../invoicing/themes');
 const accounting = require('../accounting/reports');
 const backfill = require('../accounting/backfill');
+const owed = require('../invoicing/outstanding');
 
 const router = express.Router({ mergeParams: true });
 
@@ -24,8 +25,7 @@ const router = express.Router({ mergeParams: true });
 // preview or email render from identical figures.
 async function assemble(orgId, invoiceId, bookType) {
   const invoice = await one(
-    `SELECT i.*,
-            COALESCE((SELECT SUM(p.amount) FROM invoice_payments p WHERE p.invoice_id = i.id), 0) AS paid
+    `SELECT i.*, ${owed.paid('i')} AS paid_kobo, ${owed.credited('i')} AS credited_kobo
        FROM invoices i
       WHERE i.organization_id = $1 AND i.id = $2`,
     [orgId, invoiceId]
@@ -84,8 +84,13 @@ async function assemble(orgId, invoiceId, bookType) {
     payableNow: computed.net + computed.tax - computed.wht
   };
 
-  const paidKobo = money.toKobo(invoice.paid);
-  const outstanding = Number(invoice.total_kobo) - paidKobo;
+  const paidKobo = Number(invoice.paid_kobo);
+  // A credit note reduces what is owed without any money moving, so it is
+  // its own figure rather than folded into "paid" — a document telling a
+  // customer they paid ₦50,000 they never paid is a document that will be
+  // disputed.
+  const creditedKobo = Number(invoice.credited_kobo);
+  const outstanding = Number(invoice.total_kobo) - paidKobo - creditedKobo;
 
   return {
     org,
@@ -119,6 +124,7 @@ async function assemble(orgId, invoiceId, bookType) {
     },
     totals: figures,
     paid: paidKobo,
+    credited: creditedKobo,
     outstanding
   };
 }
@@ -508,16 +514,15 @@ router.get('/invoicing/dashboard', requireOrg(), async (req, res, next) => {
       // invoice paid in March was collected in March.
       one(
         `SELECT COALESCE(SUM(i.total_kobo) FILTER (WHERE i.issue_date BETWEEN $2 AND $3 AND i.base_status <> 'draft' AND i.voided_at IS NULL), 0) AS invoiced,
-                COALESCE((SELECT SUM(ROUND(p.amount * 100)) FROM invoice_payments p
-                           JOIN invoices x ON x.id = p.invoice_id
-                          WHERE x.organization_id = $1 AND p.date BETWEEN $2 AND $3), 0) AS collected
+                COALESCE((SELECT SUM(p.amount_kobo) FROM invoice_payments p
+                          WHERE p.organization_id = $1 AND p.date BETWEEN $2 AND $3), 0) AS collected
            FROM invoices i WHERE i.organization_id = $1`,
         [req.orgId, from, to]
       ),
       one(
         `WITH open AS (
            SELECT i.id, i.total_kobo AS total, i.due_date, i.base_status, i.voided_at,
-                  COALESCE((SELECT SUM(ROUND(p.amount*100)) FROM invoice_payments p WHERE p.invoice_id = i.id), 0) AS paid
+                  ${owed.settled('i')} AS paid
              FROM invoices i WHERE i.organization_id = $1 AND i.voided_at IS NULL
          )
          SELECT COUNT(*) FILTER (WHERE base_status <> 'draft' AND total - paid <= 0)::int        AS paid_count,
@@ -537,9 +542,8 @@ router.get('/invoicing/dashboard', requireOrg(), async (req, res, next) => {
          )
          SELECT to_char(months.m, 'YYYY-MM') AS month,
                 COALESCE(SUM(i.total_kobo) FILTER (WHERE i.base_status <> 'draft' AND i.voided_at IS NULL), 0) AS invoiced,
-                COALESCE((SELECT SUM(ROUND(p.amount*100)) FROM invoice_payments p
-                           JOIN invoices x ON x.id = p.invoice_id
-                          WHERE x.organization_id = $1 AND date_trunc('month', p.date) = months.m), 0) AS collected
+                COALESCE((SELECT SUM(p.amount_kobo) FROM invoice_payments p
+                          WHERE p.organization_id = $1 AND date_trunc('month', p.date) = months.m), 0) AS collected
            FROM months
            LEFT JOIN invoices i ON i.organization_id = $1 AND date_trunc('month', i.issue_date) = months.m
           GROUP BY months.m ORDER BY months.m`,
@@ -555,23 +559,23 @@ router.get('/invoicing/dashboard', requireOrg(), async (req, res, next) => {
       ),
       many(
         `SELECT i.client_name AS party,
-                SUM(i.total_kobo - COALESCE((SELECT SUM(ROUND(p.amount*100)) FROM invoice_payments p WHERE p.invoice_id = i.id), 0)) AS owed,
+                SUM(${owed.outstanding('i')}) AS owed,
                 COUNT(*)::int AS invoices
            FROM invoices i
           WHERE i.organization_id = $1 AND i.base_status <> 'draft' AND i.voided_at IS NULL
-          GROUP BY 1 HAVING SUM(i.total_kobo - COALESCE((SELECT SUM(ROUND(p.amount*100)) FROM invoice_payments p WHERE p.invoice_id = i.id), 0)) > 0
+          GROUP BY 1 HAVING SUM(${owed.outstanding('i')}) > 0
           ORDER BY 2 DESC LIMIT 6`,
         [req.orgId]
       ),
       many(
-        `SELECT i.number, i.client_name AS party, p.amount, p.date, p.method
+        `SELECT i.number, i.client_name AS party, p.amount_kobo, p.date, p.method
            FROM invoice_payments p JOIN invoices i ON i.id = p.invoice_id
-          WHERE i.organization_id = $1 ORDER BY p.date DESC, p.id DESC LIMIT 6`,
+          WHERE p.organization_id = $1 ORDER BY p.date DESC, p.id DESC LIMIT 6`,
         [req.orgId]
       ),
       many(
         `SELECT i.id, i.number, i.client_name AS party, i.due_date,
-                i.total_kobo - COALESCE((SELECT SUM(ROUND(p.amount*100)) FROM invoice_payments p WHERE p.invoice_id = i.id), 0) AS outstanding
+                ${owed.outstanding('i')} AS outstanding
            FROM invoices i
           WHERE i.organization_id = $1 AND i.base_status <> 'draft' AND i.voided_at IS NULL
             AND i.due_date >= CURRENT_DATE
@@ -593,7 +597,7 @@ router.get('/invoicing/dashboard', requireOrg(), async (req, res, next) => {
       `SELECT COALESCE(AVG(p.date - i.issue_date), 0)::numeric AS days,
               COUNT(*)::int AS payments
          FROM invoice_payments p JOIN invoices i ON i.id = p.invoice_id
-        WHERE i.organization_id = $1 AND p.date BETWEEN $2 AND $3`,
+        WHERE p.organization_id = $1 AND p.date BETWEEN $2 AND $3`,
       [req.orgId, from, to]
     );
 
@@ -620,7 +624,7 @@ router.get('/invoicing/dashboard', requireOrg(), async (req, res, next) => {
       topCustomers: topCustomers.map((c) => ({ party: c.party, total: Number(c.total), invoices: c.invoices })),
       owing: owing.map((c) => ({ party: c.party, owed: Number(c.owed), invoices: c.invoices })),
       recentPayments: recent.map((p) => ({
-        number: p.number, party: p.party, amount: money.toKobo(p.amount), date: p.date, method: p.method
+        number: p.number, party: p.party, amount: Number(p.amount_kobo), date: p.date, method: p.method
       })),
       upcoming: upcoming.map((u) => ({
         id: u.id, number: u.number, party: u.party, due: u.due_date, outstanding: Number(u.outstanding)
@@ -649,7 +653,7 @@ router.get('/invoicing/list', requireOrg(), async (req, res, next) => {
     if (Number(req.query.min)) add('i.total_kobo >= $n', money.toKobo(req.query.min));
     if (Number(req.query.max)) add('i.total_kobo <= $n', money.toKobo(req.query.max));
 
-    const paid = `COALESCE((SELECT SUM(ROUND(p.amount*100)) FROM invoice_payments p WHERE p.invoice_id = i.id), 0)`;
+    const paid = owed.settled('i');
     const status = String(req.query.status || 'all');
     if (status === 'draft') where.push("i.base_status = 'draft'");
     else if (status === 'void') where.push('i.voided_at IS NOT NULL');

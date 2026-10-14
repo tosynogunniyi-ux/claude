@@ -788,11 +788,12 @@ router.post('/backups/run', async (req, res, next) => {
 
 router.get('/billing', async (req, res, next) => {
   try {
-    const [last, waiting, ready, stranded, recent] = await Promise.all([
+    const [last, waiting, ready, stranded, strandedTotal, recent] = await Promise.all([
       billing.lastRun(),
       billing.outstanding(),
       billing.due(200),
       billing.unrenewable(),
+      billing.unrenewableCount(),
       many(
         `SELECT id, trigger, started_at AS "startedAt", finished_at AS "finishedAt",
                 considered, charged, failed, amount, error
@@ -826,6 +827,10 @@ router.get('/billing', async (req, res, next) => {
       // This is what card tokenisation being off at the processor looks like
       // from in here, a month before the customer finds out.
       unrenewable: stranded,
+      // How many there are in total, because the list is capped. Shown so
+      // "25 accounts" is never read off a page that is actually showing the
+      // first 25 of 40.
+      unrenewableTotal: strandedTotal,
       runs: recent.map((r) => Object.assign(r, { amount: Number(r.amount) }))
     });
   } catch (err) {

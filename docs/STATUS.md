@@ -4,8 +4,9 @@ A plain-language record of what has been built, what is live, and what is
 still waiting on somebody. Kept in the repository so it is always reachable:
 **github.com/tosynogunniyi-ux/claude → `docs/STATUS.md`**.
 
-Last updated 9 October 2026. **Monnify is live and the first real payment
-has gone through.**
+Last updated 14 October 2026. **Monnify is live and the first real payment
+has gone through. Smart Invoicing now has a general ledger, server-side PDFs,
+an invoice builder, and payments, receipts, credit notes and receivables.**
 
 ---
 
@@ -95,6 +96,33 @@ once. The sale is reported from the server, after the processor has confirmed
 the payment, so it cannot be blocked by an ad blocker or faked by a browser.
 Email and name are SHA-256 hashed before they leave; nothing about a
 customer's books is ever sent. Unset `META_PIXEL_ID` and none of it runs.
+
+**Smart Invoicing** — built over four passes and still going:
+
+- *The foundation.* Money is counted in integer kobo everywhere, VAT and
+  withholding tax follow Nigerian rules (withholding is **not** a discount —
+  the invoice is owed in full and a separate figure says what lands in the
+  bank), and numbers are allocated by a row lock so two invoices created in
+  the same second cannot collide.
+- *PDFs.* Server-side A4 invoices in five designs, branded, printable and
+  downloadable, with the naira sign rendering as ₦ rather than a broken bar.
+- *The general ledger.* Real double entry, on an accrual basis. Every invoice,
+  bill, payment and cash entry already in the product was posted into it —
+  13,807 entries across 138 organisations, none unbalanced, every balance
+  sheet balancing and every receivable reconciling.
+- *The builder and the dashboard.* Writing an invoice line by line, with the
+  totals the server will charge rather than the browser's own arithmetic.
+- *Payments and receivables.* One payment can settle several invoices, and
+  whatever is left over sits on the customer's account as a liability rather
+  than being forced onto an invoice. Credit notes correct an invoice that has
+  already been sent. And customers can pay online — into the business's own
+  Paystack or Monnify account.
+
+**Your money goes to you.** The payment account a business connects is its
+own. Profitna records the payment and settles the invoice; it never holds the
+money and it is never an intermediary. The keys that collect Profitna's own
+subscription fees and the keys that collect a customer's invoice payment are
+different keys in different places, and no code path can confuse them.
 
 **Trial length, per account** — the default is 14 days for new sign-ups. It
 went 14 → 30 → 14, and the second change could not work like the first: the
@@ -226,6 +254,9 @@ ways out — back to the dashboard, reload, sign out.
 
 - **The read-only Settings question** on Mideops Professional Services Ltd —
   `server/diagnose-role.sql` answers it; the output has not been looked at yet.
+- **Nigeria Revenue Service e-invoicing is not built**, and nothing in the
+  product claims an invoice has been sent to or verified by it. Worth saying
+  plainly because the opposite claim is the expensive one.
 - **The repository's default branch on GitHub is `backend-for-profitna`**,
   which is months stale — `main` is 35 commits ahead of it and the old branch
   has nothing of its own, so switching costs nothing. GitHub → Settings →
@@ -238,6 +269,20 @@ ways out — back to the dashboard, reload, sign out.
   NDPR expects visitors to be told that in a privacy policy, and Meta's own
   terms require it. Nothing in the product says it yet — there is no privacy
   page and no cookie notice.
+- **Online invoice payments need a server key.** Customers can pay a business's
+  invoices through that business's own Paystack or Monnify account — but only
+  once `CREDENTIALS_KEY` is set in Easypanel → your app service → Environment.
+  It encrypts each tenant's payment credentials, so without it nothing can be
+  saved and the Settings panel says so rather than quietly failing. Generate
+  one with `openssl rand -base64 32`, set it, redeploy, and **do not change it
+  afterwards**: credentials already stored can only be read with the key that
+  wrote them. `GET /api/health` reports `merchantCredentials` once it is set.
+
+  After that, each business connects its own account in Settings → "Letting
+  customers pay you online": paste the keys, press Test, then copy the webhook
+  URL shown there into the same provider dashboard page. The URL is unique to
+  that business.
+
 - **Ask Profitna needs its key.** The code is live but the screen will keep
   saying "Simulated · no model connected" until `ANTHROPIC_API_KEY` is set in
   Easypanel → your app service → Environment. `GET /api/health` reports
@@ -262,11 +307,11 @@ ways out — back to the dashboard, reload, sign out.
 `SEED_DEMO_DATA=true` fills each new account with eight months of sample
 Nigerian books. Leave it unset in production so real accounts start empty.
 
-Twelve test suites, 711 checks, run against a live server and a real database:
+Thirteen test suites, 863 checks, run against a live server and a real database:
 
 | Command | Checks | Covers |
 |---|---|---|
-| `npm run smoke` | 129 | Signup, ledger, invoices, inventory, imports, tenant isolation |
+| `npm run smoke` | 130 | Signup, ledger, invoices, inventory, imports, tenant isolation |
 | `npm run smoke:admin` | 88 | The Control Center, its auth and its second factor |
 | `npm run test:billing` | 54 | A trial through to a charge, a decline, a retry, a recovery |
 | `npm run test:monnify` | 85 | The processor, amounts, webhooks, and the live switch |
@@ -277,4 +322,5 @@ Twelve test suites, 711 checks, run against a live server and a real database:
 | `npm run test:invoicing` | 64 | Invoice money in integer kobo, Nigerian VAT and WHT, numbering under load |
 | `npm run test:pdf` | 52 | A4 invoice PDFs: the naira glyph, pagination, five designs, isolation |
 | `npm run test:ledger` | 62 | Double entry: balance, idempotency, reversals, closed periods, backfill |
+| `npm run test:payments` | 151 | Receipts across several invoices, money on account, credit notes, gateways, webhooks, forged signatures |
 | `npm run test:trial` | 16 | That changing the trial length leaves running trials alone |

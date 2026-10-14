@@ -520,9 +520,18 @@ async function signup(call, email, book, org) {
     dash.body.metrics.draftCount === 1 && dash.body.metrics.unpaidCount >= 2,
     JSON.stringify({ d: dash.body.metrics.draftCount, u: dash.body.metrics.unpaidCount }));
   check('with twelve months of history', dash.body.monthly.length === 13, String(dash.body.monthly.length));
+  // The ledger catches up in the background, so a brand-new account's demo
+  // history may not be posted yet when this runs. Asked for explicitly rather
+  // than waited on: the claim being checked is that the two figures agree once
+  // everything is posted, not that a timer has fired within the last second.
+  const posted = await sme('POST', '/api/orgs/' + orgA + '/ledger/post-pending');
+  check('whatever is unposted can be posted on demand', posted.status === 200,
+    'status ' + posted.status);
+  const reconciled = await sme('GET', '/api/orgs/' + orgA + '/invoicing/dashboard');
   check('and receivables that reconcile with the ledger',
-    dash.body.ageing.reconciles === true,
-    'the screen must not show two different figures for what is owed');
+    reconciled.body.ageing.reconciles === true,
+    'the screen must not show two different figures for what is owed — off by ' +
+    (reconciled.body.ageing && reconciled.body.ageing.difference));
 
   const listed = await sme('GET', '/api/orgs/' + orgA + '/invoicing/list?status=draft');
   check('the list filters by status',

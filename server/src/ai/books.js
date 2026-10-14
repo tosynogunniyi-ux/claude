@@ -52,7 +52,13 @@ const OPEN_INVOICES = `
          MIN(i.due_date)                                                            AS oldest_due
     FROM invoices i
     LEFT JOIN LATERAL (
-      SELECT SUM(amount) AS paid FROM invoice_payments WHERE invoice_id = i.id
+      -- Money received plus credit notes applied: both reduce what the
+      -- customer owes, and an answer that counted only one of them would
+      -- disagree with every screen in the product.
+      SELECT (COALESCE((SELECT SUM(x.amount_kobo) FROM invoice_payments x WHERE x.invoice_id = i.id), 0)
+              + COALESCE((SELECT SUM(a.amount_kobo) FROM credit_note_applications a
+                            JOIN credit_notes n ON n.id = a.credit_note_id
+                           WHERE a.invoice_id = i.id AND n.status = 'issued'), 0))::numeric / 100 AS paid
     ) p ON true
    WHERE i.organization_id = $1
      AND i.base_status <> 'draft'
@@ -507,7 +513,10 @@ const HANDLERS = {
                   COALESCE(SUM(i.total - COALESCE(p.paid, 0)), 0) AS outstanding
              FROM invoices i
              LEFT JOIN LATERAL (
-               SELECT SUM(amount) AS paid FROM invoice_payments WHERE invoice_id = i.id
+               SELECT (COALESCE((SELECT SUM(x.amount_kobo) FROM invoice_payments x WHERE x.invoice_id = i.id), 0)
+                       + COALESCE((SELECT SUM(a.amount_kobo) FROM credit_note_applications a
+                                     JOIN credit_notes n ON n.id = a.credit_note_id
+                                    WHERE a.invoice_id = i.id AND n.status = 'issued'), 0))::numeric / 100 AS paid
              ) p ON true
             WHERE i.organization_id = $1 AND i.client_name ILIKE $2
               AND i.base_status <> 'draft'`, [orgId, like]),
