@@ -195,10 +195,15 @@ const check = (name, cond, detail) => {
 
   console.log('\ncustom patterns');
   await query(
-    `UPDATE document_sequences
-        SET prefix = 'PF-INV-', pattern = '{prefix}{year}-{number}', padding = 5, next_value = 42
+    `UPDATE document_sequences SET prefix = 'PF-INV-', pattern = '{prefix}{year}-{number}', padding = 5
       WHERE organization_id = $1 AND kind = 'invoice'`,
     [other.id]
+  );
+  await query(
+    `INSERT INTO document_sequence_years (organization_id, kind, year, next_value)
+     VALUES ($1, 'invoice', $2, 42)
+     ON CONFLICT (organization_id, kind, year) DO UPDATE SET next_value = 42`,
+    [other.id, year]
   );
   const custom = await tx((c) => numbering.allocate(c, other.id, 'invoice'));
   check('a business can set its own prefix and counter',
@@ -209,17 +214,32 @@ const check = (name, cond, detail) => {
     shown.example === 'PF-INV-' + year + '-00043', shown.example);
 
   console.log('\nthe yearly reset');
-  await query(
-    `UPDATE document_sequences SET reset_year = $2, next_value = 97
-      WHERE organization_id = $1 AND kind = 'invoice'`,
-    [org.id, year - 1]
-  );
-  const newYear = await tx((c) => numbering.allocate(c, org.id, 'invoice'));
-  check('a new year restarts the counter', newYear.value === 1, String(newYear.value));
+  // Each year is its own counter, so this needs nothing reset: allocating
+  // into a year the series has not been used in starts that year at 1.
+  const nextYear = await tx((c) => numbering.allocate(c, org.id, 'invoice', (year + 1) + '-01-04'));
+  check('a new year starts its own counter at 1', nextYear.value === 1, String(nextYear.value));
   check('and the number carries the new year',
-    newYear.number === 'INV-' + year + '-00001', newYear.number);
-  const after = await tx((c) => numbering.allocate(c, org.id, 'invoice'));
-  check('then carries on from there', after.value === 2, String(after.value));
+    nextYear.number === 'INV-' + (year + 1) + '-00001', nextYear.number);
+  const alsoNext = await tx((c) => numbering.allocate(c, org.id, 'invoice', (year + 1) + '-02-02'));
+  check('then carries on from there', alsoNext.value === 2, String(alsoNext.value));
+
+  // The fault this replaced: one counter plus "the year it was last used in"
+  // meant that numbering a backdated document reset the series, and the next
+  // current-year document was handed a number that already existed. A
+  // recurring schedule backdated across a year boundary does this several
+  // times in a row.
+  console.log('\nout of order, across years');
+  const thisYearBefore = await tx((c) => numbering.allocate(c, org.id, 'invoice', year + '-11-02'));
+  const backdated = await tx((c) => numbering.allocate(c, org.id, 'invoice', (year - 2) + '-03-09'));
+  const thisYearAfter = await tx((c) => numbering.allocate(c, org.id, 'invoice', year + '-11-03'));
+  check('numbering a backdated document does not disturb this year',
+    thisYearAfter.value === thisYearBefore.value + 1,
+    thisYearBefore.value + ' then ' + thisYearAfter.value);
+  check('and the backdated one is numbered in its own year',
+    backdated.number === 'INV-' + (year - 2) + '-00001', backdated.number);
+  check('so no number is ever handed out twice',
+    new Set([thisYearBefore.number, backdated.number, thisYearAfter.number,
+      nextYear.number, alsoNext.number]).size === 5);
 
   check('an unknown kind is refused rather than guessed',
     await tx((c) => numbering.allocate(c, org.id, 'nonsense').then(() => false, () => true)));

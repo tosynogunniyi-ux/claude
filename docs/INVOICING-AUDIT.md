@@ -143,6 +143,9 @@ because everything else sits on it:
 3. **Release 2** — payments, per-tenant gateways, allocations, receipts,
    credit notes. *(Done.)*
 4. **Release 3** — email, portal, reminders, recurring, quotations.
+   *Recurring is done.* Email and the reminders that depend on it are blocked
+   on a provider and a verified sending domain; the portal and quotations are
+   buildable now.
 5. **Release 4** — AI drafting, insights, e-invoicing, reconciliation.
 
 ---

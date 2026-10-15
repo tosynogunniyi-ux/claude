@@ -22,7 +22,8 @@
     "test:invoicing": "node test/invoicing.js",
     "test:pdf": "node test/pdf.js",
     "test:ledger": "node test/ledger.js",
-    "test:payments": "node test/payments.js"
+    "test:payments": "node test/payments.js",
+    "test:recurring": "node test/recurring.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.0",

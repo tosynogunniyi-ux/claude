@@ -30,16 +30,30 @@ function render(row, value, year) {
     .replace(/\{number\}/g, String(value).padStart(row.padding, '0'));
 }
 
+// The year a document belongs to. Taken from its own date rather than from
+// the clock, so a December invoice entered in January is numbered in
+// December's series.
+function yearOf(when) {
+  if (when && /^\d{4}-\d{2}-\d{2}/.test(String(when))) return Number(String(when).slice(0, 4));
+  return (when ? new Date(when) : new Date()).getFullYear();
+}
+
 // Takes a client inside an open transaction, because allocating a number and
 // writing the document that uses it must not be separable.
+//
+// The counter lives per year (migration 015). It used to be one counter plus
+// "the year it was last used in", which reset to 1 whenever a document was
+// dated into a different year — so entering a late 2025 invoice made the next
+// 2026 one collide with 2026's first. A counter per year cannot do that: 2025
+// and 2026 are different rows.
 async function allocate(client, orgId, kind, when) {
   if (!KINDS.includes(kind)) throw new Error('numbering: unknown kind ' + kind);
-  const year = (when ? new Date(when) : new Date()).getFullYear();
+  const year = yearOf(when);
   const d = DEFAULTS[kind];
 
-  // First time for this organisation: create the sequence. ON CONFLICT DO
-  // NOTHING rather than a check-then-insert, so two first invoices at once
-  // do not both try to create it.
+  // First time for this organisation: create the settings row. ON CONFLICT DO
+  // NOTHING rather than a check-then-insert, so two first invoices at once do
+  // not both try to create it.
   await client.query(
     `INSERT INTO document_sequences (organization_id, kind, prefix, pattern, padding, reset_year)
      VALUES ($1, $2, $3, $4, $5, $6)
@@ -47,27 +61,31 @@ async function allocate(client, orgId, kind, when) {
     [orgId, kind, d.prefix, d.pattern, d.padding, year]
   );
 
-  // One statement does the lock, the yearly reset and the increment, so there
-  // is no window between deciding the number and taking it.
+  const settings = (await client.query(
+    'SELECT prefix, pattern, padding, reset_rule FROM document_sequences WHERE organization_id = $1 AND kind = $2',
+    [orgId, kind]
+  )).rows[0];
+
+  // A series set to never reset keeps one counter for all time, which is what
+  // 'never' means. It is modelled as a single year bucket so there is one
+  // code path and one lock.
+  const bucket = settings.reset_rule === 'never' ? 0 : year;
+
+  // One statement does the insert-or-increment and takes the row lock with
+  // it, so there is no window between deciding the number and taking it. Two
+  // documents created in the same second queue rather than racing, and each
+  // gets its own number.
   const { rows } = await client.query(
-    `UPDATE document_sequences
-        SET next_value = CASE
-              WHEN reset_rule = 'yearly' AND COALESCE(reset_year, $3) <> $3 THEN 2
-              ELSE next_value + 1
-            END,
-            reset_year = $3,
-            updated_at = now()
-      WHERE organization_id = $1 AND kind = $2
-      RETURNING prefix, pattern, padding, reset_rule, reset_year,
-                CASE
-                  WHEN reset_rule = 'yearly' AND COALESCE(reset_year, $3) <> $3 THEN 1
-                  ELSE next_value - 1
-                END AS allocated`,
-    [orgId, kind, year]
+    `INSERT INTO document_sequence_years (organization_id, kind, year, next_value)
+     VALUES ($1, $2, $3, 2)
+     ON CONFLICT (organization_id, kind, year) DO UPDATE
+       SET next_value = document_sequence_years.next_value + 1, updated_at = now()
+     RETURNING next_value - 1 AS allocated`,
+    [orgId, kind, bucket]
   );
 
-  const row = rows[0];
-  return { number: render(row, row.allocated, year), value: Number(row.allocated), year };
+  const allocated = Number(rows[0].allocated);
+  return { number: render(settings, allocated, year), value: allocated, year };
 }
 
 // What the settings screen shows and edits.
@@ -79,6 +97,12 @@ async function describe(client, orgId, kind) {
   );
   const row = rows[0] || Object.assign({ next_value: 1, reset_rule: 'yearly' }, d);
   const year = new Date().getFullYear();
+  // This year's counter, not the settings row's superseded one.
+  const counter = (await client.query(
+    'SELECT next_value FROM document_sequence_years WHERE organization_id = $1 AND kind = $2 AND year = $3',
+    [orgId, kind, row.reset_rule === 'never' ? 0 : year]
+  )).rows[0];
+  row.next_value = counter ? Number(counter.next_value) : 1;
   return {
     kind,
     prefix: row.prefix,
@@ -92,4 +116,4 @@ async function describe(client, orgId, kind) {
   };
 }
 
-module.exports = { allocate, describe, render, DEFAULTS, KINDS };
+module.exports = { allocate, describe, render, yearOf, DEFAULTS, KINDS };

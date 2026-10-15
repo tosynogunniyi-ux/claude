@@ -1226,6 +1226,74 @@ window.__resources = {
             </div>
           </sc-if>
 
+
+          <!-- ---------------- RECURRING ---------------- -->
+          <sc-if value="{{ sales.tabRecurring }}" hint-placeholder-val="{{ false }}">
+            <div>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                <div style="font-size: 12.5px; color: #5C5850;">{{ reps.summary }}</div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                  <sc-if value="{{ reps.hasDue }}" hint-placeholder-val="{{ false }}">
+                    <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ reps.runAll }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 9px 14px; font-size: 12.5px; cursor: pointer; white-space: nowrap;" style-hover="background: #F4F3EE;">Raise due invoices</button>
+                  </sc-if>
+                  <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ reps.create }}" style="border: 0; background: #1B2A4A; color: #FFFFFF; border-radius: 6px; padding: 9px 16px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;" style-hover="background: #27406E;">+ New schedule</button>
+                </div>
+              </div>
+
+              <sc-if value="{{ reps.hasDue }}" hint-placeholder-val="{{ false }}">
+                <div style="background: #FDF6E7; border: 1px solid #F0E2C0; color: #7A5A0C; border-radius: 6px; padding: 11px 15px; font-size: 12.5px; margin-bottom: 12px;">{{ reps.dueNote }}</div>
+              </sc-if>
+
+              <sc-for list="{{ reps.rows }}" as="r" hint-placeholder-count="3">
+                <div data-om="card" style="background: #FFFFFF; border: 1px solid #E5E1D8; border-left: 3px solid {{ r.fg }}; border-radius: 6px; padding: 18px 20px; margin-bottom: 12px;">
+                  <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap;">
+                    <div style="min-width: 0; flex: 1 1 240px;">
+                      <div style="display: flex; align-items: center; gap: 9px; flex-wrap: wrap;">
+                        <span style="font-size: 15px; font-weight: 600;">{{ r.name }}</span>
+                        <span style="font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: {{ r.bg }}; color: {{ r.fg }}; white-space: nowrap;">{{ r.label }}</span>
+                      </div>
+                      <div style="font-size: 12.5px; color: #5C5850; margin-top: 3px;">{{ r.party }} · {{ r.cadence }} · {{ r.estimate }} each time</div>
+                      <div style="font-size: 11.5px; color: #8A857C; margin-top: 2px;">{{ r.raised }} · {{ r.billed }} billed · <span style="color: {{ r.owingFg }};">{{ r.owing }}</span></div>
+                      <sc-if value="{{ r.finished }}" hint-placeholder-val="{{ false }}">
+                        <div style="font-size: 11.5px; color: #8A857C; margin-top: 3px;">{{ r.why }}</div>
+                      </sc-if>
+                    </div>
+                    <div style="text-align: right; white-space: nowrap;">
+                      <div style="font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: #5C5850; font-weight: 600;">Next</div>
+                      <div style="font-family: 'IBM Plex Mono', monospace; font-size: 14px; font-weight: 600; color: {{ r.nextFg }}; margin-top: 3px;">{{ r.next }}</div>
+                    </div>
+                  </div>
+
+                  <sc-if value="{{ r.hasError }}" hint-placeholder-val="{{ false }}">
+                    <div style="background: #FBEBE7; border: 1px solid #F3D6CE; color: #8A2F1D; border-radius: 6px; padding: 9px 13px; font-size: 12.5px; margin-top: 12px; text-wrap: pretty;">{{ r.error }}</div>
+                  </sc-if>
+
+                  <div style="display: flex; gap: 6px; margin-top: 13px; flex-wrap: wrap;">
+                    <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ r.edit }}" style="border: 1px solid #DCD6CA; background: #FFFFFF; border-radius: 5px; padding: 5px 11px; font-size: 11.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Edit</button>
+                    <sc-if value="{{ r.running }}" hint-placeholder-val="{{ true }}">
+                      <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ r.runNow }}" style="border: 1px solid #DCD6CA; background: #FFFFFF; border-radius: 5px; padding: 5px 11px; font-size: 11.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Raise now</button>
+                      <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ r.skip }}" style="border: 1px solid #DCD6CA; background: #FFFFFF; border-radius: 5px; padding: 5px 11px; font-size: 11.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Skip one</button>
+                      <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ r.pause }}" style="border: 1px solid #DCD6CA; background: #FFFFFF; border-radius: 5px; padding: 5px 11px; font-size: 11.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Pause</button>
+                      <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ r.stop }}" style="border: 1px solid #DCD6CA; background: #FFFFFF; border-radius: 5px; padding: 5px 11px; font-size: 11.5px; cursor: pointer; color: #8A2F1D;" style-hover="background: #FBEBE7;">Stop</button>
+                    </sc-if>
+                    <sc-if value="{{ r.paused }}" hint-placeholder-val="{{ false }}">
+                      <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ r.resume }}" style="border: 1px solid #B8863A; background: #FAEEDA; color: #412402; border-radius: 5px; padding: 5px 11px; font-size: 11.5px; font-weight: 600; cursor: pointer;" style-hover="background: #FAC775;">Resume</button>
+                      <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ r.stop }}" style="border: 1px solid #DCD6CA; background: #FFFFFF; border-radius: 5px; padding: 5px 11px; font-size: 11.5px; cursor: pointer; color: #8A2F1D;" style-hover="background: #FBEBE7;">Stop</button>
+                    </sc-if>
+                  </div>
+                </div>
+              </sc-for>
+
+              <sc-if value="{{ reps.noRows }}" hint-placeholder-val="{{ true }}">
+                <div data-om="card" style="background: #FFFFFF; border: 1px dashed #D8D2C6; border-radius: 6px; padding: 44px 24px; text-align: center;">
+                  <div style="font-size: 16px; font-weight: 600;">No recurring invoices yet</div>
+                  <div style="font-size: 13.5px; color: #5C5850; margin-top: 5px; max-width: 480px; margin-left: auto; margin-right: auto; text-wrap: pretty;">A retainer billed on the same day every month is the same invoice twelve times. Set it up once and Profitna raises each one on the day, numbered and posted to the books like any other.</div>
+                  <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ reps.create }}" style="border: 0; background: #1B2A4A; color: #FFFFFF; border-radius: 6px; padding: 10px 18px; font-size: 13px; font-weight: 600; cursor: pointer; margin-top: 18px;" style-hover="background: #27406E;">+ New schedule</button>
+                </div>
+              </sc-if>
+            </div>
+          </sc-if>
+
           <!-- ---------------- RECEIVABLES ---------------- -->
           <sc-if value="{{ sales.tabReceivables }}" hint-placeholder-val="{{ false }}">
             <div>
@@ -2365,6 +2433,129 @@ window.__resources = {
     </div>
   </sc-if>
 
+  <!-- ============ RECURRING SCHEDULE ============ -->
+  <sc-if value="{{ sched.open }}" hint-placeholder-val="{{ false }}">
+    <div style="position: fixed; inset: 0; background: rgba(16,24,40,.55); z-index: 70; display: flex; align-items: flex-start; justify-content: center; overflow-y: auto; padding: 24px 16px;">
+      <div data-om="card" style="background: #FFFFFF; border-radius: 10px; width: 100%; max-width: 900px; box-shadow: 0 24px 64px -12px rgba(16,24,40,.45); overflow: hidden;">
+
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 18px 24px; border-bottom: 1px solid #E5E1D8; background: #F8F9FB; flex-wrap: wrap;">
+          <div style="min-width: 0;">
+            <div style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 19px; font-weight: 600;">{{ sched.title }}</div>
+            <div style="font-size: 12.5px; color: #5C5850; margin-top: 1px;">{{ sched.subtitle }}</div>
+          </div>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button onClick="{{ sched.close }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 14px; font-size: 12.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Close</button>
+            <button disabled="{{ sched.disabled }}" onClick="{{ sched.save }}" style="border: 0; background: #1B2A4A; color: #FFFFFF; border-radius: 6px; padding: 8px 18px; font-size: 12.5px; font-weight: 600; cursor: pointer; opacity: {{ sched.opacity }};" style-hover="background: #27406E;">Save schedule</button>
+          </div>
+        </div>
+
+        <sc-if value="{{ sched.hasError }}" hint-placeholder-val="{{ false }}">
+          <div style="background: #FBEBE7; color: #8A2F1D; padding: 11px 24px; font-size: 13px; border-bottom: 1px solid #F3D6CE;">{{ sched.error }}</div>
+        </sc-if>
+
+        <div style="display: grid; grid-template-columns: 1fr 1.3fr; gap: 0;">
+          <div style="padding: 22px 24px; border-right: 1px solid #EDEAE2;">
+            <div style="font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: #5C5850; font-weight: 600; margin-bottom: 9px;">Who and how often</div>
+
+            <input value="{{ sched.party }}" onChange="{{ sched.onParty }}" placeholder="Customer name" style="width: 100%; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 11px; font-size: 13.5px; background: #FFFFFF;" />
+            <sc-if value="{{ sched.hasCustomers }}" hint-placeholder-val="{{ true }}">
+              <sc-raw-select value="{{ sched.pick }}" onChange="{{ sched.onPick }}" style="width: 100%; border: 1px solid #E5E1D8; border-radius: 6px; padding: 6px 9px; font-size: 12px; margin-top: 6px; background: #FCFCFB; color: #5C5850;">
+                <option value="">Pick an existing customer…</option>
+                <sc-for list="{{ sched.customers }}" as="c" hint-placeholder-count="5">
+                  <option value="{{ c.value }}">{{ c.label }}</option>
+                </sc-for>
+              </sc-raw-select>
+            </sc-if>
+
+            <input value="{{ sched.name }}" onChange="{{ sched.onName }}" placeholder="What to call it (optional)" style="width: 100%; border: 1px solid #C9C3B7; border-radius: 6px; padding: 7px 10px; font-size: 12.5px; margin-top: 10px; background: #FFFFFF;" />
+
+            <div style="display: flex; gap: 8px; margin-top: 10px;">
+              <sc-raw-select value="{{ sched.frequency }}" onChange="{{ sched.onFrequency }}" style="flex: 2 1 130px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 10px; font-size: 13px; background: #FFFFFF;">
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+                <option value="quarterly">Quarterly</option>
+                <option value="yearly">Yearly</option>
+              </sc-raw-select>
+              <input value="{{ sched.intervalCount }}" onChange="{{ sched.onInterval }}" inputMode="numeric" style="flex: 0 0 64px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 9px; font-size: 13px; background: #FFFFFF; text-align: center; font-family: 'IBM Plex Mono', monospace;" />
+            </div>
+            <div style="font-size: 11.5px; color: #8A857C; margin-top: 5px;">{{ sched.cadence }} — set the number to 2 for every other one.</div>
+
+            <div style="display: flex; gap: 8px; margin-top: 12px;">
+              <label style="flex: 1 1 130px; min-width: 0;">
+                <span style="display: block; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #5C5850; margin-bottom: 4px;">First invoice</span>
+                <input type="date" disabled="{{ sched.startLocked }}" value="{{ sched.start }}" onChange="{{ sched.onStart }}" style="width: 100%; border: 1px solid #C9C3B7; border-radius: 6px; padding: 7px 9px; font-size: 12.5px; background: #FFFFFF;" />
+              </label>
+              <label style="flex: 1 1 130px; min-width: 0;">
+                <span style="display: block; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #5C5850; margin-bottom: 4px;">Stop after (optional)</span>
+                <input type="date" value="{{ sched.end }}" onChange="{{ sched.onEnd }}" style="width: 100%; border: 1px solid #C9C3B7; border-radius: 6px; padding: 7px 9px; font-size: 12.5px; background: #FFFFFF;" />
+              </label>
+            </div>
+            <sc-if value="{{ sched.startLocked }}" hint-placeholder-val="{{ false }}">
+              <div style="font-size: 11.5px; color: #7A5A0C; margin-top: 6px; text-wrap: pretty;">{{ sched.startNote }}</div>
+            </sc-if>
+
+            <div style="display: flex; gap: 8px; margin-top: 12px;">
+              <label style="flex: 1 1 110px; min-width: 0;">
+                <span style="display: block; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #5C5850; margin-bottom: 4px;">Or after N times</span>
+                <input value="{{ sched.maxOccurrences }}" onChange="{{ sched.onMax }}" inputMode="numeric" placeholder="—" style="width: 100%; border: 1px solid #C9C3B7; border-radius: 6px; padding: 7px 9px; font-size: 12.5px; background: #FFFFFF; font-family: 'IBM Plex Mono', monospace;" />
+              </label>
+              <label style="flex: 1 1 110px; min-width: 0;">
+                <span style="display: block; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #5C5850; margin-bottom: 4px;">Payable in (days)</span>
+                <input value="{{ sched.dueDays }}" onChange="{{ sched.onDueDays }}" inputMode="numeric" style="width: 100%; border: 1px solid #C9C3B7; border-radius: 6px; padding: 7px 9px; font-size: 12.5px; background: #FFFFFF; font-family: 'IBM Plex Mono', monospace;" />
+              </label>
+            </div>
+
+            <input value="{{ sched.purchaseOrder }}" onChange="{{ sched.onPo }}" placeholder="Their PO number (optional)" style="width: 100%; border: 1px solid #C9C3B7; border-radius: 6px; padding: 7px 9px; font-size: 12.5px; margin-top: 12px; background: #FFFFFF;" />
+            <textarea value="{{ sched.notes }}" onChange="{{ sched.onNotes }}" placeholder="Anything the customer should read on every one" rows="2" style="width: 100%; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 11px; font-size: 12.5px; margin-top: 10px; background: #FFFFFF; resize: vertical;"></textarea>
+
+            <sc-raw-select value="{{ sched.template }}" onChange="{{ sched.onTemplate }}" style="width: 100%; border: 1px solid #C9C3B7; border-radius: 6px; padding: 8px 10px; font-size: 13px; margin-top: 10px; background: #FFFFFF;">
+              <sc-for list="{{ sched.templates }}" as="t" hint-placeholder-count="5">
+                <option value="{{ t.name }}">{{ t.label }}</option>
+              </sc-for>
+            </sc-raw-select>
+          </div>
+
+          <div style="padding: 22px 24px; background: #FCFCFB;">
+            <div style="font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: #5C5850; font-weight: 600; margin-bottom: 9px;">What it bills for</div>
+            <sc-for list="{{ sched.lines }}" as="l" hint-placeholder-count="2">
+              <div style="display: flex; gap: 7px; align-items: center; margin-bottom: 8px; flex-wrap: wrap;">
+                <input value="{{ l.description }}" onChange="{{ l.onDescription }}" placeholder="What it is for" style="flex: 1 1 170px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 7px 10px; font-size: 13px; background: #FFFFFF;" />
+                <input value="{{ l.qty }}" onChange="{{ l.onQty }}" placeholder="Qty" style="flex: 0 0 58px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 7px 8px; font-size: 12.5px; background: #FFFFFF; font-family: 'IBM Plex Mono', monospace; text-align: right;" />
+                <input value="{{ l.unitPrice }}" onChange="{{ l.onPrice }}" placeholder="Unit ₦" style="flex: 0 0 104px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 7px 8px; font-size: 12.5px; background: #FFFFFF; font-family: 'IBM Plex Mono', monospace; text-align: right;" />
+                <sc-raw-select value="{{ l.treatment }}" onChange="{{ l.onTreatment }}" style="flex: 0 0 104px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 7px 8px; font-size: 12px; background: #FFFFFF;">
+                  <option value="standard">VAT</option>
+                  <option value="zero_rated">Zero rated</option>
+                  <option value="exempt">Exempt</option>
+                  <option value="no_vat">No VAT</option>
+                </sc-raw-select>
+                <button onClick="{{ l.remove }}" style="border: 1px solid #DCD6CA; background: #FFFFFF; border-radius: 5px; padding: 6px 9px; font-size: 11px; cursor: pointer; color: #8A2F1D; flex: 0 0 auto;" style-hover="background: #FBEBE7;">Remove</button>
+              </div>
+            </sc-for>
+            <button onClick="{{ sched.addLine }}" style="border: 1px dashed #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 7px 13px; font-size: 12.5px; cursor: pointer; color: #1B2A4A;" style-hover="border-color: #1B2A4A; background: #F4F7FB;">+ Add a line</button>
+
+            <div style="border-top: 1px solid #EDEAE2; margin-top: 16px; padding-top: 14px; display: flex; justify-content: space-between; font-size: 13.5px;">
+              <span style="font-weight: 600;">Each invoice</span>
+              <span style="font-family: 'IBM Plex Mono', monospace; font-weight: 600;">{{ sched.estimate }}</span>
+            </div>
+            <div style="font-size: 11.5px; color: #8A857C; margin-top: 5px; text-wrap: pretty;">VAT is worked out when each invoice is raised, from your settings at that moment — so registering for VAT later reaches the next one.</div>
+
+            <sc-if value="{{ sched.hasUpcoming }}" hint-placeholder-val="{{ false }}">
+              <div style="border-top: 1px solid #EDEAE2; margin-top: 16px; padding-top: 14px;">
+                <div style="font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: #5C5850; font-weight: 600; margin-bottom: 8px;">Next few</div>
+                <sc-for list="{{ sched.upcoming }}" as="u" hint-placeholder-count="4">
+                  <div style="display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; font-size: 12.5px; border-bottom: 1px solid #F2EFE8;">
+                    <span style="color: #5C5850;">{{ u.occurrence }}</span>
+                    <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px;">{{ u.issue }} <span style="color: #8A857C;">due {{ u.due }}</span></span>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
   <!-- ============ RECORD A PAYMENT ============ -->
   <sc-if value="{{ rcpt.open }}" hint-placeholder-val="{{ false }}">
     <div style="position: fixed; inset: 0; background: rgba(16,24,40,.55); z-index: 70; display: flex; align-items: flex-start; justify-content: center; overflow-y: auto; padding: 24px 16px;">
@@ -2790,6 +2981,7 @@ class Component extends DCLogic {
       // screen never waits on four calls to show one of them.
       salesTab: 'invoices',
       payList: null, payFilter: { q: '', status: 'all' },
+      recList: null, recForm: null, recBusy: false, recErr: '',
       cnList: null, recv: null,
       // The forms. Null means closed; the opener builds them, so a form can
       // never be half-populated from a previous one.
@@ -3217,6 +3409,7 @@ class Component extends DCLogic {
         tabInvoices: st.salesTab === 'invoices',
         tabPayments: st.salesTab === 'payments',
         tabCredits: st.salesTab === 'credits',
+        tabRecurring: st.salesTab === 'recurring',
         tabReceivables: st.salesTab === 'receivables'
       });
     }
@@ -3234,7 +3427,20 @@ class Component extends DCLogic {
       { label: 'Collection time', value: m.averageCollectionDays + ' days', sub: 'average, invoice to payment', tone: '#1B2A4A', fg: '#101828' },
       // Said as "not set up" rather than zero, because zero would read as
       // "none are running" and that is a different statement.
-      { label: 'Recurring', value: m.recurringActive === null ? '—' : String(m.recurringActive), sub: m.recurringActive === null ? 'not set up yet' : 'active', tone: '#C9C3B7', fg: '#8A857C' }
+      // Real now, and said in a way that distinguishes "none set up" from
+      // "none running": a business that paused all of its schedules has a
+      // different problem from one that never made any.
+      {
+        label: 'Recurring',
+        value: String(m.recurringActive),
+        sub: m.recurringActive === 0
+          ? (m.recurringPaused ? m.recurringPaused + ' paused' : 'none set up')
+          : m.recurringDue
+            ? m.recurringDue + ' due now'
+            : 'raising themselves',
+        tone: m.recurringActive ? '#0E7C86' : '#C9C3B7',
+        fg: m.recurringActive ? '#101828' : '#8A857C'
+      }
     ];
 
     const peak = Math.max(1, ...d.monthly.map((x) => Math.max(x.invoiced, x.collected)));
@@ -3332,6 +3538,7 @@ class Component extends DCLogic {
       tabInvoices: st.salesTab === 'invoices',
       tabPayments: st.salesTab === 'payments',
       tabCredits: st.salesTab === 'credits',
+      tabRecurring: st.salesTab === 'recurring',
       tabReceivables: st.salesTab === 'receivables'
     };
   }
@@ -3347,6 +3554,7 @@ class Component extends DCLogic {
       this.setState({ salesTab: tab });
       if (tab === 'payments') this.loadPayments();
       if (tab === 'credits') this.loadCredits();
+      if (tab === 'recurring') this.loadRecurring();
       if (tab === 'receivables') this.loadReceivables();
     };
   }
@@ -3396,6 +3604,7 @@ class Component extends DCLogic {
       this.loadInvoicing(true),
       this.loadPayments(true),
       this.loadCredits(true),
+      this.loadRecurring(true),
       this.loadReceivables(true),
       this.loadBook(this.state.session)
     ]).catch(() => {});
@@ -3407,6 +3616,7 @@ class Component extends DCLogic {
       ['invoices', 'Invoices'],
       ['payments', 'Payments'],
       ['credits', 'Credit notes'],
+      ['recurring', 'Recurring'],
       ['receivables', 'Receivables']
     ].map(([key, label]) => ({
       label,
@@ -3416,6 +3626,274 @@ class Component extends DCLogic {
       border: tab === key ? '#1B2A4A' : '#C9C3B7',
       go: this.openSalesTab(key)
     }));
+  }
+
+  // ---------------- recurring invoices ----------------
+  //
+  // A schedule is an invoice that raises itself. The screen's whole job is to
+  // make what it will do visible before it does it: the cadence in words, the
+  // next few dates, and what each one will be worth.
+
+  loadRecurring(force) {
+    if (this.state.recList && !force) return Promise.resolve();
+    return API.get(this.orgPath('/recurring'))
+      .then((recList) => this.setState({ recList }))
+      .catch((err) => this.flash(err.message));
+  }
+
+  recurringVals() {
+    const list = this.state.recList;
+    if (!list) {
+      return { rows: [], noRows: true, summary: 'Reading your schedules…',
+        dueNote: '', hasDue: false, create: () => this.openSchedule(), runAll: () => {} };
+    }
+    const TONE = {
+      active: ['Running', '#E8F3EC', '#0B6B4F'],
+      paused: ['Paused', '#FAEEDA', '#7A5A0C'],
+      finished: ['Finished', '#F0EFEA', '#8A857C']
+    };
+    return {
+      rows: list.schedules.map((s) => {
+        const t = TONE[s.status] || TONE.active;
+        return {
+          name: s.name,
+          party: s.party,
+          cadence: s.cadence,
+          next: s.status === 'finished' ? '—' : fmtDate(s.nextDue),
+          // An overdue next date means the hourly pass has not reached it
+          // yet, which is a minute's wait rather than a fault — but it is
+          // worth showing, because it is also what a stopped schedule looks
+          // like after somebody has pressed Pause.
+          nextFg: s.status === 'active' && s.nextDue <= list.today ? '#7A5A0C' : '#5C5850',
+          estimate: this.naira(s.estimate),
+          raised: s.raised + (s.raised === 1 ? ' raised' : ' raised'),
+          billed: this.naira(s.billed),
+          owing: s.owing > 0 ? this.naira(s.owing) + ' owing' : 'all settled',
+          owingFg: s.owing > 0 ? '#7A5A0C' : '#8A857C',
+          label: t[0], bg: t[1], fg: t[2],
+          hasError: Boolean(s.lastError),
+          error: s.lastError || '',
+          // What stopped it, in words, rather than a status a person has to
+          // decode: "finished" alone does not say whether it ran its course
+          // or somebody stopped it.
+          why: s.status !== 'finished' ? '' :
+            s.finishedReason === 'completed' ? 'Ran the number of times it was set to'
+              : s.finishedReason === 'ended' ? 'Reached its end date'
+                : 'Stopped by hand',
+          running: s.status === 'active',
+          paused: s.status === 'paused',
+          finished: s.status === 'finished',
+          edit: () => this.openSchedule(s.id),
+          pause: () => this.scheduleAction(s.id, 'pause'),
+          resume: () => this.scheduleAction(s.id, 'resume'),
+          skip: () => this.scheduleAction(s.id, 'skip'),
+          stop: () => this.scheduleAction(s.id, 'stop'),
+          runNow: () => this.scheduleAction(s.id, 'run')
+        };
+      }),
+      noRows: list.schedules.length === 0,
+      summary: list.active + (list.active === 1 ? ' schedule running' : ' schedules running') +
+        (list.monthlyValue ? ' · about ' + this.naira(list.monthlyValue) + ' a month' : ''),
+      hasDue: list.dueNow > 0,
+      dueNote: list.dueNow + (list.dueNow === 1 ? ' schedule is' : ' schedules are') +
+        ' due. They are raised automatically within the hour.',
+      create: () => this.openSchedule(),
+      runAll: () => API.post(this.orgPath('/recurring-run'), {})
+        .then((out) => { this.flash(out.note); return this.refreshMoney(); })
+        .catch((err) => this.flash(err.message))
+    };
+  }
+
+  scheduleAction(id, action) {
+    const path = action === 'run' ? '/recurring/' + id + '/run' : '/recurring/' + id + '/' + action;
+    return API.post(this.orgPath(path), {})
+      .then((out) => {
+        if (action === 'run') {
+          this.flash(out.raised.length
+            ? 'Raised ' + out.raised.length + (out.raised.length === 1 ? ' invoice.' : ' invoices.')
+            : 'Nothing was due on that schedule.');
+        } else {
+          this.flash(out.note || ({
+            pause: 'Paused. It will not raise anything until you resume it.',
+            resume: 'Running again.',
+            skip: 'Skipped one cycle.',
+            stop: 'Stopped. The invoices it already raised are untouched.'
+          })[action]);
+        }
+        return this.refreshMoney();
+      })
+      .catch((err) => this.flash(err.message));
+  }
+
+  // ---------------- the schedule form ----------------
+
+  openSchedule(id) {
+    this.setState({ recBusy: true, recErr: '' });
+    const boot = this.state.bootstrap
+      ? Promise.resolve(this.state.bootstrap)
+      : API.get(this.orgPath('/invoices/new')).then((b) => { this.setState({ bootstrap: b }); return b; });
+
+    return boot
+      .then((b) => (id
+        ? API.get(this.orgPath('/recurring/' + id)).then((d) => ({ b, d }))
+        : Promise.resolve({ b, d: null })))
+      .then(({ b, d }) => {
+        const s = d && d.schedule;
+        this.setState({
+          recBusy: false,
+          recForm: {
+            boot: b,
+            id: id || null,
+            issued: s ? s.issuedCount : 0,
+            name: s ? s.name : '',
+            party: s ? s.party : '',
+            frequency: s ? s.frequency : 'monthly',
+            intervalCount: String(s ? s.intervalCount : 1),
+            start: s ? s.start : new Date().toISOString().slice(0, 10),
+            end: s && s.end ? s.end : '',
+            maxOccurrences: s && s.maxOccurrences ? String(s.maxOccurrences) : '',
+            dueDays: String(s ? s.dueDays : 14),
+            notes: s ? (s.notes || '') : '',
+            purchaseOrder: s ? (s.purchaseOrder || '') : '',
+            template: s ? s.template : b.defaultTemplate,
+            lines: s && s.lines.length
+              ? s.lines.map((l) => ({
+                description: l.description,
+                qty: String(l.qty),
+                unitPrice: String(l.unitPrice / 100),
+                treatment: l.treatment
+              }))
+              : [this.blankLine()],
+            upcoming: d ? d.upcoming : []
+          }
+        });
+      })
+      .catch((err) => this.setState({ recBusy: false, recErr: err.message }));
+  }
+
+  patchSchedule(patch) {
+    this.setState((p) => ({ recForm: Object.assign({}, p.recForm, patch), recErr: '' }));
+  }
+
+  patchScheduleLine(i, patch) {
+    this.setState((p) => ({
+      recForm: Object.assign({}, p.recForm, {
+        lines: p.recForm.lines.map((l, j) => (j === i ? Object.assign({}, l, patch) : l))
+      }),
+      recErr: ''
+    }));
+  }
+
+  saveSchedule() {
+    const f = this.state.recForm;
+    if (!f) return;
+    const body = {
+      name: f.name, party: f.party, frequency: f.frequency,
+      intervalCount: Number(f.intervalCount) || 1,
+      start: f.start, end: f.end || null,
+      maxOccurrences: f.maxOccurrences ? Number(f.maxOccurrences) : null,
+      dueDays: Number(f.dueDays) || 0,
+      notes: f.notes, purchaseOrder: f.purchaseOrder, template: f.template,
+      lines: f.lines.map((l) => ({
+        description: l.description, qty: l.qty, unitPrice: l.unitPrice, taxTreatment: l.treatment
+      }))
+    };
+    this.setState({ recBusy: true, recErr: '' });
+    const call = f.id
+      ? API.put(this.orgPath('/recurring/' + f.id), body)
+      : API.post(this.orgPath('/recurring'), body);
+
+    return call
+      .then((out) => {
+        this.setState({ recBusy: false, recForm: null, salesTab: 'recurring' });
+        this.flash(out.note || 'Schedule saved.');
+        return Promise.all([this.loadRecurring(true), this.refreshMoney()]);
+      })
+      .catch((err) => this.setState({ recBusy: false, recErr: err.message }));
+  }
+
+  scheduleVals() {
+    const f = this.state.recForm;
+    const st = this.state;
+    if (!f) return { open: false, lines: [], upcoming: [], customers: [], templates: [] };
+
+    const typed = (v) => Number(String(v || '').replace(/[^0-9.]/g, '')) || 0;
+    const estimate = f.lines.reduce(
+      (a, l) => a + Math.round(typed(l.qty) * typed(l.unitPrice) * 100), 0);
+
+    // The cadence in words, worked out here so the screen never has to show
+    // "every 2 monthly".
+    const n = Number(f.intervalCount) || 1;
+    const names = { weekly: ['week', 'weeks'], monthly: ['month', 'months'],
+      quarterly: ['quarter', 'quarters'], yearly: ['year', 'years'] };
+    const [sing, plur] = names[f.frequency] || names.monthly;
+    const cadence = n === 1 ? 'Every ' + sing
+      : f.frequency === 'weekly' && n === 2 ? 'Every fortnight'
+        : 'Every ' + n + ' ' + plur;
+
+    return {
+      open: true,
+      busy: st.recBusy,
+      opacity: st.recBusy ? '0.6' : '1',
+      hasError: Boolean(st.recErr),
+      error: st.recErr,
+      title: f.id ? 'Edit schedule' : 'New recurring invoice',
+      subtitle: cadence + (estimate ? ' · about ' + this.naira(estimate) + ' each time' : ''),
+      editing: Boolean(f.id),
+      // Once a schedule has raised something, moving its start date would
+      // change which periods it thinks it has billed. Said rather than
+      // silently ignored.
+      startLocked: f.issued > 0,
+      startNote: f.issued > 0
+        ? 'This has already raised ' + f.issued + (f.issued === 1 ? ' invoice' : ' invoices') +
+          ', so the start date no longer moves it. Use Skip to miss a cycle.'
+        : '',
+      name: f.name, party: f.party, frequency: f.frequency,
+      intervalCount: f.intervalCount, start: f.start, end: f.end,
+      maxOccurrences: f.maxOccurrences, dueDays: f.dueDays,
+      notes: f.notes, purchaseOrder: f.purchaseOrder, template: f.template,
+      customers: f.boot.customers.map((c) => ({ value: c.name, label: c.name })),
+      hasCustomers: f.boot.customers.length > 0,
+      pick: '',
+      templates: f.boot.templates,
+      estimate: this.naira(estimate),
+      cadence,
+      upcoming: (f.upcoming || []).map((u) => ({
+        issue: fmtDate(u.issue), due: fmtDate(u.due), occurrence: '#' + u.occurrence
+      })),
+      hasUpcoming: (f.upcoming || []).length > 0,
+      lines: f.lines.map((l, i) => ({
+        description: l.description, qty: l.qty, unitPrice: l.unitPrice, treatment: l.treatment,
+        onDescription: (e) => this.patchScheduleLine(i, { description: e.target.value }),
+        onQty: (e) => this.patchScheduleLine(i, { qty: e.target.value }),
+        onPrice: (e) => this.patchScheduleLine(i, { unitPrice: e.target.value }),
+        onTreatment: (e) => this.patchScheduleLine(i, { treatment: e.target.value }),
+        remove: () => this.setState((p) => ({
+          recForm: Object.assign({}, p.recForm, {
+            lines: p.recForm.lines.length > 1
+              ? p.recForm.lines.filter((x, j) => j !== i) : [this.blankLine()]
+          })
+        }))
+      })),
+      addLine: () => this.setState((p) => ({
+        recForm: Object.assign({}, p.recForm, { lines: p.recForm.lines.concat([this.blankLine()]) })
+      })),
+      disabled: st.recBusy || !String(f.party).trim() || estimate <= 0,
+      onName: (e) => this.patchSchedule({ name: e.target.value }),
+      onParty: (e) => this.patchSchedule({ party: e.target.value }),
+      onPick: (e) => { if (e.target.value) this.patchSchedule({ party: e.target.value }); },
+      onFrequency: (e) => this.patchSchedule({ frequency: e.target.value }),
+      onInterval: (e) => this.patchSchedule({ intervalCount: e.target.value }),
+      onStart: (e) => this.patchSchedule({ start: e.target.value }),
+      onEnd: (e) => this.patchSchedule({ end: e.target.value }),
+      onMax: (e) => this.patchSchedule({ maxOccurrences: e.target.value }),
+      onDueDays: (e) => this.patchSchedule({ dueDays: e.target.value }),
+      onNotes: (e) => this.patchSchedule({ notes: e.target.value }),
+      onPo: (e) => this.patchSchedule({ purchaseOrder: e.target.value }),
+      onTemplate: (e) => this.patchSchedule({ template: e.target.value }),
+      save: () => this.saveSchedule(),
+      close: () => this.setState({ recForm: null, recErr: '' })
+    };
   }
 
   // ---------------- recording a payment ----------------
@@ -4600,6 +5078,7 @@ class Component extends DCLogic {
         // silently move somebody back to the invoice list.
         if (this.state.salesTab === 'payments') this.loadPayments();
         if (this.state.salesTab === 'credits') this.loadCredits();
+        if (this.state.salesTab === 'recurring') this.loadRecurring();
         if (this.state.salesTab === 'receivables') this.loadReceivables();
       }
       // The merchant account lives in Settings. Read there and nowhere else,
@@ -6302,6 +6781,8 @@ class Component extends DCLogic {
       // nobody is looking at.
       recs: this.paymentsVals(),
       cns: this.creditsVals(),
+      reps: this.recurringVals(),
+      sched: this.scheduleVals(),
       arv: this.receivablesVals(),
       rcpt: this.receiptFormVals(),
       cnote: this.creditVals(),

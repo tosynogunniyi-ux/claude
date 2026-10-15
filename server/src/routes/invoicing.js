@@ -17,6 +17,7 @@ const pdf = require('../invoicing/pdf');
 const { THEMES, NAMES, DEFAULT } = require('../invoicing/themes');
 const accounting = require('../accounting/reports');
 const backfill = require('../accounting/backfill');
+const issue = require('../invoicing/issue');
 const owed = require('../invoicing/outstanding');
 
 const router = express.Router({ mergeParams: true });
@@ -187,168 +188,19 @@ router.post('/invoices/preview', requireOrg('accountant'), async (req, res, next
 
 const DRAFT = 'draft';
 
-async function organisationDefaults(client, orgId) {
-  const { rows } = await client.query('SELECT * FROM organizations WHERE id = $1', [orgId]);
-  const org = rows[0];
-  return {
-    org,
-    taxInclusive: org.prices_include_vat,
-    // A business below the VAT registration threshold must not have 7.5%
-    // quietly applied because a default said so.
-    taxRate: org.vat_registered ? org.vat_rate : 0,
-    taxTreatment: org.vat_registered ? 'standard' : 'no_vat',
-    whtRate: money.fromBasisPoints(org.default_wht_bp || 0)
-  };
-}
-
 router.post('/invoices/build', requireOrg('accountant'), async (req, res, next) => {
   try {
     const b = req.body || {};
-    const wantsDraft = b.status === DRAFT;
-    const partyName = String(b.party || '').trim();
-    if (!partyName) return res.status(400).json({ error: 'Choose who this invoice is for.' });
-    if (!Array.isArray(b.lines) || !b.lines.length) {
-      return res.status(400).json({ error: 'Add at least one line.' });
-    }
-
-    const result = await transaction(async (client) => {
-      const defaults = await organisationDefaults(client, req.orgId);
-      const computed = totals.compute(b.lines, {
-        taxInclusive: b.taxInclusive === undefined ? defaults.taxInclusive : Boolean(b.taxInclusive),
-        taxRate: defaults.taxRate,
-        taxTreatment: defaults.taxTreatment,
-        whtRate: defaults.whtRate
-      });
-
-      // An invoice that adds up to nothing is a mistake, not a document.
-      if (!wantsDraft && computed.total <= 0) {
-        const err = new Error('This invoice totals nothing. Add an amount before issuing it.');
-        err.status = 400;
-        throw err;
-      }
-
-      // One shared customer list. A name that already exists is reused rather
-      // than quietly creating a second record with the same name.
-      let contact = (await client.query(
-        'SELECT * FROM clients WHERE organization_id = $1 AND lower(name) = lower($2)',
-        [req.orgId, partyName]
-      )).rows[0];
-      if (!contact) {
-        contact = (await client.query(
-          'INSERT INTO clients (organization_id, name, email, phone) VALUES ($1,$2,$3,$4) RETURNING *',
-          [req.orgId, partyName, String(b.email || '').trim() || null, String(b.phone || '').trim() || null]
-        )).rows[0];
-      }
-
-      const existing = b.id
-        ? (await client.query(
-          'SELECT * FROM invoices WHERE organization_id = $1 AND id = $2 FOR UPDATE', [req.orgId, b.id]
-        )).rows[0]
-        : null;
-      if (b.id && !existing) { const e = new Error('No such invoice.'); e.status = 404; throw e; }
-      // Issued invoices are not editable. A finalised document is corrected
-      // with a credit note, not by changing what was sent to the customer.
-      if (existing && existing.base_status !== DRAFT) {
-        const e = new Error('This invoice has been issued. Issue a credit note to change it.');
-        e.status = 409;
-        throw e;
-      }
-
-      // The number is allocated only when the invoice is issued, so an
-      // abandoned draft leaves no hole in the series.
-      const number = existing && existing.number && existing.base_status !== DRAFT
-        ? existing.number
-        : wantsDraft
-          ? (existing ? existing.number : 'DRAFT-' + Date.now().toString(36).toUpperCase())
-          : (await numbering.allocate(client, req.orgId, 'invoice', b.issue)).number;
-
-      const fields = [
-        req.orgId, number, contact.id, partyName,
-        b.issue || new Date().toISOString().slice(0, 10),
-        b.due || new Date().toISOString().slice(0, 10),
-        money.toNaira(computed.total),
-        computed.net, computed.discount, computed.tax, computed.total, computed.wht,
-        computed.taxInclusive,
-        wantsDraft ? DRAFT : 'sent',
-        String(b.billingAddress || '').trim() || null,
-        String(b.shippingAddress || '').trim() || null,
-        String(b.customerReference || '').trim() || null,
-        String(b.purchaseOrder || '').trim() || null,
-        String(b.notes || '').trim() || null,
-        String(b.terms || '').trim() || null,
-        String(b.paymentInstructions || '').trim() || null,
-        NAMES.includes(b.template) ? b.template : DEFAULT,
-        wantsDraft ? null : new Date().toISOString()
-      ];
-
-      let invoice;
-      if (existing) {
-        invoice = (await client.query(
-          `UPDATE invoices SET number=$2, client_id=$3, client_name=$4, issue_date=$5, due_date=$6,
-                  total=$7, subtotal_kobo=$8, discount_kobo=$9, tax_kobo=$10, total_kobo=$11, wht_kobo=$12,
-                  tax_inclusive=$13, base_status=$14, billing_address=$15, shipping_address=$16,
-                  customer_reference=$17, purchase_order=$18, notes=$19, terms=$20,
-                  payment_instructions=$21, template=$22, issued_at=COALESCE(issued_at,$23)
-             WHERE organization_id=$1 AND id=$24 RETURNING *`,
-          fields.concat([existing.id])
-        )).rows[0];
-        await client.query('DELETE FROM invoice_lines WHERE invoice_id = $1', [existing.id]);
-      } else {
-        invoice = (await client.query(
-          `INSERT INTO invoices (organization_id, number, client_id, client_name, issue_date, due_date,
-                  total, subtotal_kobo, discount_kobo, tax_kobo, total_kobo, wht_kobo, tax_inclusive,
-                  base_status, billing_address, shipping_address, customer_reference, purchase_order,
-                  notes, terms, payment_instructions, template, issued_at)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
-           RETURNING *`,
-          fields
-        )).rows[0];
-      }
-
-      for (let i = 0; i < computed.lines.length; i++) {
-        const l = computed.lines[i];
-        await client.query(
-          `INSERT INTO invoice_lines (invoice_id, organization_id, position, description, item_id, unit,
-                  qty_milli, unit_price_kobo, discount_kobo, tax_treatment, tax_bp, wht_bp,
-                  net_kobo, tax_kobo, wht_kobo, total_kobo)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
-          [invoice.id, req.orgId, i, l.description || 'Item', l.itemId || null, l.unit,
-            l.qty, l.unitPrice, l.discount, l.treatment, l.taxBp, l.whtBp,
-            l.net, l.tax, l.wht, l.total]
-        );
-      }
-
-      await client.query(
-        `INSERT INTO invoice_events (invoice_id, organization_id, event, actor_user_id, detail)
-         VALUES ($1,$2,$3,$4,$5)`,
-        [invoice.id, req.orgId, existing ? 'updated' : 'created', req.user.id,
-          JSON.stringify({ total: computed.total, lines: computed.lines.length })]
-      );
-
-      // Into the ledger on issue, never on a draft: a draft is not a
-      // receivable and must not appear in anybody's revenue.
-      if (!wantsDraft) {
-        await client.query(
-          `INSERT INTO invoice_events (invoice_id, organization_id, event, actor_user_id)
-           VALUES ($1,$2,'finalised',$3)`,
-          [invoice.id, req.orgId, req.user.id]
-        );
-        await gl.invoiceIssued(client, {
-          orgId: req.orgId,
-          invoice,
-          lines: computed.lines.map((l) => ({
-            description: l.description, net: l.net, category: b.category
-          })),
-          totals: computed,
-          userId: req.user.id
-        });
-      }
-
-      return { invoice, computed, contact };
-    });
+    // The write itself lives in invoicing/issue.js, because a recurring
+    // schedule raises invoices too and the two must produce an identical row.
+    // This route is what is left when that is taken out: a permission check,
+    // a transaction, an audit line and a response shape.
+    const result = await transaction((client) => issue.write(client, {
+      orgId: req.orgId, userId: req.user.id, body: b, existingId: b.id || null
+    }));
 
     await audit(req.orgId, req.user.id,
-      wantsDraft ? 'invoice.drafted' : 'invoice.issued', 'invoice', result.invoice.id,
+      b.status === DRAFT ? 'invoice.drafted' : 'invoice.issued', 'invoice', result.invoice.id,
       { number: result.invoice.number, total: result.computed.total });
 
     res.status(b.id ? 200 : 201).json({
@@ -508,7 +360,7 @@ router.get('/invoicing/dashboard', requireOrg(), async (req, res, next) => {
     const from = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.from || '')) ? req.query.from
       : new Date(Date.now() - 365 * 86400000).toISOString().slice(0, 10);
 
-    const [period, counts, monthly, topCustomers, owing, recent, upcoming, ageing] = await Promise.all([
+    const [period, counts, monthly, topCustomers, owing, recent, upcoming, ageing, repeating] = await Promise.all([
       // Invoiced and collected inside the window. Collected is read from
       // payments by payment date, not from invoice date, because a January
       // invoice paid in March was collected in March.
@@ -582,7 +434,17 @@ router.get('/invoicing/dashboard', requireOrg(), async (req, res, next) => {
           ORDER BY i.due_date LIMIT 6`,
         [req.orgId]
       ),
-      accounting.receivablesAgeing(req.orgId, { asOf: to })
+      accounting.receivablesAgeing(req.orgId, { asOf: to }),
+      // Recurring is real now. Counted rather than reported as null, and
+      // split so the card can say "4 running, 1 due" instead of a number
+      // whose meaning has to be guessed.
+      one(
+        `SELECT COUNT(*) FILTER (WHERE status = 'active')::int AS active,
+                COUNT(*) FILTER (WHERE status = 'active' AND next_due <= CURRENT_DATE)::int AS due,
+                COUNT(*) FILTER (WHERE status = 'paused')::int AS paused
+           FROM recurring_invoices WHERE organization_id = $1`,
+        [req.orgId]
+      )
     ]);
 
     const invoiced = Number(period.invoiced);
@@ -612,9 +474,9 @@ router.get('/invoicing/dashboard', requireOrg(), async (req, res, next) => {
         unpaidCount: counts.unpaid_count,
         partCount: counts.part_count,
         draftCount: counts.draft_count,
-        // Recurring is not built yet. Reported as null rather than 0, so the
-        // screen can say "not set up" instead of implying none are running.
-        recurringActive: null,
+        recurringActive: repeating.active,
+        recurringDue: repeating.due,
+        recurringPaused: repeating.paused,
         averageCollectionDays: Math.round(Number(collection.days)),
         collectionRate: invoiced > 0 ? Math.round((collected / invoiced) * 1000) / 10 : null
       },

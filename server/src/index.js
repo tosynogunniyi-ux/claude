@@ -18,6 +18,7 @@ const subscriptionRoutes = require('./routes/subscription');
 const aiRoutes = require('./routes/ai');
 const invoicingRoutes = require('./routes/invoicing');
 const paymentRoutes = require('./routes/payments');
+const recurringRoutes = require('./routes/recurring');
 const payRoutes = require('./routes/pay');
 
 const app = express();
@@ -116,6 +117,7 @@ orgScoped.use(bankRoutes.router);
 orgScoped.use(aiRoutes.router);
 orgScoped.use(invoicingRoutes.router);
 orgScoped.use(paymentRoutes.router);
+orgScoped.use(recurringRoutes.router);
 app.use('/api/orgs/:orgId', requireAuth, orgScoped);
 
 // The prototype is served from here, so the API is same-origin and the session
@@ -175,6 +177,9 @@ if (require.main === module) {
     // Takes a verified pg_dump on a schedule, under its own advisory lock.
     require('./backup').start();
   require('./accounting/backfill').start();
+    // Raises the invoices that schedules say are due. Its own advisory lock,
+    // so more than one container does not bill the same month twice.
+    require('./invoicing/recurring').start();
   });
 }
 

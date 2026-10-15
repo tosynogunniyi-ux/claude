@@ -4,9 +4,10 @@ A plain-language record of what has been built, what is live, and what is
 still waiting on somebody. Kept in the repository so it is always reachable:
 **github.com/tosynogunniyi-ux/claude → `docs/STATUS.md`**.
 
-Last updated 14 October 2026. **Monnify is live and the first real payment
+Last updated 15 October 2026. **Monnify is live and the first real payment
 has gone through. Smart Invoicing now has a general ledger, server-side PDFs,
-an invoice builder, and payments, receipts, credit notes and receivables.**
+an invoice builder, payments, receipts, credit notes, receivables — and
+invoices that raise themselves.**
 
 ---
 
@@ -117,6 +118,12 @@ customer's books is ever sent. Unset `META_PIXEL_ID` and none of it runs.
   than being forced onto an invoice. Credit notes correct an invoice that has
   already been sent. And customers can pay online — into the business's own
   Paystack or Monnify account.
+- *Recurring invoices.* A retainer set up once raises itself on the day,
+  numbered, posted to the books and VAT worked out from the settings as they
+  stand that month. Pause it, skip a cycle, stop it — and a schedule that
+  cannot raise its invoice stops visibly with the reason on it rather than
+  failing once an hour into a log nobody reads. A customer can never be
+  billed twice for the same month: the database will not allow it.
 
 **Your money goes to you.** The payment account a business connects is its
 own. Profitna records the payment and settles the invoice; it never holds the
@@ -258,10 +265,15 @@ ways out — back to the dashboard, reload, sign out.
   product claims an invoice has been sent to or verified by it. Worth saying
   plainly because the opposite claim is the expensive one.
 - **The repository's default branch on GitHub is `backend-for-profitna`**,
-  which is months stale — `main` is 35 commits ahead of it and the old branch
-  has nothing of its own, so switching costs nothing. GitHub → Settings →
-  General → Default branch → `main`. Worth checking Easypanel deploys `main`
-  too, so nothing ships the old branch by accident.
+  which is months stale, and **Easypanel may still be deploying it**. This is
+  the one open item with teeth: nothing breaks today, but any redeploy that
+  pulls the old branch rolls the live site back past the invoicing, the
+  ledger, the PDFs, the payments and the recurring invoices.
+
+  GitHub → repo → Settings → General → Default branch → switch to `main`.
+  Then Easypanel → your app service → Source → set the branch to `main` →
+  Deploy. (Claude cannot do either: the GitHub proxy refuses settings writes,
+  and Easypanel is on the VPS, which the build environment cannot reach.)
 - **Google sign-in** is still in Testing on the consent screen, so only
   tosyn.ogunniyi@gmail.com can use it. Publish it to open it up.
 - **A privacy note for the ad tracking.** Once `META_PIXEL_ID` is set, the
@@ -307,7 +319,7 @@ ways out — back to the dashboard, reload, sign out.
 `SEED_DEMO_DATA=true` fills each new account with eight months of sample
 Nigerian books. Leave it unset in production so real accounts start empty.
 
-Thirteen test suites, 863 checks, run against a live server and a real database:
+Fourteen test suites, 916 checks, run against a live server and a real database:
 
 | Command | Checks | Covers |
 |---|---|---|
@@ -319,8 +331,9 @@ Thirteen test suites, 863 checks, run against a live server and a real database:
 | `npm run test:backup` | 27 | A real dump, read back, copied off the machine, plus retention |
 | `npm run test:offsite` | 33 | The AWS signature against AWS’s own signer, and a real upload |
 | `npm run test:meta` | 41 | Ad events, and that no readable email ever leaves the server |
-| `npm run test:invoicing` | 64 | Invoice money in integer kobo, Nigerian VAT and WHT, numbering under load |
+| `npm run test:invoicing` | 67 | Invoice money in integer kobo, Nigerian VAT and WHT, numbering under load and across years |
 | `npm run test:pdf` | 52 | A4 invoice PDFs: the naira glyph, pagination, five designs, isolation |
 | `npm run test:ledger` | 62 | Double entry: balance, idempotency, reversals, closed periods, backfill |
 | `npm run test:payments` | 151 | Receipts across several invoices, money on account, credit notes, gateways, webhooks, forged signatures |
+| `npm run test:recurring` | 50 | Schedules: the dates, catching up, stopping, and that nobody is billed twice |
 | `npm run test:trial` | 16 | That changing the trial length leaves running trials alone |

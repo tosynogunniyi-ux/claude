@@ -47,6 +47,7 @@ what it can honestly do:
 | `ADMIN_IP_ALLOWLIST` | The console is reachable from any address. |
 | `ADMIN_TOTP` | Two-factor is required. Set it to `off` only if you cannot use an authenticator app. |
 | `BILLING_SCHEDULER` | Trials end and terms renew automatically. Set it to `off` to stop that. |
+| `RECURRING_SCHEDULER` | Recurring invoices raise themselves hourly. Set it to `off` to stop that; schedules can still be run by hand. |
 | `CREDENTIALS_KEY` | Tenants cannot connect their own Paystack or Monnify account, so invoices offer no online payment link. The Settings panel says so and names this variable; nothing is stored in the clear as a fallback. |
 | `PUBLIC_BASE_URL` | The webhook URL a tenant pastes into their provider's dashboard is built from the request's own host. Set it when the app sits behind a proxy that rewrites `Host`. |
 | `GATEWAY_TIMEOUT_MS` | Calls out to a tenant's gateway give up after 8 seconds, under the proxy's own patience, so our explanation reaches the browser instead of the proxy's error page. |
@@ -743,6 +744,140 @@ false, and nothing could set it — so 7.5% could never have been applied to
 anything. The smoke suite found it by asserting VAT appeared and getting
 zero. `PATCH /orgs/:id` now carries it, along with the address, phone, email,
 website, TIN and RC number an invoice has to print.
+
+## Recurring invoices
+
+A retainer billed on the 1st of every month is the same invoice twelve times,
+and typing it twelve times is twelve chances to type it differently. A
+schedule holds the template and the cadence; the generator turns it into real
+invoices through **the same code path the builder uses**, so a generated
+invoice and a typed one are the same kind of row — same series, same totals,
+same ledger entry, same event log.
+
+That shared path is `src/invoicing/issue.js`, and extracting it was the first
+thing this release did. Copying forty lines of INSERT into the generator
+would have worked on the day it was written and then drifted, the way
+`backfill.pending()` drifted when it was written twice.
+
+### Never twice
+
+Duplicate billing is the characteristic failure of recurring invoicing and
+the expensive one: a customer billed twice for March assumes the rest of
+their account is equally reliable. Three things stop it, in order of how much
+work they do:
+
+1. The generator advances the schedule **inside the same transaction** that
+   writes the invoice. Nothing can observe a raised invoice without also
+   observing the schedule having moved on.
+2. `SELECT … FOR UPDATE SKIP LOCKED` on the schedule row, so a second
+   container leaves it to the first rather than queueing behind it and
+   raising the next occurrence the moment the lock is released.
+3. A unique index on `(recurring_invoice_id, recurring_occurrence)`. This is
+   the backstop for everything that is not the generator — a retried run, a
+   restore replaying a partial transaction log, somebody pressing "Raise now"
+   twice. A duplicate-key error on it is caught and treated as success,
+   because the invoice exists, which is what was wanted.
+
+The test fires six simultaneous passes at one schedule and asserts that one
+invoice comes out, then inserts a duplicate occurrence by hand and asserts the
+database refuses it.
+
+### The right date
+
+A monthly schedule anchored on the 31st bills on the 31st of every month that
+has one and the last day of every month that does not, **and then goes back to
+the 31st**:
+
+    2026-01-31  2026-02-28  2026-03-31  2026-04-30  2026-05-31
+
+Computing it as "add 30 days", or as "clamp and carry the clamp forward",
+walks the date backwards a little every year — which nobody notices until a
+customer asks why January's invoice arrived on the 26th. So the anchor day is
+remembered and each date is computed from it, not from wherever the last
+clamp landed.
+
+All of the date arithmetic is string work on `YYYY-MM-DD` plus integers.
+Nothing constructs a `Date` and adds milliseconds: a server in Lagos, a server
+in UTC and a day on which clocks change must produce the same invoice date.
+
+### Catching up, and not running away
+
+A schedule created with a start date in the past deliberately catches up.
+Somebody setting up a retainer that began in June wants June through to now
+raised, each dated for its own period — not one invoice dated today covering
+five months. The catch-up is capped (36 by default) so a start date mistyped
+as 2015 produces a refusal rather than a hundred and thirty invoices.
+
+### Stopping
+
+| How it stops | What happens |
+|---|---|
+| Reached `max_occurrences` | Marked finished with reason `completed`, in the same transaction as the last invoice |
+| Passed `end_date` | Marked finished with reason `ended` |
+| Stopped by hand | Marked finished with reason `stopped` |
+| Could not raise its invoice | **Paused**, with the reason on the record |
+
+That last row matters. A schedule whose books are closed, whose lines have
+been deleted, or whose figures no longer add up stops visibly rather than
+failing once an hour into a log nobody reads. The error is on the schedule
+card in amber.
+
+Pausing keeps the schedule's position. **Resuming skips the periods it was
+paused for** rather than billing them, because raising three invoices for
+three months nobody was billed for is almost never what a pause meant;
+`catchUp: true` asks for the other behaviour explicitly.
+
+### Where it is stored, and the one stored figure
+
+`next_due` is a stored column, which is against the grain of this schema —
+document status, balances, trial ends and ledger figures are all derived at
+read time precisely so they cannot go stale. This one is stored on purpose
+and the reason is that it is **not derivable**: once a human has paused a
+schedule for two months or skipped a cycle, where the schedule stands is a
+record of decisions, not arithmetic on the start date. Deriving it would
+silently raise the two invoices the pause was meant to prevent.
+
+Line *inputs* are stored, not line totals. The figures are recomputed every
+time an invoice is raised, so a business that registers for VAT in October
+has VAT on November's invoice and not on September's — which is correct, and
+is asserted.
+
+### The scheduler
+
+A timer in the server, hourly, under Postgres advisory lock `4820774`
+(billing holds `4820771`, backups `4820772`, the ledger backfill `4820773`).
+Hourly rather than daily because a container restarted every afternoon would
+otherwise never see midnight. `RECURRING_SCHEDULER=off` stops it;
+`POST /recurring-run` and `POST /recurring/:id/run` do a pass on demand.
+
+### Routes
+
+| Route | What it does |
+|---|---|
+| `GET /recurring` | Every schedule, with what each has billed and what is still owed |
+| `GET /recurring/:id` | One schedule, the next six dates it will raise, and every invoice it has raised |
+| `POST /recurring` · `PUT /recurring/:id` | Create and edit. The start date stops moving once it has raised something |
+| `POST /recurring/:id/pause` · `/resume` · `/skip` · `/stop` | The four controls |
+| `POST /recurring/:id/run` | Raise what that schedule owes, now |
+| `POST /recurring-run` | Raise what every schedule on these books owes |
+| `DELETE /recurring/:id` | Admin only. The schedule goes; the invoices it raised stay |
+
+`npm run test:recurring` — 50 checks.
+
+### A fault it found in older code
+
+**Invoice numbers collided across years.** `document_sequences` held one
+counter per (organisation, kind) plus the year it was last used in, and
+allocating for a different year reset the counter to 1 — correct on the 1st of
+January and wrong every other way it happens. Enter a late December invoice
+and the next one dated this year is handed a number that already exists; the
+unique index turns that into an error, so nothing was ever mis-numbered, but
+the business simply cannot issue an invoice until somebody works out why.
+
+A recurring schedule backdated across a year boundary does this several times
+in a row, which is how it surfaced. Migration 015 gives each year its own
+counter and seeds the years that already have documents from the trailing
+digits of their numbers, so allocating for 2025 cannot disturb 2026.
 
 ## Payments and receivables
 
