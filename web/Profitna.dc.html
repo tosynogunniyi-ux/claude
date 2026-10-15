@@ -1099,6 +1099,8 @@ window.__resources = {
                       <button onClick="{{ r.pdf }}" style="border: 1px solid #DCD6CA; background: #FFFFFF; border-radius: 5px; padding: 5px 10px; font-size: 11.5px; cursor: pointer; margin-left: 5px;" style-hover="background: #F4F3EE;">PDF</button>
                       <sc-if value="{{ r.canPay }}" hint-placeholder-val="{{ true }}">
                         <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ r.pay }}" style="border: 1px solid #DCD6CA; background: #FFFFFF; border-radius: 5px; padding: 5px 10px; font-size: 11.5px; cursor: pointer; margin-left: 5px;" style-hover="background: #F4F3EE;">Pay</button>
+                      </sc-if>
+                      <sc-if value="{{ r.canLink }}" hint-placeholder-val="{{ false }}">
                         <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ r.link }}" style="border: 1px solid #DCD6CA; background: #FFFFFF; border-radius: 5px; padding: 5px 10px; font-size: 11.5px; cursor: pointer; margin-left: 5px;" style-hover="background: #F4F3EE;">Link</button>
                       </sc-if>
                       <sc-if value="{{ r.canCredit }}" hint-placeholder-val="{{ true }}">
@@ -1350,7 +1352,9 @@ window.__resources = {
                       </div>
                       <div style="display: flex; gap: 6px; margin-top: 7px; flex-wrap: wrap;">
                         <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ o.pay }}" style="border: 1px solid #DCD6CA; background: #FFFFFF; border-radius: 5px; padding: 5px 10px; font-size: 11.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Record payment</button>
-                        <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ o.link }}" style="border: 1px solid #DCD6CA; background: #FFFFFF; border-radius: 5px; padding: 5px 10px; font-size: 11.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Pay link</button>
+                        <sc-if value="{{ arv.collectReady }}" hint-placeholder-val="{{ false }}">
+                          <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ o.link }}" style="border: 1px solid #DCD6CA; background: #FFFFFF; border-radius: 5px; padding: 5px 10px; font-size: 11.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Pay link</button>
+                        </sc-if>
                         <button data-w="" disabled="{{ perm.noWrite }}" onClick="{{ o.credit }}" style="border: 1px solid #DCD6CA; background: #FFFFFF; border-radius: 5px; padding: 5px 10px; font-size: 11.5px; cursor: pointer;" style-hover="background: #F4F3EE;">Credit</button>
                       </div>
                     </div>
@@ -3509,6 +3513,12 @@ class Component extends DCLogic {
           // collected on a draft, and nothing is credited on one either —
           // a draft is changed, not corrected.
           canPay: r.status !== 'draft' && r.status !== 'void' && r.outstanding > 0,
+          // Recording a payment by hand always works. Asking a customer to
+          // pay online only works when this business has connected its own
+          // merchant account, so the button is absent rather than present
+          // and certain to fail.
+          canLink: r.status !== 'draft' && r.status !== 'void' && r.outstanding > 0 &&
+            Boolean(d.collection && d.collection.ready),
           pay: () => this.openPayment(r.id),
           link: () => this.makePayLink(r.id),
           credit: () => this.openCredit(r.id),
@@ -4512,12 +4522,21 @@ class Component extends DCLogic {
     };
 
     return {
-      show: true,
+      // Hidden until the server can actually store a credential.
+      //
+      // It used to render with an amber box naming CREDENTIALS_KEY, which is
+      // the right message for whoever runs the server and the wrong one for
+      // every customer admin who opens Settings: it is not their server, they
+      // cannot set it, and a panel whose every field is greyed out reads as
+      // something broken rather than something not switched on yet.
+      //
+      // The operator still has two ways to know — the boot warning and
+      // `merchantCredentials` in /api/health — and the panel comes back by
+      // itself the moment CREDENTIALS_KEY is set. Nothing has to be changed
+      // here to bring it back.
+      show: m.storageReady === true,
       storageReady: m.storageReady,
-      // Said as its own flag rather than a negation inside the template: the
-      // renderer has no `unless`, and `!x` in a binding is not a thing it
-      // evaluates.
-      storageBlocked: m.storageReady === false,
+      storageBlocked: false,
       storageNote: m.storageRequirement || '',
       note: 'Customers pay into your own account. Profitna never holds your money — ' +
         'it records the payment and settles the invoice.',

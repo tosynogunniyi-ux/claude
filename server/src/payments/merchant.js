@@ -142,8 +142,14 @@ async function collectionState(orgId) {
   if (!vault.configured()) {
     return {
       ready: false, reason: 'storage',
-      message: 'Online payment links are unavailable until the server is configured to store ' +
-        'payment credentials securely.',
+      // What a tenant is told, which is not what the operator is told. A
+      // customer reading "the server is not configured" learns nothing they
+      // can act on and something they should not have to think about; what
+      // they need to know is that recording payments by hand still works and
+      // the books are right either way. `requirement` carries the operator's
+      // half, and nothing tenant-facing renders it.
+      message: 'Online payment links are not switched on yet. Record payments here as they ' +
+        'arrive — the invoice is settled and the books are right either way.',
       requirement: vault.REQUIREMENT
     };
   }

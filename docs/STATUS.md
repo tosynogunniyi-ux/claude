@@ -284,16 +284,25 @@ ways out — back to the dashboard, reload, sign out.
 - **Online invoice payments need a server key.** Customers can pay a business's
   invoices through that business's own Paystack or Monnify account — but only
   once `CREDENTIALS_KEY` is set in Easypanel → your app service → Environment.
-  It encrypts each tenant's payment credentials, so without it nothing can be
-  saved and the Settings panel says so rather than quietly failing. Generate
-  one with `openssl rand -base64 32`, set it, redeploy, and **do not change it
-  afterwards**: credentials already stored can only be read with the key that
-  wrote them. `GET /api/health` reports `merchantCredentials` once it is set.
+  It encrypts each tenant's payment credentials.
+
+  **Until it is set the feature is hidden, not broken.** There is no payment
+  panel in Settings and no Pay-link button on any invoice — because an amber
+  box telling a customer to set a server environment variable is a message
+  about a server they do not own. `GET /api/health` reports
+  `merchantCredentials`, and the server says it again in the boot log; those
+  are the two places that are actually yours.
+
+  Generate one with `openssl rand -base64 32`, set it, redeploy, and **do not
+  change it afterwards**: credentials already stored can only be read with the
+  key that wrote them. The panel appears on its own — nothing in the code has
+  to change.
 
   After that, each business connects its own account in Settings → "Letting
   customers pay you online": paste the keys, press Test, then copy the webhook
   URL shown there into the same provider dashboard page. The URL is unique to
-  that business.
+  that business. Pay-link buttons appear on invoices only once an account has
+  been connected *and* proved, so a button never appears before it works.
 
 - **Ask Profitna needs its key.** The code is live but the screen will keep
   saying "Simulated · no model connected" until `ANTHROPIC_API_KEY` is set in

@@ -18,6 +18,7 @@ const { THEMES, NAMES, DEFAULT } = require('../invoicing/themes');
 const accounting = require('../accounting/reports');
 const backfill = require('../accounting/backfill');
 const issue = require('../invoicing/issue');
+const merchant = require('../payments/merchant');
 const owed = require('../invoicing/outstanding');
 
 const router = express.Router({ mergeParams: true });
@@ -492,7 +493,12 @@ router.get('/invoicing/dashboard', requireOrg(), async (req, res, next) => {
         id: u.id, number: u.number, party: u.party, due: u.due_date, outstanding: Number(u.outstanding)
       })),
       ageing: { buckets: ageing.buckets, total: ageing.total, reconciles: ageing.reconciles },
-      overdueInvoices: ageing.invoices.filter((i) => i.daysOverdue > 0).slice(0, 8)
+      overdueInvoices: ageing.invoices.filter((i) => i.daysOverdue > 0).slice(0, 8),
+      // Whether this organisation can ask a customer to pay online at all.
+      // The invoice list uses it to decide whether a "Pay link" button would
+      // lead anywhere: offering one that always fails is worse than not
+      // offering it.
+      collection: await merchant.collectionState(req.orgId)
     });
   } catch (err) {
     next(err);

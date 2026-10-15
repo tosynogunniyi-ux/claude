@@ -48,7 +48,7 @@ what it can honestly do:
 | `ADMIN_TOTP` | Two-factor is required. Set it to `off` only if you cannot use an authenticator app. |
 | `BILLING_SCHEDULER` | Trials end and terms renew automatically. Set it to `off` to stop that. |
 | `RECURRING_SCHEDULER` | Recurring invoices raise themselves hourly. Set it to `off` to stop that; schedules can still be run by hand. |
-| `CREDENTIALS_KEY` | Tenants cannot connect their own Paystack or Monnify account, so invoices offer no online payment link. The Settings panel says so and names this variable; nothing is stored in the clear as a fallback. |
+| `CREDENTIALS_KEY` | Online collection is **hidden**, not broken: the Settings panel and every Pay-link button are absent, and nothing is stored in the clear as a fallback. The boot log and `/api/health` say why. Setting the variable brings the panel back on its own. |
 | `PUBLIC_BASE_URL` | The webhook URL a tenant pastes into their provider's dashboard is built from the request's own host. Set it when the app sits behind a proxy that rewrites `Host`. |
 | `GATEWAY_TIMEOUT_MS` | Calls out to a tenant's gateway give up after 8 seconds, under the proxy's own patience, so our explanation reaches the browser instead of the proxy's error page. |
 
@@ -982,10 +982,31 @@ decrypt rather than yielding a live key — tenant isolation the database alone
 cannot give, because the database is what leaks.
 
 Without `CREDENTIALS_KEY` the module refuses to encrypt rather than falling
-back to plaintext. The Settings panel says so, names the variable, and the
-fields are disabled. A feature that is clearly switched off is recoverable; a
+back to plaintext. A feature that is clearly switched off is recoverable; a
 secret key sitting in a text column because the fallback seemed friendlier is
 not.
+
+**Without the key the whole surface is hidden rather than disabled.** The
+Settings panel does not render and no invoice offers a Pay-link button. It
+used to render greyed out with an amber box naming `CREDENTIALS_KEY`, which
+is the right message for whoever runs the server and the wrong one for every
+customer admin who opens Settings: it is not their server, they cannot set
+it, and a panel whose every field is dead reads as something broken rather
+than something not switched on yet. The operator keeps both signals that are
+actually theirs — the boot warning and `merchantCredentials` in
+`/api/health` — and the panel comes back by itself the moment the variable is
+set. Nothing in the code has to change to bring it back.
+
+The gate has two stages, so a button never appears before it would work:
+
+| State | Settings panel | Pay-link button on an invoice |
+|---|---|---|
+| No `CREDENTIALS_KEY` | hidden | hidden |
+| Key set, no account connected | **shown**, so a tenant can connect one | hidden |
+| Account connected and proved | shown | **shown** |
+
+Recording a payment by hand is never gated on any of this. It is money that
+has already arrived, and the books do not care how it was established.
 
 No endpoint returns a secret. `GET /payment-accounts` returns a mask —
 `sk_test_••••••••9f2c` — which is enough to tell a wrong paste from a right
