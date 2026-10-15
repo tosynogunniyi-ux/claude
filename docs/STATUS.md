@@ -238,11 +238,28 @@ swapped or truncated paste without printing a secret.
 
 ## When a screen will not draw
 
-The app no longer goes down with one bad record. A failure is contained to the
+The app does not go down with one bad record. A failure is contained to the
 screen it belongs to: a broken Settings leaves the dashboard, reports and
 invoices working. When you are looking at the affected screen you get a panel
 saying the books are safe, the one line worth sending to support, and three
 ways out — back to the dashboard, reload, sign out.
+
+That was true of Settings and nowhere else until 15 October. The eleven
+sections added for payments, receivables and recurring invoices had no guard
+around them at all, and any one of them could have taken the whole interface
+down for everyone. All of them are now contained, the navigation itself is
+guaranteed before any screen is built, and the server keeps serving through a
+fault in a background timer instead of exiting.
+
+**`npm run test:screens`** is the proof rather than the promise: 119 checks in
+a real browser that visit every screen and every tab, then replace each of
+nine API calls with each of five kinds of broken response — forty-five
+combinations — and require that both the affected screen and the dashboard
+stay usable after every one. It then kills the API outright, and finally
+breaks a section on purpose to watch the net catch it.
+
+It found three real faults the first time it ran, including one that would
+have locked a business out of its own books.
 
 ---
 
@@ -328,7 +345,7 @@ ways out — back to the dashboard, reload, sign out.
 `SEED_DEMO_DATA=true` fills each new account with eight months of sample
 Nigerian books. Leave it unset in production so real accounts start empty.
 
-Fourteen test suites, 916 checks, run against a live server and a real database:
+Fifteen test suites, 1,035 checks, run against a live server and a real database:
 
 | Command | Checks | Covers |
 |---|---|---|
@@ -345,4 +362,5 @@ Fourteen test suites, 916 checks, run against a live server and a real database:
 | `npm run test:ledger` | 62 | Double entry: balance, idempotency, reversals, closed periods, backfill |
 | `npm run test:payments` | 151 | Receipts across several invoices, money on account, credit notes, gateways, webhooks, forged signatures |
 | `npm run test:recurring` | 50 | Schedules: the dates, catching up, stopping, and that nobody is billed twice |
+| `npm run test:screens` | 119 | That no broken response can take the interface down, proved by breaking them |
 | `npm run test:trial` | 16 | That changing the trial length leaves running trials alone |

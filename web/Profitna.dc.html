@@ -2923,6 +2923,32 @@ const API = {
   del(path) { return API.call('DELETE', path); }
 };
 
+// What a section falls back to when building it threw.
+//
+// Generated from what the template actually walks, not from memory: every
+// list it iterates is an empty array here, every flag it tests is false, and
+// every handler it binds is a function that does nothing. A fallback missing
+// one of those keys would throw inside the handler for the first throw, and
+// there is no net under that one.
+//
+// Frozen so a section cannot quietly mutate the thing the next broken
+// section will fall back to.
+const NOOP = () => {};
+const SAFE = Object.freeze({
+  sales: { ageing: [], cards: [], chart: [], overdue: [], owing: [], recent: [], rows: [], tabs: [], ledgerWarn: false, noOverdue: false, noOwing: false, noRecent: false, noRows: false, tabCredits: false, tabInvoices: false, tabPayments: false, tabReceivables: false, tabRecurring: false, ageingNote: '', exportCsv: NOOP, ledgerNote: '', listNote: '', newInvoice: NOOP, onQ: NOOP, onStatus: NOOP, postPending: NOOP, q: '', recordPayment: NOOP, status: '', windowLabel: '' },
+  bld: { customers: [], lines: [], templates: [], totals: [], hasCustomers: false, hasError: false, identityGap: false, open: false, addLine: NOOP, billingAddress: '', businessLines: '', businessName: '', busy: '', close: NOOP, dueDate: '', error: '', goSettings: NOOP, grandTotal: '', identityNote: '', issue: NOOP, issueDate: NOOP, issueLabel: NOOP, notes: '', onBilling: NOOP, onDue: NOOP, onIssue: NOOP, onNotes: NOOP, onParty: NOOP, onPick: NOOP, onPo: NOOP, onTemplate: NOOP, opacity: '', party: '', pick: '', purchaseOrder: '', saveDraft: NOOP, subtitle: '', template: '', title: '', totalsNote: '', vatLabel: '' },
+  recs: { rows: [], noRows: false, onQ: NOOP, onStatus: NOOP, q: '', record: NOOP, status: '', summary: '' },
+  cns: { rows: [], noRows: false, summary: '' },
+  reps: { rows: [], hasDue: false, noRows: false, create: NOOP, dueNote: '', runAll: NOOP, summary: '' },
+  sched: { customers: [], lines: [], templates: [], upcoming: [], hasCustomers: false, hasError: false, hasUpcoming: false, open: false, startLocked: false, addLine: NOOP, cadence: '', close: NOOP, disabled: '', dueDays: '', end: '', error: '', estimate: '', frequency: '', intervalCount: '', maxOccurrences: '', name: '', notes: '', onDueDays: NOOP, onEnd: NOOP, onFrequency: NOOP, onInterval: NOOP, onMax: NOOP, onName: NOOP, onNotes: NOOP, onParty: NOOP, onPick: NOOP, onPo: NOOP, onStart: NOOP, onTemplate: NOOP, opacity: '', party: '', pick: '', purchaseOrder: '', save: NOOP, start: '', startNote: '', subtitle: '', template: '', title: '' },
+  arv: { cards: [], credits: [], customers: [], overdue: [], unallocated: [], collectReady: false, noCredits: false, noCustomers: false, noOverdue: false, noUnallocated: false, warn: false, collectNote: '', note: '', postPending: NOOP },
+  rcpt: { banks: [], customers: [], invoices: [], methods: [], hasBanks: false, hasCustomers: false, hasError: false, noInvoices: false, open: false, allocatedLabel: NOOP, amount: '', amountLabel: '', bankAccountId: '', close: NOOP, collectNote: '', date: '', disabled: '', error: '', leftFg: '', leftLabel: '', leftNote: '', lockMoney: '', method: '', noInvoicesNote: '', notes: '', onAmount: NOOP, onBank: NOOP, onDate: NOOP, onMethod: NOOP, onNotes: NOOP, onParty: NOOP, onPick: NOOP, onReference: NOOP, opacity: '', party: '', pick: '', reference: '', save: NOOP, saveLabel: NOOP, subtitle: '', suggest: NOOP, title: '' },
+  cnote: { lines: [], hasError: false, open: false, addLine: NOOP, busy: '', close: NOOP, error: '', estimate: '', issue: NOOP, onIssue: NOOP, onReason: NOOP, opacity: '', reason: '', save: NOOP, subtitle: '', title: '' },
+  plink: { open: false, check: NOOP, close: NOOP, copy: NOOP, note: '', noteBg: '', noteFg: '', subtitle: '', title: '', url: '' },
+  merch: { providers: [], show: false, storageBlocked: false, note: '', storageNote: '' },
+  readOnly: { show: false, bg: '', border: '', detail: '', headline: '', rule: '' }
+});
+
 const EMPTY_BOOK = () => ({ clients: [], vendors: [], tx: [], inv: [], bills: [], inventory: [], bank: [], imported: false, cats: [], income: [], accounts: [] });
 
 // Meta ads tracking, the browser half.
@@ -3396,7 +3422,11 @@ class Component extends DCLogic {
 
   invoicingVals() {
     const st = this.state;
-    const d = st.dash;
+    // Only treated as loaded when it carries what this screen reads. A
+    // half-shaped payload falls into the same branch as no payload at all,
+    // which the template already draws.
+    const d = st.dash && st.dash.metrics && st.dash.window && Array.isArray(st.dash.monthly)
+      ? st.dash : null;
     const money = (k) => this.naira(k);
     const blank = { cards: [], chart: [], ageing: [], owing: [], overdue: [], recent: [], rows: [] };
 
@@ -3466,7 +3496,11 @@ class Component extends DCLogic {
       label, fg, value: money(value), pct: Math.round((value / ageTotal) * 100)
     }));
 
-    const list = st.invList || { invoices: [], total: 0, outstanding: 0 };
+    // `st.invList || {…}` was not enough: `{}` is truthy, so a half-shaped
+    // payload sailed past the fallback and threw on `.invoices.map`. The
+    // test caught this by sending one.
+    const list = st.invList && Array.isArray(st.invList.invoices)
+      ? st.invList : { invoices: [], total: 0, outstanding: 0 };
     const STATUS = {
       paid: ['Paid', '#E8F3EC', '#0B6B4F'],
       unpaid: ['Unpaid', '#FAEEDA', '#7A5A0C'],
@@ -3652,7 +3686,8 @@ class Component extends DCLogic {
   }
 
   recurringVals() {
-    const list = this.state.recList;
+    const list = this.state.recList && Array.isArray(this.state.recList.schedules)
+      ? this.state.recList : null;
     if (!list) {
       return { rows: [], noRows: true, summary: 'Reading your schedules…',
         dueNote: '', hasDue: false, create: () => this.openSchedule(), runAll: () => {} };
@@ -4090,7 +4125,7 @@ class Component extends DCLogic {
 
   paymentsVals() {
     const st = this.state;
-    const list = st.payList;
+    const list = st.payList && Array.isArray(st.payList.payments) ? st.payList : null;
     if (!list) {
       return { rows: [], noRows: true, loading: true, summary: 'Reading your receipts…',
         q: '', status: 'all', onQ: () => {}, onStatus: () => {}, record: () => this.openPayment() };
@@ -4290,7 +4325,8 @@ class Component extends DCLogic {
   }
 
   creditsVals() {
-    const list = this.state.cnList;
+    const list = this.state.cnList && Array.isArray(this.state.cnList.creditNotes)
+      ? this.state.cnList : null;
     if (!list) return { rows: [], noRows: true, summary: 'Reading your credit notes…' };
     const TONE = {
       issued: ['Issued', '#E8F3EC', '#0B6B4F'],
@@ -4324,7 +4360,8 @@ class Component extends DCLogic {
   // ---------------- receivables ----------------
 
   receivablesVals() {
-    const r = this.state.recv;
+    const r = this.state.recv && this.state.recv.ageing && Array.isArray(this.state.recv.byCustomer)
+      ? this.state.recv : null;
     if (!r) {
       return { cards: [], customers: [], unallocated: [], credits: [], overdue: [],
         noCustomers: true, noUnallocated: true, noCredits: true, noOverdue: true,
@@ -4504,8 +4541,8 @@ class Component extends DCLogic {
   }
 
   merchVals() {
-    const m = this.state.merch;
-    const draft = this.state.merchDraft;
+    const m = this.state.merch && Array.isArray(this.state.merch.providers) ? this.state.merch : null;
+    const draft = this.state.merchDraft || {};
     if (!m || m.forbidden) {
       return {
         show: false, providers: [], storageReady: true, storageBlocked: false,
@@ -5007,8 +5044,40 @@ class Component extends DCLogic {
       askAi: () => this.runAsk(st.aiQ) };
   }
   // ---------------- helpers ----------------
-  d() { return this.state.mode === 'sme' ? this.state.sme : this.state.church; }
-  o() { return this.state.mode === 'sme' ? this.state.org : this.state.chOrg; }
+  // The book, with every list guaranteed to be a list.
+  //
+  // This is read in the part of buildVals that builds the shell — the
+  // navigation, the badges, the period totals — which is outside any
+  // section() and therefore outside the net. A server that answered `{}`
+  // took the whole interface down, because `d.tx.filter` on an absent array
+  // throws before any screen has been reached.
+  //
+  // Merging over EMPTY_BOOK fixes it once, here, rather than at the forty
+  // places that read a list off it. A field the server did not send reads as
+  // empty, which is what "we have not got that" means on every one of them.
+  d() {
+    const held = this.state.mode === 'sme' ? this.state.sme : this.state.church;
+    if (!held || typeof held !== 'object' || Array.isArray(held)) return EMPTY_BOOK();
+    const safe = EMPTY_BOOK();
+    for (const key of Object.keys(safe)) {
+      if (Array.isArray(safe[key])) {
+        if (Array.isArray(held[key])) safe[key] = held[key];
+      } else if (held[key] !== undefined && held[key] !== null) {
+        safe[key] = held[key];
+      }
+    }
+    // Anything the book carries that EMPTY_BOOK does not name is passed
+    // through untouched; this guarantees the lists, it does not police the
+    // shape.
+    for (const key of Object.keys(held)) {
+      if (!(key in safe)) safe[key] = held[key];
+    }
+    return safe;
+  }
+  o() {
+    const held = this.state.mode === 'sme' ? this.state.org : this.state.chOrg;
+    return held && typeof held === 'object' ? held : {};
+  }
   setD(patch) {
     const key = this.state.mode === 'sme' ? 'sme' : 'church';
     this.setState((s) => ({ [key]: Object.assign({}, s[key], patch) }));
@@ -6340,9 +6409,9 @@ class Component extends DCLogic {
     const st = this.state;
     const SCREENS = {
       dashboard: 'Dashboard', ai: 'Ask Profitna', transactions: 'Expenses & Income',
-      invoices: 'Invoices', bills: 'Bills', contacts: 'Customers & Suppliers',
-      inventory: 'Products', reconcile: 'Reconciliation', reports: 'Reports',
-      settings: 'Settings'
+      invoices: 'Invoices', invoicing: 'Invoicing', bills: 'Bills',
+      contacts: 'Customers & Suppliers', inventory: 'Products',
+      reconcile: 'Reconciliation', reports: 'Reports', settings: 'Settings'
     };
     return {
       crashed: true,
@@ -6793,20 +6862,31 @@ class Component extends DCLogic {
       incomeWord, partyWord: church ? 'Member / Vendor' : 'Client / Vendor', fundWord: church ? 'Fund' : 'Method',
       isDashboard: st.screen === 'dashboard', isTx: st.screen === 'transactions', isAI: st.screen === 'ai',
       isInvoicing: st.screen === 'invoicing',
-      sales: this.invoicingVals(),
-      bld: this.builderVals(),
+      // Every section below is built on every render, whatever screen is
+      // showing — so without section() a bad row behind Receivables takes the
+      // dashboard, the invoices and the reports down with it, and a reload
+      // reproduces the fault because it lives in the data. That is being
+      // locked out of your own books by one unexpected figure.
+      //
+      // Each fallback is the shape the template walks when there is nothing
+      // to show: every list an empty array, every sc-if flag false. A
+      // fallback that is missing a key the shell iterates would throw a
+      // second time, inside the handler for the first throw, and there is no
+      // net under that one.
+      sales: this.section('invoicing', () => this.invoicingVals(), SAFE.sales),
+      bld: this.section('invoicing', () => this.builderVals(), SAFE.bld),
       // Release 2. Each of these is cheap when its screen is closed: the
       // *Vals methods return a tiny closed shape rather than building a form
       // nobody is looking at.
-      recs: this.paymentsVals(),
-      cns: this.creditsVals(),
-      reps: this.recurringVals(),
-      sched: this.scheduleVals(),
-      arv: this.receivablesVals(),
-      rcpt: this.receiptFormVals(),
-      cnote: this.creditVals(),
-      plink: this.payLinkVals(),
-      merch: this.merchVals(),
+      recs: this.section('invoicing', () => this.paymentsVals(), SAFE.recs),
+      cns: this.section('invoicing', () => this.creditsVals(), SAFE.cns),
+      reps: this.section('invoicing', () => this.recurringVals(), SAFE.reps),
+      sched: this.section('invoicing', () => this.scheduleVals(), SAFE.sched),
+      arv: this.section('invoicing', () => this.receivablesVals(), SAFE.arv),
+      rcpt: this.section('invoicing', () => this.receiptFormVals(), SAFE.rcpt),
+      cnote: this.section('invoicing', () => this.creditVals(), SAFE.cnote),
+      plink: this.section('invoicing', () => this.payLinkVals(), SAFE.plink),
+      merch: this.section('settings', () => this.merchVals(), SAFE.merch),
       isLedgerDoc: st.screen === 'invoices' || st.screen === 'bills', isContacts: st.screen === 'contacts',
       isInventory: st.screen === 'inventory', isReconcile: st.screen === 'reconcile',
       isReports: st.screen === 'reports', isSettings: st.screen === 'settings',
@@ -6814,7 +6894,7 @@ class Component extends DCLogic {
       // the disabled state that stops the keyboard reaching it either.
       roleKey: st.role === 'Admin' ? 'admin' : st.role === 'Viewer' ? 'viewer' : 'accountant',
       perm: { noWrite: st.role === 'Viewer', noAdmin: st.role !== 'Admin' },
-      readOnly: this.readOnlyVals(),
+      readOnly: this.section('settings', () => this.readOnlyVals(), SAFE.readOnly),
       ...this.aiVals(d, o, months, catTotals, forecast, cash),
       kpis, kpisMain: kpis.slice(0, 4),
       kpisMini: kpis.slice(4).map((k, i) => Object.assign({}, k, { label: (church ? ['Pledges due', 'Payable', 'Restricted', 'Uncoded'] : ['Receivable', 'Payable', 'Stock value', 'Uncoded'])[i] || k.label })), chart, forecast, topIncome: catTotals('income'), topExpense: catTotals('expense'),

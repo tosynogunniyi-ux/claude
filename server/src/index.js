@@ -22,6 +22,10 @@ const recurringRoutes = require('./routes/recurring');
 const payRoutes = require('./routes/pay');
 
 const app = express();
+
+// Counted here so /api/health can report them; see the handlers at the foot
+// of this file for why the process keeps serving rather than exiting.
+const faults = { rejections: 0, exceptions: 0, last: null };
 app.set('trust proxy', 1);
 
 // Webhooks verify a signature over the exact bytes received, so they are
@@ -82,7 +86,15 @@ app.get('/api/health', async (req, res) => {
     // can pay their invoices online. "off" means CREDENTIALS_KEY is not
     // reaching this container — the one thing that cannot be worked out from
     // the outside, and the thing that makes the feature silently absent.
-    merchantCredentials: require('./crypto').configured() ? 'encrypted at rest' : 'off'
+    merchantCredentials: require('./crypto').configured() ? 'encrypted at rest' : 'off',
+    // Zero is the only good answer. A number here means something threw where
+    // nothing was listening: the server kept serving rather than dying, which
+    // is the right trade for a live site, but the fault is real and the log
+    // has the stack. Shown because a process quietly limping is worse than
+    // one that fell over honestly.
+    faults: faults.rejections + faults.exceptions === 0
+      ? 'none'
+      : { rejections: faults.rejections, exceptions: faults.exceptions, last: faults.last }
   });
 });
 // Where a customer lands after paying, and a reference they can poll. Public
@@ -155,6 +167,35 @@ for (const w of require('./integrations/meta').warnings()) {
 for (const w of require('./crypto').warnings()) {
   console.warn('WARNING: ' + w);
 }
+
+// What happens when something throws where nothing is listening.
+//
+// Node's default for an unhandled promise rejection is to terminate. For a
+// library that is right; for the single process serving a live accounting
+// product it is not. The realistic source is background work — the billing
+// pass, a backup, the ledger backfill, a recurring schedule — and a lost
+// promise in a timer should not take the books offline for every business
+// using them at three in the morning. The HTTP server is still healthy and
+// still serving; killing it turns a background hiccup into an outage.
+//
+// So it is logged loudly and counted, and the count is on /api/health — the
+// one thing worse than a crash is a process quietly limping while everyone
+// assumes it is fine. Nothing here swallows anything: the reason and the
+// stack go to the log in full.
+function record(kind, err) {
+  faults[kind] += 1;
+  faults.last = {
+    kind,
+    at: new Date().toISOString(),
+    message: (err && err.message) || String(err)
+  };
+  console.error('UNHANDLED ' + kind.toUpperCase().replace(/S$/, '') + ' — the server is still ' +
+    'serving, but this is a fault that should not exist:');
+  console.error(err && err.stack ? err.stack : err);
+}
+
+process.on('unhandledRejection', (reason) => record('rejections', reason));
+process.on('uncaughtException', (err) => record('exceptions', err));
 
 if (require.main === module) {
   // Fail at boot rather than at the first sign-in attempt: a missing secret is

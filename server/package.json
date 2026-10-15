@@ -23,7 +23,8 @@
     "test:pdf": "node test/pdf.js",
     "test:ledger": "node test/ledger.js",
     "test:payments": "node test/payments.js",
-    "test:recurring": "node test/recurring.js"
+    "test:recurring": "node test/recurring.js",
+    "test:screens": "node test/screens.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.0",
@@ -37,6 +38,7 @@
     "react": "^18.3.1"
   },
   "devDependencies": {
-    "pdf-parse": "^2.4.5"
+    "pdf-parse": "^2.4.5",
+    "playwright-core": "^1.64.1"
   }
 }

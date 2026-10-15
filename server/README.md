@@ -48,6 +48,7 @@ what it can honestly do:
 | `ADMIN_TOTP` | Two-factor is required. Set it to `off` only if you cannot use an authenticator app. |
 | `BILLING_SCHEDULER` | Trials end and terms renew automatically. Set it to `off` to stop that. |
 | `RECURRING_SCHEDULER` | Recurring invoices raise themselves hourly. Set it to `off` to stop that; schedules can still be run by hand. |
+| `SCREENS_REQUIRE_BROWSER` | `npm run test:screens` skips when no Chromium is present. Set it to `1` in CI so a missing browser fails the run instead of quietly not checking that the interface cannot be taken down. |
 | `CREDENTIALS_KEY` | Online collection is **hidden**, not broken: the Settings panel and every Pay-link button are absent, and nothing is stored in the clear as a fallback. The boot log and `/api/health` say why. Setting the variable brings the panel back on its own. |
 | `PUBLIC_BASE_URL` | The webhook URL a tenant pastes into their provider's dashboard is built from the request's own host. Set it when the app sits behind a proxy that rewrites `Host`. |
 | `GATEWAY_TIMEOUT_MS` | Calls out to a tenant's gateway give up after 8 seconds, under the proxy's own patience, so our explanation reaches the browser instead of the proxy's error page. |
@@ -744,6 +745,93 @@ false, and nothing could set it — so 7.5% could never have been applied to
 anything. The smoke suite found it by asserting VAT appeared and getting
 zero. `PATCH /orgs/:id` now carries it, along with the address, phone, email,
 website, TIN and RC number an invoice has to print.
+
+## Not being locked out of your own books
+
+The whole interface is one function, and everything it builds it builds on
+every render — whatever screen is showing. So a section that throws because
+one figure came back in an unexpected shape does not break its own screen. It
+breaks the entire app, and a reload reproduces it, because the fault lives in
+the data rather than in the page. That is being locked out of your own books
+by a bad row, and it is the worst failure this product can have: worse than a
+wrong number, because a wrong number can at least be seen.
+
+Three layers stop it, and a suite that proves each one fires.
+
+### One screen's failure stays on one screen
+
+Every section goes through `section(name, build, fallback)`. If building it
+throws, the fault is logged, that screen gets a panel saying it could not be
+drawn — naming itself, with the one line worth sending to support and three
+ways out — and **every other screen carries on working**. Before this, only
+Settings was wrapped; the eleven sections added for payments, receivables and
+recurring were not, and any one of them could take the dashboard down.
+
+The fallbacks are generated from what the template actually walks rather than
+written from memory: every list it iterates is an empty array, every flag it
+tests is false, every handler it binds does nothing. A fallback missing one of
+those keys would throw inside the handler for the first throw, and there is no
+net under that one.
+
+### The shell is guaranteed before any screen is
+
+`d()` merges the book over `EMPTY_BOOK` so every list is a list. The
+navigation, the badges and the period totals are built outside any section —
+outside the net — so a server answering `{}` used to take the whole interface
+down on `d.tx.filter` before any screen had been reached. A field the server
+did not send now reads as empty, which is what "we have not got that" means
+on every one of them.
+
+Each screen then treats its own payload as loaded only when it carries what
+that screen reads. A half-shaped response falls into the same branch as no
+response at all, which every template is already built to draw.
+
+### The server keeps serving
+
+Node ends the process on an unhandled promise rejection. For a library that is
+right; for the single process serving a live accounting product it is not. The
+realistic source is background work — the billing pass, a backup, the ledger
+backfill, a recurring schedule — and a lost promise in a timer should not take
+the books offline for every business using them at three in the morning.
+
+So it is logged in full, counted, and the count is on `/api/health` as
+`faults`. Zero is the only good answer. Nothing is swallowed: the reason and
+the stack go to the log, and a process quietly limping while everyone assumes
+it is fine is worse than one that fell over honestly.
+
+### The suite that proves it
+
+`npm run test:screens` — 119 checks in a real browser against a real server.
+It does not read the code and agree with it. It **breaks things**:
+
+- every screen in the navigation, and every tab inside Invoicing, is visited
+  and must draw with nothing thrown;
+- every form is opened;
+- then each of nine API calls the screens depend on is replaced, one at a
+  time, with each of five things a real deployment has actually produced — an
+  empty object, `null`, an array where an object belongs, nulls inside every
+  field, and a proxy's HTML error page. Forty-five combinations, and after
+  each one both the broken screen and **the dashboard** must still be usable;
+- then the API is killed outright and four screens must still draw;
+- then one section is fed a payload shaped to pass every guard and throw
+  anyway, to watch the net catch something. The screen must say it could not
+  be drawn, say *which* screen, keep the navigation, and leave the fault
+  behind when you walk away from it.
+
+A contained failure is counted as the system working, not as a crash — that is
+the whole point of the guard — but anything uncaught fails the run.
+
+It is the only suite needing a browser, so a machine without one skips loudly
+rather than failing. **CI should set `SCREENS_REQUIRE_BROWSER=1`**, which turns
+a skip into a failure, so the guarantee cannot quietly stop being checked.
+
+### What it found the first time it ran
+
+- A malformed book payload killed the shell, not just a screen — the fault
+  this was all built to prevent, live in the product.
+- `st.invList || { invoices: [] }` did not help, because `{}` is truthy: a
+  half-shaped payload sailed past the fallback and threw on `.invoices.map`.
+- Nine of the eleven new sections had no guard around them at all.
 
 ## Recurring invoices
 
