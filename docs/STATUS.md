@@ -315,11 +315,12 @@ have locked a business out of its own books.
   and Easypanel is on the VPS, which the build environment cannot reach.)
 - **Google sign-in** is still in Testing on the consent screen, so only
   tosyn.ogunniyi@gmail.com can use it. Publish it to open it up.
-- **A privacy note for the ad tracking.** Once `META_PIXEL_ID` is set, the
-  site sets Meta's cookies and sends hashed identifiers to Meta. Nigeria's
-  NDPR expects visitors to be told that in a privacy policy, and Meta's own
-  terms require it. Nothing in the product says it yet — there is no privacy
-  page and no cookie notice.
+- **The privacy notice needs two facts only you have.** `web/privacy.html` is
+  written and served at `/privacy` (and `/cookies`), but it carries two
+  deliberate placeholders, shown in amber so they cannot be missed: the
+  **registered company name and address**, and the **region the Hostinger VPS
+  sits in**. Both have to be filled before the page is honest. Everything else
+  on it describes what the code actually does.
 - **Online invoice payments need a server key.** Customers can pay a business's
   invoices through that business's own Paystack or Monnify account — but only
   once `CREDENTIALS_KEY` is set in Easypanel → your app service → Environment.
@@ -342,6 +343,15 @@ have locked a business out of its own books.
   URL shown there into the same provider dashboard page. The URL is unique to
   that business. Pay-link buttons appear on invoices only once an account has
   been connected *and* proved, so a button never appears before it works.
+
+- **Tracking now waits to be asked.** The Meta pixel used to load the moment
+  the server reported an id. It no longer does: nothing is fetched from Meta
+  and no cookie of theirs is set until a visitor presses Allow on the banner.
+  The server half obeys the same answer — the choice is a first-party cookie
+  (`profitna_ads`), so it arrives with the signup and the payment, and
+  `meta.trackFor()` is what both routes call so the check cannot be forgotten
+  at one of them. Declines are counted separately from failures, because "no
+  events" and "everyone said no" are different facts.
 
 - **Automatic email is live.** Sending since 16 October 2026, through Hostinger
   Email as `info@profitna.com`, replies to `support@profitna.com`. A test
@@ -394,18 +404,18 @@ have locked a business out of its own books.
 `SEED_DEMO_DATA=true` fills each new account with eight months of sample
 Nigerian books. Leave it unset in production so real accounts start empty.
 
-Sixteen test suites, 1,139 checks, run against a live server and a real database:
+Sixteen test suites, 1,154 checks, run against a live server and a real database:
 
 | Command | Checks | Covers |
 |---|---|---|
-| `npm run smoke` | 130 | Signup, ledger, invoices, inventory, imports, tenant isolation |
+| `npm run smoke` | 136 | Signup, ledger, invoices, inventory, imports, tenant isolation, the privacy notice |
 | `npm run smoke:admin` | 103 | The Control Center, its auth, its second factor and the outbox |
 | `npm run test:billing` | 54 | A trial through to a charge, a decline, a retry, a recovery |
 | `npm run test:monnify` | 85 | The processor, amounts, webhooks, and the live switch |
 | `npm run test:ask` | 60 | What Profitna AI may read, and that its tables are the database's |
 | `npm run test:backup` | 27 | A real dump, read back, copied off the machine, plus retention |
 | `npm run test:offsite` | 33 | The AWS signature against AWS’s own signer, and a real upload |
-| `npm run test:meta` | 41 | Ad events, and that no readable email ever leaves the server |
+| `npm run test:meta` | 50 | Ad events, consent gating, and that no readable email ever leaves the server |
 | `npm run test:invoicing` | 67 | Invoice money in integer kobo, Nigerian VAT and WHT, numbering under load and across years |
 | `npm run test:pdf` | 52 | A4 invoice PDFs: the naira glyph, pagination, five designs, isolation |
 | `npm run test:ledger` | 62 | Double entry: balance, idempotency, reversals, closed periods, backfill |

@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Privacy and cookies — Profitna</title>
+<meta name="description" content="What Profitna collects, why, who it is shared with, and how to control it." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --paper: #F4F3EE; --card: #FFFFFF; --ink: #1a1a1a; --muted: #5A5751;
+    --faint: #8A8578; --line: #E5E1D8; --gold: #B8863A; --link: #412402;
+    --amber-bg: #FDF4E3; --amber: #8A5A10;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #14130F; --card: #1C1B17; --ink: #EDEAE2; --muted: #A9A49A;
+      --faint: #6E6A61; --line: #2C2A24; --gold: #D2A45C; --link: #E0B877;
+      --amber-bg: #2A2316; --amber: #E0B877;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #14130F; --card: #1C1B17; --ink: #EDEAE2; --muted: #A9A49A;
+    --faint: #6E6A61; --line: #2C2A24; --gold: #D2A45C; --link: #E0B877;
+    --amber-bg: #2A2316; --amber: #E0B877;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: 'Familjen Grotesk', system-ui, -apple-system, sans-serif;
+    font-size: 16px; line-height: 1.65; -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 40px 16px 72px; }
+  header.top { border-bottom: 1px solid var(--line); padding-bottom: 20px; margin-bottom: 28px; }
+  .brand { font-size: 13px; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); font-weight: 600; }
+  h1 { font-size: 30px; line-height: 1.2; margin: 10px 0 8px; font-weight: 700; }
+  h2 { font-size: 19px; margin: 38px 0 10px; font-weight: 600; }
+  h3 { font-size: 15.5px; margin: 22px 0 6px; font-weight: 600; }
+  p, li { color: var(--muted); }
+  p { margin: 0 0 14px; }
+  ul { margin: 0 0 14px; padding-left: 20px; }
+  li { margin-bottom: 7px; }
+  strong { color: var(--ink); font-weight: 600; }
+  a { color: var(--link); text-decoration: underline; text-underline-offset: 2px; }
+  a:hover { color: var(--gold); }
+  .dates { font-size: 13.5px; color: var(--faint); font-family: 'IBM Plex Mono', monospace; }
+  .lede { font-size: 17px; color: var(--ink); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; margin: 0 0 18px; }
+  .fill { background: var(--amber-bg); color: var(--amber); font-weight: 600; padding: 1px 7px; border-radius: 4px; font-size: 14px; }
+  table { width: 100%; border-collapse: collapse; margin: 6px 0 18px; font-size: 14.5px; }
+  th { text-align: left; font-weight: 600; color: var(--ink); border-bottom: 1px solid var(--line); padding: 8px 10px 8px 0; vertical-align: top; }
+  td { color: var(--muted); border-bottom: 1px solid var(--line); padding: 10px 10px 10px 0; vertical-align: top; }
+  td:first-child { color: var(--ink); font-weight: 500; white-space: nowrap; }
+  code { font-family: 'IBM Plex Mono', monospace; font-size: 13.5px; background: var(--amber-bg); color: var(--amber); padding: 1px 5px; border-radius: 4px; }
+  nav.toc { font-size: 14.5px; }
+  nav.toc ol { margin: 0; padding-left: 20px; }
+  nav.toc li { margin-bottom: 4px; }
+  .btn {
+    display: inline-block; border: 1px solid var(--line); background: var(--card); color: var(--ink);
+    border-radius: 7px; padding: 9px 16px; font-size: 14px; font-weight: 600; cursor: pointer;
+    font-family: inherit; margin: 0 8px 8px 0;
+  }
+  .btn:hover { border-color: var(--gold); }
+  .btn.on { background: #1a1a1a; color: #FFFFFF; border-color: #1a1a1a; }
+  .state { font-size: 14px; color: var(--muted); margin: 10px 0 0; }
+  footer { border-top: 1px solid var(--line); margin-top: 46px; padding-top: 18px; font-size: 13.5px; color: var(--faint); }
+  @media (max-width: 520px) {
+    h1 { font-size: 25px; }
+    td:first-child { white-space: normal; }
+  }
+</style>
+</head>
+<body>
+<main class="wrap">
+
+<header class="top">
+  <div class="brand">Profitna</div>
+  <h1>Privacy and cookies</h1>
+  <p class="dates">Effective 16 October 2026 · Last updated 16 October 2026</p>
+</header>
+
+<p class="lede">Profitna is accounting and business-finance software for Nigerian businesses,
+churches and non-profits. This page explains what we collect, why we are allowed to, who
+else sees it, and what you can tell us to do about it. It is written to be read, not to be
+survived.</p>
+
+<div class="card">
+  <h3 style="margin-top:0;">The short version</h3>
+  <ul style="margin-bottom:0;">
+    <li>Your books are yours. We do not sell them, and we do not use them to advertise to you.</li>
+    <li>We collect what the software needs to work, plus what the law requires us to keep.</li>
+    <li>Advertising cookies are <strong>off until you turn them on</strong>, and you can turn them off again on this page.</li>
+    <li>You can ask for a copy of your data, or for it to be corrected or deleted.</li>
+  </ul>
+</div>
+
+<nav class="toc card">
+  <h3 style="margin-top:0;">On this page</h3>
+  <ol>
+    <li><a href="#who">Who we are</a></li>
+    <li><a href="#collect">What we collect</a></li>
+    <li><a href="#why">Why, and what allows us to</a></li>
+    <li><a href="#others">Data about other people that you put into Profitna</a></li>
+    <li><a href="#share">Who else receives data</a></li>
+    <li><a href="#where">Where it is kept, and transfers outside Nigeria</a></li>
+    <li><a href="#keep">How long we keep it</a></li>
+    <li><a href="#rights">Your rights</a></li>
+    <li><a href="#security">How it is protected</a></li>
+    <li><a href="#cookies">Cookies, and your choice</a></li>
+    <li><a href="#email">Email we send you</a></li>
+    <li><a href="#children">Children</a></li>
+    <li><a href="#changes">Changes to this page</a></li>
+    <li><a href="#complain">Complaints</a></li>
+  </ol>
+</nav>
+
+<h2 id="who">1. Who we are</h2>
+
+<p>Profitna is operated by <span class="fill">[Registered company name]</span>, registered in
+Nigeria at <span class="fill">[Registered address]</span>. Where this page says
+<strong>we</strong>, that is who it means.</p>
+
+<p>For anything about your data — a question, a request, a complaint — write to
+<a href="mailto:support@profitna.com">support@profitna.com</a>. A person reads it.</p>
+
+<p>In the language of the <strong>Nigeria Data Protection Act 2023</strong>, we are the
+<em>data controller</em> for information about you as a Profitna user. For the books you keep
+in Profitna, the position is different and section 4 explains it.</p>
+
+<h2 id="collect">2. What we collect</h2>
+
+<h3>When you create an account</h3>
+<table>
+  <tr><th>What</th><th>Where it comes from</th></tr>
+  <tr><td>Your name and email address</td><td>You, or Google if you sign in with Google</td></tr>
+  <tr><td>Your password</td><td>You. Stored only as a bcrypt hash — we cannot read it, and neither can anyone who steals the database</td></tr>
+  <tr><td>Your organisation's name, type and state</td><td>You, at signup</td></tr>
+  <tr><td>Your role on the account</td><td>Whoever invited you</td></tr>
+</table>
+
+<h3>When you use Profitna</h3>
+<table>
+  <tr><th>What</th><th>Note</th></tr>
+  <tr><td>Your books</td><td>Invoices, bills, customers, suppliers, products, bank lines, journals — everything you enter or import</td></tr>
+  <tr><td>An activity log</td><td>What was changed, by whom and when. An accounting system that cannot answer that is not an accounting system</td></tr>
+  <tr><td>Questions you ask Profitna AI</td><td>Section 5 explains where those go</td></tr>
+  <tr><td>Bank connection details</td><td>The institution and a <em>masked</em> account number. We never hold your bank login</td></tr>
+</table>
+
+<h3>When you pay us</h3>
+<table>
+  <tr><th>What</th><th>Note</th></tr>
+  <tr><td>Card brand, last four digits and expiry</td><td>Only what the screen shows back to you</td></tr>
+  <tr><td>Payment references, amounts and outcomes</td><td>Needed for your receipts and our records</td></tr>
+  <tr><td>Your full card number and CVV</td><td><strong>Never collected and never stored.</strong> Those go straight from your browser to the payment processor and never touch our servers</td></tr>
+</table>
+
+<h3>Automatically, from your device</h3>
+<table>
+  <tr><th>What</th><th>Note</th></tr>
+  <tr><td>IP address and browser user-agent</td><td>In server logs, and used for session security</td></tr>
+  <tr><td>Cookies</td><td>Section 10, which also has the controls</td></tr>
+</table>
+
+<h2 id="why">3. Why, and what allows us to</h2>
+
+<p>Under the Nigeria Data Protection Act every use of your data needs a lawful basis. Ours:</p>
+
+<table>
+  <tr><th>What we do</th><th>Why we may</th></tr>
+  <tr><td>Run the software, keep your books, take payment</td><td><strong>Performing our contract</strong> with you</td></tr>
+  <tr><td>Tell you your trial is ending, a payment failed, your account status changed</td><td><strong>Performing our contract.</strong> These cannot be switched off — not telling you would be worse than the email</td></tr>
+  <tr><td>Keep the activity log, prevent fraud and abuse, keep backups</td><td><strong>Our legitimate interest</strong> in a product that is accurate and secure</td></tr>
+  <tr><td>Help you get started with the parts you have not used</td><td><strong>Our legitimate interest.</strong> You can switch these off at any time</td></tr>
+  <tr><td>Keep accounting and tax records</td><td><strong>Legal obligation</strong></td></tr>
+  <tr><td>Advertising and measurement (Meta)</td><td><strong>Your consent</strong>, and nothing happens until you give it</td></tr>
+  <tr><td>Marketing email from us</td><td><strong>Your consent</strong>, which is off by default and which you can withdraw in one click</td></tr>
+</table>
+
+<p>We do not sell your personal data. We do not make decisions about you by automated means
+that produce legal effects.</p>
+
+<h2 id="others">4. Data about other people that you put into Profitna</h2>
+
+<p>This is the part most privacy policies skip, and for an accounting product it is the
+important one.</p>
+
+<p>When you record a customer, a supplier, a staff member or a donor, you are putting
+<em>their</em> personal data into our software. For that data <strong>you are the data
+controller and we are your data processor</strong>. In plain terms:</p>
+
+<ul>
+  <li>It stays yours. We process it to run the service for you and for nothing else.</li>
+  <li>We do not use it to advertise, to train any model, or to build a profile of anyone.</li>
+  <li>We do not look at it except where we must to fix a fault, answer your support request, or comply with the law — and those occasions are logged.</li>
+  <li>If one of your customers asks you to correct or delete their data, that is your request to answer. We will help you do it.</li>
+  <li><strong>Your own obligations still apply.</strong> You need a lawful basis for the data you enter about other people, and you must tell them how you use it. Profitna being compliant does not make you compliant.</li>
+</ul>
+
+<h2 id="share">5. Who else receives data</h2>
+
+<p>Only these, only for the stated purpose, and none of them may use it for their own ends
+except where noted.</p>
+
+<table>
+  <tr><th>Who</th><th>What they get, and why</th></tr>
+  <tr><td>Monnify / Paystack</td><td>Your name, email and the amount, to take subscription payment and to tell us whether it worked. They are the ones who see your card; we never do.</td></tr>
+  <tr><td>Mono</td><td>If you connect a bank account, Mono brokers that connection and returns transactions. Their own privacy terms apply to the bank-side consent you give them.</td></tr>
+  <tr><td>Anthropic</td><td>If you use <strong>Ask Profitna</strong>, your question and a snapshot of the figures needed to answer it are sent to Anthropic's Claude API, which generates the answer. It is not used to train their models. Do not type anything into the question box you would not want sent — and if you would rather none of it went, simply do not use that feature.</td></tr>
+  <tr><td>Hostinger</td><td>Hosts our servers and sends our email, so they handle the data in transit and at rest.</td></tr>
+  <tr><td>Google</td><td>Only if you choose to sign in with Google, and only to confirm who you are.</td></tr>
+  <tr><td>Meta (Facebook, Instagram)</td><td><strong>Only with your consent.</strong> If you accept advertising cookies, Meta receives your IP address, your browser user-agent, Meta's own cookie identifiers, and your email, name and user id <em>each hashed with SHA-256</em> so they leave as scrambled values rather than readable text. Meta never receives anything from your books. See section 10 to turn this off.</td></tr>
+  <tr><td>Our backup storage provider</td><td>Encrypted database backups, so that a lost server is not a lost business.</td></tr>
+  <tr><td>Courts, regulators and law enforcement</td><td>Where we are legally required to. We tell you unless we are forbidden from telling you.</td></tr>
+</table>
+
+<h2 id="where">6. Where it is kept, and transfers outside Nigeria</h2>
+
+<p>Profitna runs on servers provided by Hostinger International Ltd, located in
+<span class="fill">[hosting region]</span>. Several of the services in section 5 also
+process data outside Nigeria.</p>
+
+<p>The Nigeria Data Protection Act allows this where the destination gives adequate
+protection or where appropriate contractual safeguards are in place. We rely on the
+processing terms in our contracts with each provider. If you want to know which apply to a
+particular provider, ask us and we will tell you.</p>
+
+<h2 id="keep">7. How long we keep it</h2>
+
+<table>
+  <tr><th>What</th><th>How long</th></tr>
+  <tr><td>Your account and your books</td><td>While your account is open, and for as long afterwards as tax and company law require us to keep accounting records</td></tr>
+  <tr><td>Backups</td><td>Rolling 14 days, then deleted. A deletion request is honoured in the live database immediately and works its way out of backups within that window</td></tr>
+  <tr><td>Activity and audit logs</td><td>Kept, because their value is that they are complete</td></tr>
+  <tr><td>Email we sent you</td><td>Kept, so that "I never received that" has an answer</td></tr>
+  <tr><td>Addresses that bounced or reported us as spam</td><td>Kept indefinitely, precisely so that we never write to them again</td></tr>
+  <tr><td>Advertising identifiers</td><td>Per Meta's own retention, which we do not control</td></tr>
+</table>
+
+<h2 id="rights">8. Your rights</h2>
+
+<p>Under the Nigeria Data Protection Act 2023 you may ask us to:</p>
+
+<ul>
+  <li><strong>Show you</strong> what we hold about you, and give you a copy.</li>
+  <li><strong>Correct</strong> anything that is wrong.</li>
+  <li><strong>Delete</strong> your data, where we are not required to keep it.</li>
+  <li><strong>Stop or limit</strong> a particular use.</li>
+  <li><strong>Object</strong> to anything we do on the basis of legitimate interest.</li>
+  <li><strong>Hand it over</strong> in a portable format — and you do not need to ask us for your books, which you can export from Profitna yourself at any time.</li>
+  <li><strong>Withdraw consent</strong> you have given, for advertising cookies or marketing email. Withdrawing it does not undo what was lawful beforehand.</li>
+</ul>
+
+<p>Write to <a href="mailto:support@profitna.com">support@profitna.com</a>. We will answer within
+30 days, and we will not charge you for it. We may need to confirm who you are first, which
+is a protection for you rather than an obstacle.</p>
+
+<h2 id="security">9. How it is protected</h2>
+
+<ul>
+  <li>Everything travels over HTTPS.</li>
+  <li>Passwords are stored as bcrypt hashes, never as text that can be read back.</li>
+  <li>Each organisation's data is separated, and every request is checked against the organisation it claims to belong to.</li>
+  <li>Any payment credentials a business stores are encrypted with AES-256-GCM, bound to that organisation so that a value copied between accounts simply fails to decrypt.</li>
+  <li>Administrative access needs a second factor.</li>
+  <li>Backups are taken on a schedule and verified by being read back, not merely written.</li>
+</ul>
+
+<p>No system is perfect. If we discover a breach that is likely to harm you, we will tell you
+and the Nigeria Data Protection Commission, as the Act requires.</p>
+
+<h2 id="cookies">10. Cookies, and your choice</h2>
+
+<p>A cookie is a small file a website leaves in your browser. Profitna uses as few as it can.</p>
+
+<h3>Necessary — always on</h3>
+<p>These make the site work. There is no way to use Profitna without them, so they are not
+offered as a choice.</p>
+<table>
+  <tr><th>Cookie</th><th>What it does</th><th>How long</th></tr>
+  <tr><td><code>profitna_session</code></td><td>Keeps you signed in. Not readable by any script in the page</td><td>7 days</td></tr>
+  <tr><td><code>profitna_admin</code></td><td>The same, for our own staff console. You will never have one</td><td>Short-lived</td></tr>
+  <tr><td><code>profitna_ads</code></td><td>Remembers the choice you make below, so we do not ask again</td><td>6 months</td></tr>
+</table>
+
+<h3>Advertising and measurement — off unless you say otherwise</h3>
+<p>If you accept, Meta's pixel loads and sets the cookies below, and we also report the same
+events to Meta from our server. If you decline or ignore the banner, <strong>the pixel is
+never loaded, those cookies are never set, and our server sends Meta nothing about
+you.</strong></p>
+<table>
+  <tr><th>Cookie</th><th>What it does</th><th>How long</th></tr>
+  <tr><td><code>_fbp</code></td><td>Meta's identifier for this browser, used to measure whether an advert led to a signup</td><td>About 3 months</td></tr>
+  <tr><td><code>_fbc</code></td><td>Records which advert you arrived from, when you arrive from one</td><td>About 3 months</td></tr>
+</table>
+
+<div class="card" id="choice">
+  <h3 style="margin-top:0;">Your choice</h3>
+  <p id="cookie-state" class="state">Checking…</p>
+  <div style="margin-top:12px;">
+    <button class="btn" id="accept" type="button">Allow advertising cookies</button>
+    <button class="btn" id="decline" type="button">Turn them off</button>
+  </div>
+  <p style="font-size:13.5px; color:var(--faint); margin:12px 0 0;">
+    Turning them off also clears Meta's cookies from this browser where we are able to.
+    Your browser's own settings can block all of them regardless of what you choose here.
+  </p>
+</div>
+
+<h2 id="email">11. Email we send you</h2>
+
+<p>Three kinds, and we keep them apart deliberately:</p>
+
+<ul>
+  <li><strong>About your account</strong> — your trial ending, a payment failing. Sent because you hold an account with us. These cannot be switched off; closing the account stops them.</li>
+  <li><strong>Help getting started</strong> — short notes about the parts of Profitna you have not reached. One click stops them, and they stop on their own once you are up and running.</li>
+  <li><strong>News and offers</strong> — marketing. <strong>Off unless you deliberately turn it on</strong>, and we record when and from where you did.</li>
+</ul>
+
+<p>Every optional email carries a one-click unsubscribe link, and a link to a page where you
+can choose between the categories rather than only all-or-nothing.</p>
+
+<h2 id="children">12. Children</h2>
+
+<p>Profitna is for businesses and organisations and is not directed at children. We do not
+knowingly collect data from anyone under 18. If you believe we have, tell us and we will
+delete it.</p>
+
+<h2 id="changes">13. Changes to this page</h2>
+
+<p>When we change something that matters we will update the date at the top and, if the
+change affects you materially, tell you in the product or by email. We will not quietly
+broaden what we do with data you have already given us.</p>
+
+<h2 id="complain">14. Complaints</h2>
+
+<p>Tell us first — <a href="mailto:support@profitna.com">support@profitna.com</a> — because
+most things are a misunderstanding we can fix the same day.</p>
+
+<p>If we do not put it right, you may complain to the <strong>Nigeria Data Protection
+Commission</strong>, the regulator established under the Nigeria Data Protection Act 2023.
+Complaining to them costs you nothing and does not affect your account with us.</p>
+
+<footer>
+  <p style="margin:0;">Profitna — accounting and business finance for Nigerian businesses.
+  <a href="/">Back to Profitna</a></p>
+</footer>
+
+</main>
+
+<script>
+(function () {
+  // The same cookie the application reads, on the same origin, so a choice made
+  // here is the choice the app honours and the one the server sees on the next
+  // request. Deliberately not localStorage: the server has to be able to read
+  // it, because the server half of the tracking must obey the same answer as
+  // the browser half. A policy page with a switch that only changes the browser
+  // would be a lie told in good faith.
+  var NAME = 'profitna_ads';
+  var SIX_MONTHS = 60 * 60 * 24 * 182;
+
+  function read() {
+    var hit = ('; ' + document.cookie).split('; ' + NAME + '=');
+    return hit.length === 2 ? hit.pop().split(';').shift() : null;
+  }
+
+  function write(value) {
+    var secure = location.protocol === 'https:' ? '; Secure' : '';
+    document.cookie = NAME + '=' + value + '; Path=/; Max-Age=' + SIX_MONTHS +
+      '; SameSite=Lax' + secure;
+  }
+
+  // Best effort, and said as such on the page. These are first-party cookies so
+  // the browser lets us clear them; anything Meta holds its end is Meta's.
+  function clearMeta() {
+    var host = location.hostname;
+    var domains = [host, '.' + host, '.' + host.split('.').slice(-2).join('.')];
+    ['_fbp', '_fbc'].forEach(function (c) {
+      document.cookie = c + '=; Path=/; Max-Age=0';
+      domains.forEach(function (d) {
+        document.cookie = c + '=; Path=/; Domain=' + d + '; Max-Age=0';
+      });
+    });
+  }
+
+  var stateEl = document.getElementById('cookie-state');
+  var accept = document.getElementById('accept');
+  var decline = document.getElementById('decline');
+
+  function paint() {
+    var v = read();
+    accept.className = 'btn' + (v === 'on' ? ' on' : '');
+    decline.className = 'btn' + (v === 'off' ? ' on' : '');
+    stateEl.textContent = v === 'on'
+      ? 'Advertising cookies are ON for this browser. You turned them on.'
+      : v === 'off'
+        ? 'Advertising cookies are OFF for this browser. You turned them off.'
+        : 'Advertising cookies are OFF for this browser. You have not been asked yet, and off is where they start.';
+  }
+
+  accept.onclick = function () { write('on'); paint(); };
+  decline.onclick = function () { write('off'); clearMeta(); paint(); };
+
+  paint();
+})();
+</script>
+</body>
+</html>

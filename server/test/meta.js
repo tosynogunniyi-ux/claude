@@ -189,6 +189,70 @@ const USER_ID = '7a08bd8b-f003-4f25-af01-f9459046d0ea';
   check('and nothing else from the cookie jar',
     !JSON.stringify(fromReq).includes('not-for-meta'), JSON.stringify(fromReq));
 
+  // ---------------------------------------------------------------- consent
+  //
+  // The browser half is gated by simply not loading the pixel. This is the
+  // other half — the one that runs inside a signup or a payment where nobody
+  // is watching, and that would otherwise send a hashed email to Meta whether
+  // or not anybody ever answered the banner.
+  console.log('\nconsent');
+
+  const visitor = (cookies) => ({
+    ip: '102.89.1.1',
+    get: () => 'test-agent',
+    cookies: cookies || {}
+  });
+
+  check('a visitor who has not been asked has not consented',
+    meta.consented(visitor()) === false);
+  check('a visitor who declined has not consented',
+    meta.consented(visitor({ profitna_ads: 'off' })) === false);
+  check('a visitor who accepted has',
+    meta.consented(visitor({ profitna_ads: 'on' })) === true);
+  check('and a cookie with any other value is not a yes',
+    meta.consented(visitor({ profitna_ads: 'yes' })) === false &&
+    meta.consented(visitor({ profitna_ads: 'true' })) === false &&
+    meta.consented(visitor({ profitna_ads: '1' })) === false);
+
+  // The real check: with the server fully configured and a working endpoint,
+  // does an unconsented event actually stay on this machine?
+  process.env.META_GRAPH_BASE_URL = 'http://127.0.0.1:' + port;
+  const before = good.seen.length;
+
+  const skipped = await meta.trackFor(visitor(), {
+    name: 'CompleteRegistration',
+    id: 'consent-test-1',
+    sourceUrl: 'https://profitna.com/',
+    user: Object.assign(meta.from(visitor()), { email: EMAIL, externalId: USER_ID })
+  });
+  check('an event for somebody who never agreed is not sent',
+    good.seen.length === before, 'Meta received ' + (good.seen.length - before));
+  check('and says why rather than failing silently',
+    skipped && skipped.skipped === 'no advertising consent', JSON.stringify(skipped));
+
+  const declinedEvent = await meta.trackFor(visitor({ profitna_ads: 'off' }), {
+    name: 'Purchase',
+    id: 'consent-test-2',
+    sourceUrl: 'https://profitna.com/',
+    user: Object.assign(meta.from(visitor({ profitna_ads: 'off' })), { email: EMAIL })
+  });
+  check('nor for somebody who declined',
+    good.seen.length === before && declinedEvent.skipped,
+    'Meta received ' + (good.seen.length - before));
+
+  const allowed = await meta.trackFor(visitor({ profitna_ads: 'on' }), {
+    name: 'CompleteRegistration',
+    id: 'consent-test-3',
+    sourceUrl: 'https://profitna.com/',
+    user: Object.assign(meta.from(visitor({ profitna_ads: 'on' })), { email: EMAIL, externalId: USER_ID })
+  });
+  check('and one for somebody who agreed goes as it always did',
+    allowed && allowed.ok === true && good.seen.length === before + 1,
+    JSON.stringify(allowed));
+
+  check('refusals are counted apart from failures',
+    meta.describe().declined >= 2, JSON.stringify(meta.describe().declined));
+
   console.log('\nkeys pasted badly');
   process.env.META_PIXEL_ID = '"123456789"';
   check('quotes around a value are stripped, like the payment keys',

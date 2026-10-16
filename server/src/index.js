@@ -158,6 +158,14 @@ const ADMIN_PATH = (process.env.ADMIN_PATH || '/admin').replace(/\/+$/, '') || '
 app.get(ADMIN_PATH.startsWith('/') ? ADMIN_PATH : '/' + ADMIN_PATH, gate, (req, res) =>
   res.sendFile(path.join(WEB_ROOT, 'admin.html'))
 );
+// The privacy policy and cookie notice. A plain page, served from the same
+// origin so the choice it writes is the cookie the app reads and the server
+// sees. Two paths because a cookie banner says "cookies" and a footer says
+// "privacy", and a visitor should not have to know they are the same page.
+app.get(['/privacy', '/privacy.html', '/cookies'], (req, res) =>
+  res.sendFile(path.join(WEB_ROOT, 'privacy.html'))
+);
+
 app.get('/support.js', (req, res) => res.sendFile(path.join(WEB_ROOT, 'support.js')));
 app.use('/vendor', express.static(path.join(WEB_ROOT, 'vendor'), { maxAge: '1y', index: false }));
 

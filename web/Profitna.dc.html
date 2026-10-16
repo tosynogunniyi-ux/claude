@@ -514,6 +514,10 @@ window.__resources = {
         </div>
       </sc-if>
 
+      <div style="margin-top: 22px; font-size: 11.5px; color: #8A8578;">
+        <a href="/privacy" target="_blank" rel="noopener" style="color: #5C5850;">Privacy and cookies</a>
+      </div>
+
     </div>
   </section>
 
@@ -2186,6 +2190,12 @@ window.__resources = {
               </sc-for>
             </div>
           </div>
+
+          <div data-om="card" style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.04), 0 1px 3px rgba(19,19,19,.06); padding: 24px; grid-column: 1 / -1;">
+            <h2 style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 19px; font-weight: 600; margin: 0 0 6px;">Privacy and cookies</h2>
+            <p style="font-size: 12.5px; color: #5C5850; margin: 0 0 14px; line-height: 1.5;">What Profitna collects, who else receives it, and how long it is kept. The same page carries the advertising-cookie switch, so a choice made once can be changed at any time.</p>
+            <a href="/privacy" target="_blank" rel="noopener" style="display: inline-block; border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 15px; font-size: 12.5px; font-weight: 600; color: #1a1a1a; text-decoration: none;">Read the privacy notice</a>
+          </div>
         </div>
       </sc-if>
 
@@ -2792,6 +2802,30 @@ window.__resources = {
 </div>
 </sc-if>
 
+<!-- ======================= COOKIE NOTICE =======================
+     Shown only when a pixel is configured and this browser has not answered.
+     Until one of the two buttons is pressed nothing is loaded from Meta, no
+     cookie of theirs is set, and the server sends them nothing either. -->
+<sc-if value="{{ askCookies }}" hint-placeholder-val="{{ false }}">
+<div style="position: fixed; left: 0; right: 0; bottom: 0; z-index: 120; padding: 14px; display: flex; justify-content: center; animation: pf-fade .22s ease-out both;">
+  <div style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 12px; box-shadow: 0 10px 34px rgba(19,19,19,.16); max-width: 720px; width: 100%; padding: 16px 18px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+    <div style="flex: 1 1 340px; min-width: 240px;">
+      <div style="font-weight: 600; font-size: 14.5px; margin-bottom: 3px;">Cookies for advertising</div>
+      <div style="font-size: 13px; color: #5A5751; line-height: 1.55;">
+        Profitna needs a couple of cookies to keep you signed in, and those stay. Separately,
+        we can use Meta's cookies to see which adverts bring people here. That part is yours
+        to decide and nothing has been set yet.
+        <a href="/privacy" target="_blank" rel="noopener" style="color: #412402;">What we collect</a>
+      </div>
+    </div>
+    <div style="display: flex; gap: 8px; flex: 0 0 auto;">
+      <button onClick="{{ declineCookies }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 7px; padding: 9px 16px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;" style-hover="background: #F4F3EE;">No thanks</button>
+      <button onClick="{{ acceptCookies }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 7px; padding: 9px 18px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; box-shadow: 0 1px 2px rgba(19,19,19,.18);" style-hover="background: #FAC775; color: #412402;">Allow</button>
+    </div>
+  </div>
+</div>
+</sc-if>
+
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props="{}">
 const TODAY = new Date();
@@ -2958,8 +2992,58 @@ const EMPTY_BOOK = () => ({ clients: [], vendors: [], tx: [], inv: [], bills: []
 // sends the same events itself (server/src/integrations/meta.js); both halves
 // carry the same eventID for the same action and Meta keeps one, so an event
 // blocked here is not a lost sale and an event that arrives twice is not two.
+//
+// Nothing here runs until the visitor has agreed. The answer lives in a
+// first-party cookie rather than localStorage because the server half has to
+// obey the same answer, and it can only read a cookie — a banner that stopped
+// the pixel while the server carried on reporting the same person would be
+// worse than no banner, because it would look like a choice.
 const Meta = {
   id: null,
+  pending: null,
+  COOKIE: 'profitna_ads',
+
+  // 'on', 'off', or null for not yet asked. Null is not consent.
+  consent() {
+    try {
+      const hit = ('; ' + document.cookie).split('; ' + this.COOKIE + '=');
+      return hit.length === 2 ? hit.pop().split(';').shift() : null;
+    } catch (e) { return 'off'; }
+  },
+
+  // Written for six months, on this origin, readable by the server.
+  remember(value) {
+    try {
+      const secure = location.protocol === 'https:' ? '; Secure' : '';
+      document.cookie = this.COOKIE + '=' + value + '; Path=/; Max-Age=' +
+        (60 * 60 * 24 * 182) + '; SameSite=Lax' + secure;
+    } catch (e) { /* a browser refusing cookies has already answered */ }
+  },
+
+  // Best effort. These are first-party so the browser lets us clear them;
+  // what Meta holds its own end is Meta's, and the policy says so.
+  forget() {
+    try {
+      const host = location.hostname;
+      const scopes = [host, '.' + host, '.' + host.split('.').slice(-2).join('.')];
+      ['_fbp', '_fbc'].forEach((c) => {
+        document.cookie = c + '=; Path=/; Max-Age=0';
+        scopes.forEach((d) => { document.cookie = c + '=; Path=/; Domain=' + d + '; Max-Age=0'; });
+      });
+    } catch (e) { /* nothing to undo */ }
+  },
+
+  // Called with the id the server reports. Holds it rather than using it, and
+  // loads only once there is a yes — which may be now, or may be after the
+  // banner is answered.
+  offer(pixelId) {
+    this.pending = pixelId || null;
+    if (this.consent() === 'on') this.load(this.pending);
+  },
+
+  allow() { this.remember('on'); this.load(this.pending); },
+  deny() { this.remember('off'); this.forget(); },
+
   load(pixelId) {
     if (this.id || !pixelId || window.fbq) return;
     this.id = pixelId;
@@ -2992,6 +3076,9 @@ class Component extends DCLogic {
     super(props);
     this.state = {
       mode: 'sme', screen: 'dashboard', preset: 'ytd', role: 'Admin',
+      // Set once /auth/config says whether there is a pixel at all, and only
+      // when this browser has not already answered.
+      askCookies: false,
       // Replaced by whatever /auth/config reports. Only ever seen in the
       // moment before that lands.
       trialDays: 14,
@@ -3056,7 +3143,10 @@ class Component extends DCLogic {
         // Before the setState, and from the reply rather than from state:
         // setState has not landed yet, and a PageView that fires after the
         // visitor has already clicked is a PageView nobody counts.
-        Meta.load(c.metaPixelId);
+        // Offered, not loaded. Nothing reaches Meta and no cookie of theirs
+        // is set until the banner below has been answered with a yes.
+        Meta.offer(c.metaPixelId);
+        this.setState({ askCookies: Boolean(c.metaPixelId) && Meta.consent() === null });
         return c;
       })
       .then((c) => this.setState({
@@ -6400,6 +6490,26 @@ class Component extends DCLogic {
     }
   }
 
+  // The cookie banner.
+  //
+  // It is shown only when there is tracking to consent to — no pixel
+  // configured, no banner, because asking permission for something that is not
+  // happening trains people to click through the ones that matter. And it is
+  // shown only until it is answered: both buttons write the same cookie, so
+  // "no" is as final as "yes" and neither is asked again for six months.
+  //
+  // Nothing here is blocking. The app underneath stays usable, because an
+  // accounting product that holds its own books hostage over an advertising
+  // cookie has its priorities the wrong way round.
+  cookieVals() {
+    const shut = () => this.setState({ askCookies: false });
+    return {
+      askCookies: this.state.askCookies === true,
+      acceptCookies: () => { Meta.allow(); shut(); },
+      declineCookies: () => { Meta.deny(); shut(); }
+    };
+  }
+
   // Deliberately almost empty. Every list the shell walks resolves to nothing
   // rather than throwing a second time, and the overlay sits above whatever is
   // left. The three ways out cover the three real cases: the fault belongs to
@@ -6846,6 +6956,11 @@ class Component extends DCLogic {
     }
 
     return {
+      // The cookie banner. Built here rather than in a section() because it is
+      // not part of any screen — it belongs to the visit, and it has to be
+      // reachable before anyone has signed in, which is exactly when the
+      // tracking it governs would otherwise start.
+      ...this.cookieVals(),
       workspaceLabel: church ? 'Church finance' : 'Business finance',
       modeLabel: church ? 'Church' : 'Business', modeSwitchLabel: church ? 'Switch to business books' : 'Switch to church books',
       orgName: o.name, orgSub: o.type + ' · ' + o.state, role: st.role,

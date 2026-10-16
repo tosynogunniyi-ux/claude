@@ -238,7 +238,7 @@ router.post('/signup', async (req, res, next) => {
     // having a bad minute must not slow a signup down, let alone fail one.
     const metaEventId = 'signup-' + created.userId;
     const [firstName, ...rest] = name.split(/\s+/);
-    meta.track({
+    meta.trackFor(req, {
       name: 'CompleteRegistration',
       id: metaEventId,
       sourceUrl: team.publicOrigin(req) + '/',

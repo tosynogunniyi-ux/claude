@@ -44,7 +44,7 @@ function client(track) {
     const text = await res.text();
     let parsed = {};
     try { parsed = text ? JSON.parse(text) : {}; } catch { parsed = { raw: text }; }
-    return { status: res.status, body: parsed };
+    return { status: res.status, body: parsed, text };
   };
 }
 
@@ -574,6 +574,26 @@ async function signup(call, email, book, org) {
   check('the invoice comes back with its payment', book.inv.some((i) => i.id === inv.body.doc.id && i.paid === 750000));
   check('the new account is on the chart', book.cats.some((c) => c.name === 'Diesel & Generator' && c.pct === 40));
   check('the contact was kept', book.clients.some((c) => c.name === 'Aisha Bello'));
+
+  // --------------------------------------------------------- privacy page
+  //
+  // Public and unauthenticated by necessity: somebody deciding whether to sign
+  // up has to be able to read what happens to their data before they hand any
+  // of it over, and a cookie banner that links to a 404 is worse than no
+  // banner at all.
+  console.log('\nthe privacy notice');
+
+  const reader = client();
+  const privacy = await reader('GET', '/privacy');
+  check('it is served without signing in', privacy.status === 200, 'status ' + privacy.status);
+  check('and it is a page, not JSON', /<html/i.test(privacy.text || ''));
+  check('the cookie notice is on it',
+    /profitna_session/.test(privacy.text) && /_fbp/.test(privacy.text));
+  check('it names the regulator somebody would complain to',
+    /Nigeria Data Protection/i.test(privacy.text));
+  check('it says advertising cookies start off',
+    /off unless you/i.test(privacy.text));
+  check('/cookies reaches the same page', (await reader('GET', '/cookies')).status === 200);
 
   console.log('\n' + passed + ' passed, ' + failures.length + ' failed');
   if (failures.length) {

@@ -103,6 +103,9 @@ function userData(user) {
 let last = null;
 let sent = 0;
 let failed = 0;
+// Events we deliberately did not send, because the visitor had not agreed to
+// be tracked. Counted separately from failures: one is the system working.
+let declined = 0;
 
 // The base is overridable for the test suite, and for a deployment that
 // sends through its own proxy. Unset in production, where it should stay.
@@ -193,6 +196,38 @@ function from(req) {
   };
 }
 
+// Has this visitor agreed to be tracked?
+//
+// The browser half is easy to gate — do not load the pixel. The server half is
+// the one that would otherwise quietly carry on: it runs inside a signup or a
+// payment, where nobody is looking, and it sends a hashed email to Meta whether
+// or not a banner was ever answered. So both halves read the same answer, and
+// the answer travels as a first-party cookie the consent banner writes, which
+// means it arrives here with the ordinary request and needs no plumbing
+// through every route.
+//
+// Absent means no. A visitor who has not been asked has not agreed, and under
+// the Nigeria Data Protection Act consent is something given rather than
+// something not yet refused.
+const CONSENT_COOKIE = 'profitna_ads';
+
+function consented(req) {
+  const c = (req && req.cookies) || {};
+  return c[CONSENT_COOKIE] === 'on';
+}
+
+// What the routes call, so the check cannot be forgotten at one of them. A
+// refusal is counted rather than silent: "Meta has no events" and "everyone
+// declined" are different facts and the console should be able to tell them
+// apart.
+function trackFor(req, event) {
+  if (!consented(req)) {
+    declined++;
+    return Promise.resolve({ ok: false, skipped: 'no advertising consent', event: event.name });
+  }
+  return track(event);
+}
+
 function describe() {
   return {
     configured: configured(),
@@ -204,6 +239,8 @@ function describe() {
     testMode: Boolean(testCode()),
     sent,
     failed,
+    // Not a fault. Visitors who declined, or who were never asked.
+    declined,
     last
   };
 }
@@ -225,6 +262,6 @@ function warnings() {
 }
 
 module.exports = {
-  configured, browserConfigured, pixelId, version, track, send, from,
-  userData, describe, warnings, conf, endpoint
+  configured, browserConfigured, pixelId, version, track, trackFor, send, from,
+  userData, describe, warnings, conf, endpoint, consented, CONSENT_COOKIE
 };

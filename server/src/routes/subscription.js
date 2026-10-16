@@ -186,7 +186,7 @@ router.post('/subscription/activate', requireOrg('admin'), async (req, res, next
     // who activates twice — a double click, a retried request — is still one
     // purchase at Meta's end.
     const metaEventId = 'purchase-' + result.reference;
-    meta.track({
+    meta.trackFor(req, {
       name: 'Purchase',
       id: metaEventId,
       sourceUrl: team.publicOrigin(req) + '/',
