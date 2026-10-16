@@ -76,7 +76,10 @@ function client() {
     return now.bands.length === 6;
   })());
   check('what is not yet settled is declared rather than hidden',
-    statutory.doubts(now).length === 3, JSON.stringify(statutory.doubts(now).map((d) => d.item)));
+    statutory.doubts(now).length === 2, JSON.stringify(statutory.doubts(now).map((d) => d.item)));
+  check('and the rent relief cap is settled, so it is no longer among them',
+    now.rentRelief.cap === N(500000) && now.rentRelief.confirmed === true &&
+    !statutory.doubts(now).some((d) => d.item === 'rentRelief'));
 
   // =======================================================================
   console.log('\nthe bands, at every boundary');
@@ -366,7 +369,7 @@ function client() {
   check('it covers all three employees', run.body.employees === 3, String(run.body.employees));
   check('it says which law it used', run.body.run.ruleSet === 'NG-2026-NTA');
   check('it names what is still unconfirmed about that law',
-    run.body.rules.doubts.length === 3, JSON.stringify(run.body.rules.doubts.length));
+    run.body.rules.doubts.length === 2, JSON.stringify(run.body.rules.doubts.length));
 
   const detail = await api('GET', org('/payroll/runs/' + runId));
   check('the run reads back with its lines', detail.status === 200 && detail.body.lines.length === 3);

@@ -26,7 +26,9 @@
 // disagreement is recorded here rather than resolved by picking the reading
 // that produces the nicest number:
 //
-//   rentReliefCap     — most sources say ₦500,000; one says ₦200,000.
+//   rentReliefCap     — SETTLED 16 October 2026 at ₦500,000, by the operator
+//                       of this deployment rather than by a citation. One
+//                       source had said ₦200,000.
 //   individualMinimumTax — whether the old 1%-of-gross floor survives. No
 //                       source consulted said either way, so it is off: a
 //                       floor nobody can point to in the Act should not be
@@ -92,9 +94,17 @@ const RULE_SETS = Object.freeze([
       rateBp: PCT(20),
       cap: NAIRA(500000),
       requiresDeclaration: true,
-      confirmed: false,
-      doubt: 'Most published guidance gives a ₦500,000 cap; one source says ₦200,000. ' +
-        'Confirm against the Act before relying on it for a live payroll.'
+      // Settled on 16 October 2026 by the operator of this deployment, against
+      // the majority of published guidance; one outlying source had said
+      // ₦200,000. The value here never changed — what changed is that it is
+      // no longer flagged on screen as resting on a reading.
+      //
+      // Recorded as an operator decision rather than as a citation of the
+      // Act, because that is what it is. If it is ever disputed, this line
+      // says exactly how much weight it carries.
+      confirmed: true,
+      confirmedOn: '2026-10-16',
+      confirmedBy: 'operator'
     }),
 
     // Nobody earning the national minimum wage pays PAYE.
