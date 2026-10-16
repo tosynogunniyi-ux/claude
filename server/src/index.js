@@ -19,6 +19,7 @@ const aiRoutes = require('./routes/ai');
 const invoicingRoutes = require('./routes/invoicing');
 const paymentRoutes = require('./routes/payments');
 const recurringRoutes = require('./routes/recurring');
+const payrollRoutes = require('./routes/payroll');
 const emailRoutes = require('./routes/email');
 const payRoutes = require('./routes/pay');
 
@@ -141,6 +142,7 @@ orgScoped.use(aiRoutes.router);
 orgScoped.use(invoicingRoutes.router);
 orgScoped.use(paymentRoutes.router);
 orgScoped.use(recurringRoutes.router);
+orgScoped.use(payrollRoutes.router);
 orgScoped.use(emailRoutes.orgRouter);
 app.use('/api/orgs/:orgId', requireAuth, orgScoped);
 

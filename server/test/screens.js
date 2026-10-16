@@ -37,8 +37,13 @@ const check = (name, cond, detail) => {
 // Every screen in the navigation, and every tab inside Invoicing.
 const SCREENS = [
   'Dashboard', 'Ask Profitna', 'Invoicing', 'Invoices', 'Customers & Suppliers',
-  'Bills', 'Expenses & Income', 'Products', 'Reconciliation', 'Reports', 'Settings'
+  'Bills', 'Expenses & Income', 'Products', 'Payroll', 'Reconciliation', 'Reports', 'Settings'
 ];
+
+// The tabs inside Payroll. Separate from the Invoicing ones because the two
+// screens share no labels and a combined list would hide which screen a
+// failure belongs to.
+const PAYROLL_TABS = ['Overview', 'Employees', 'Run payroll', 'Settings'];
 const TABS = ['Invoices', 'Payments', 'Credit notes', 'Recurring', 'Receivables'];
 
 // The calls each screen depends on. Breaking one must cost that screen and
@@ -52,6 +57,9 @@ const ENDPOINTS = [
   { label: 'the schedules', match: '**/api/orgs/*/recurring', screen: 'Invoicing', tab: 'Recurring' },
   { label: 'receivables', match: '**/api/orgs/*/receivables', screen: 'Invoicing', tab: 'Receivables' },
   { label: 'the payment accounts', match: '**/api/orgs/*/payment-accounts', screen: 'Settings' },
+  { label: 'the payroll overview', match: '**/api/orgs/*/payroll/overview', screen: 'Payroll' },
+  { label: 'the employee list', match: '**/api/orgs/*/payroll/employees', screen: 'Payroll', tab: 'Employees' },
+  { label: 'the payroll history', match: '**/api/orgs/*/payroll/runs', screen: 'Payroll' },
   { label: 'the ledger health', match: '**/api/orgs/*/ledger/health', screen: 'Reports' }
 ];
 
@@ -187,6 +195,18 @@ function inspect(page) {
       const errs = sinceLast();
       containedSince();
       check('the ' + tab.toLowerCase() + ' tab draws',
+        found && state.shell && !state.crashed && errs.length === 0,
+        !found ? 'no tab button' : state.crashed ? 'crash panel' : errs.join(' | '));
+    }
+
+    console.log('\nand every tab inside Payroll');
+    await go(page, 'Payroll', 1800);
+    for (const tab of PAYROLL_TABS) {
+      const found = await goTab(page, tab, 1300);
+      const state = await inspect(page);
+      const errs = sinceLast();
+      containedSince();
+      check('the payroll ' + tab.toLowerCase() + ' tab draws',
         found && state.shell && !state.crashed && errs.length === 0,
         !found ? 'no tab button' : state.crashed ? 'crash panel' : errs.join(' | '));
     }

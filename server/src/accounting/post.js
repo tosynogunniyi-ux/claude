@@ -28,12 +28,18 @@ const KNOWN = {
   whtReceivable: '1410',
   payable: '2000',
   outputVat: '2100',
+  payePayable: '2200',
+  pensionPayable: '2210',
+  nhfPayable: '2220',
+  netSalariesPayable: '2250',
   customerDeposits: '2300',
   ownerCapital: '3000',
   retained: '3100',
   openingBalance: '3900',
   otherIncome: '4900',
   gatewayFees: '5900',
+  salariesExpense: '6000',
+  employerPensionExpense: '6010',
   uncategorisedExpense: '5950'
 };
 
@@ -643,8 +649,105 @@ async function openingBalances(client, { orgId, userId }) {
   return posted;
 }
 
+// A payroll is approved.
+//
+// One entry for the whole run, because that is what it is: a single monthly
+// event with one expense and several liabilities, not a journal per person. A
+// business with forty staff does not want forty entries a month in its
+// ledger, and the payslips are where the per-person detail lives.
+//
+// The shape, and why each side is where it is:
+//
+//   Dr Salaries & Wages          gross pay — the whole cost of what staff
+//                                earned, before anything was withheld.
+//   Dr Employer Pension          the employer's own contribution, which is a
+//                                separate cost and never comes out of pay.
+//     Cr PAYE Payable            withheld from staff, owed to the state.
+//     Cr Pension Payable         employee + employer, owed to the PFA.
+//     Cr NHF Payable             withheld, owed to the Federal Mortgage Bank.
+//     Cr Net Salaries Payable    what staff are actually owed.
+//
+// Nothing touches a bank account here. Approving a payroll recognises the
+// cost and the debts; paying it is a separate event on a later day, and
+// conflating the two is how a business books a salary run it has not yet
+// sent.
+async function payrollApproved(client, { orgId, run, totals, userId }) {
+  const c = await chart(client, orgId);
+  const period = run.period_label || (run.period_date || '').slice(0, 7);
+  const lines = [
+    { accountId: c.system('salariesExpense'), debit: totals.gross, description: 'Gross pay ' + period },
+    { accountId: c.system('employerPensionExpense'), debit: totals.employerPension,
+      description: 'Employer pension ' + period },
+    { accountId: c.system('payePayable'), credit: totals.paye, description: 'PAYE withheld ' + period },
+    { accountId: c.system('pensionPayable'), credit: totals.employeePension + totals.employerPension,
+      description: 'Pension payable ' + period },
+    { accountId: c.system('nhfPayable'), credit: totals.nhf, description: 'NHF withheld ' + period },
+    { accountId: c.system('netSalariesPayable'), credit: totals.net, description: 'Net salaries ' + period }
+  ];
+
+  return post(client, {
+    orgId,
+    date: run.period_date,
+    memo: 'Payroll ' + period,
+    sourceType: 'payroll',
+    sourceId: run.id,
+    // Approving twice posts once. The same guarantee invoices have, and for
+    // the same reason: a double-clicked button must not double the payroll.
+    sourceKey: 'payroll:' + run.id + ':approve',
+    userId,
+    lines
+  });
+}
+
+// Money actually leaves. Salaries, or a statutory remittance.
+//
+// Clears the liability the approval created rather than booking a new
+// expense — the expense was recognised when the payroll was approved, and
+// booking it again here is the double count this function exists to avoid.
+async function payrollPaid(client, { orgId, run, payment, bankAccountId, userId }) {
+  const c = await chart(client, orgId);
+  const period = run.period_label || (run.period_date || '').slice(0, 7);
+  const LIABILITY = {
+    salaries: 'netSalariesPayable',
+    paye: 'payePayable',
+    pension: 'pensionPayable',
+    nhf: 'nhfPayable'
+  };
+  const key = LIABILITY[payment.kind];
+  if (!key) {
+    // 'other' has nowhere specific to go, and guessing would put a
+    // remittance in the wrong liability. Say so rather than post it somewhere
+    // plausible.
+    const err = new Error('A payment of kind "' + payment.kind + '" cannot be posted automatically.');
+    err.status = 422;
+    throw err;
+  }
+
+  const bank = bankAccountId
+    ? await require('./accounts').ensureBankAccount(client, orgId, bankAccountId)
+    : c.system('bank');
+
+  const WORDS = { salaries: 'Salaries paid', paye: 'PAYE remitted', pension: 'Pension remitted',
+    nhf: 'NHF remitted' };
+
+  return post(client, {
+    orgId,
+    date: payment.paid_on,
+    memo: WORDS[payment.kind] + ' ' + period,
+    sourceType: 'payroll',
+    sourceId: payment.id,
+    sourceKey: 'payroll:payment:' + payment.id,
+    userId,
+    lines: [
+      { accountId: c.system(key), debit: payment.amount_kobo, description: WORDS[payment.kind] + ' ' + period },
+      { accountId: bank, credit: payment.amount_kobo, description: WORDS[payment.kind] + ' ' + period }
+    ]
+  });
+}
+
 module.exports = {
   post, reverse, chart, KNOWN,
   invoiceIssued, invoicePaid, cashTransaction, billIssued, billPaid, openingBalances,
-  receiptEntry, depositApplied, paymentSettled, creditNoteIssued
+  receiptEntry, depositApplied, paymentSettled, creditNoteIssued,
+  payrollApproved, payrollPaid
 };

@@ -22,12 +22,26 @@ const SYSTEM = [
   ['1500', 'Fixed Assets', 'asset', 'fixed'],
   ['2000', 'Accounts Payable', 'liability', 'payable'],
   ['2100', 'Output VAT Payable', 'liability', 'tax'],
+  // Payroll. Four separate liabilities rather than one "payroll payable",
+  // because each is owed to a different body on a different deadline — PAYE
+  // to a state revenue service, pension to a PFA, NHF to the Federal Mortgage
+  // Bank — and a single pooled figure cannot tell you which remittance is
+  // late.
+  ['2200', 'PAYE Payable', 'liability', 'tax'],
+  ['2210', 'Pension Payable', 'liability', 'payroll'],
+  ['2220', 'NHF Payable', 'liability', 'payroll'],
+  ['2250', 'Net Salaries Payable', 'liability', 'payroll'],
   ['2300', 'Customer Deposits', 'liability', 'deposit'],
   ['3000', 'Owner Capital', 'equity', 'capital'],
   ['3100', 'Retained Earnings', 'equity', 'retained'],
   ['3900', 'Opening Balance Equity', 'equity', 'opening'],
   ['4900', 'Other Income', 'income', 'other'],
   ['5900', 'Gateway Processing Fees', 'expense', 'finance'],
+  // Gross pay and the employer's own contribution are different costs and a
+  // business needs to see them apart: one is what staff are paid, the other
+  // is what employing them costs on top.
+  ['6000', 'Salaries & Wages', 'expense', 'payroll'],
+  ['6010', 'Employer Pension Contribution', 'expense', 'payroll'],
   ['5950', 'Uncategorised Expense', 'expense', 'other']
 ];
 
