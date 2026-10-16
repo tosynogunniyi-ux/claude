@@ -315,12 +315,18 @@ have locked a business out of its own books.
   and Easypanel is on the VPS, which the build environment cannot reach.)
 - **Google sign-in** is still in Testing on the consent screen, so only
   tosyn.ogunniyi@gmail.com can use it. Publish it to open it up.
-- **The privacy notice needs two facts only you have.** `web/privacy.html` is
-  written and served at `/privacy` (and `/cookies`), but it carries two
-  deliberate placeholders, shown in amber so they cannot be missed: the
-  **registered company name and address**, and the **region the Hostinger VPS
-  sits in**. Both have to be filled before the page is honest. Everything else
-  on it describes what the code actually does.
+- **The privacy notice could carry a registered address.** `web/privacy.html`
+  is complete and served at `/privacy` and `/cookies`: Mideops Professional
+  Services Ltd as the controller, the United Kingdom named as where the data
+  sits, and everything else describing what the code actually does. It gives
+  support@profitna.com as the contact, which satisfies the Act. A registered
+  office address and RC number are not required but are usual on a Nigerian
+  company's privacy notice, and worth adding when convenient.
+- **The notice has not been through a lawyer.** It was written from the code
+  and from the Nigeria Data Protection Act 2023 rather than from a template,
+  which makes it accurate but not advised-on. Half an hour of a Nigerian data
+  protection practitioner's time would be reviewing something substantive
+  rather than drafting from scratch.
 - **Online invoice payments need a server key.** Customers can pay a business's
   invoices through that business's own Paystack or Monnify account — but only
   once `CREDENTIALS_KEY` is set in Easypanel → your app service → Environment.
