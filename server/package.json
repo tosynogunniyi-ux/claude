@@ -25,7 +25,8 @@
     "test:payments": "node test/payments.js",
     "test:recurring": "node test/recurring.js",
     "test:screens": "node test/screens.js",
-    "test:email": "node test/email.js"
+    "test:email": "node test/email.js",
+    "test:payroll": "node test/payroll.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.0",

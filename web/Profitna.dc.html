@@ -1794,6 +1794,214 @@ window.__resources = {
         </div>
       </sc-if>
 
+      <!-- ============ PAYROLL ============ -->
+      <sc-if value="{{ isPayroll }}" hint-placeholder-val="{{ false }}">
+        <div>
+
+          <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px;">
+            <sc-for list="{{ pyr.tabs }}" as="t" hint-placeholder-count="4">
+              <button onClick="{{ t.go }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 999px; padding: 7px 16px; font-size: 13px; font-weight: 500; cursor: pointer;" style-hover="background: #F4F3EE;">{{ t.label }}</button>
+            </sc-for>
+          </div>
+
+          <sc-if value="{{ pyr.hasError }}" hint-placeholder-val="{{ false }}">
+            <div style="background: #F7ECEC; border: 1px solid #E4C9C9; color: #8A2E2E; border-radius: 6px; padding: 12px 14px; font-size: 13px; margin-bottom: 16px;">{{ pyr.error }}</div>
+          </sc-if>
+
+          <!-- ---------------------------------------------- OVERVIEW -->
+          <sc-if value="{{ pyr.isOverview }}" hint-placeholder-val="{{ true }}">
+            <div>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: 18px;">
+                <sc-for list="{{ pyr.cards }}" as="c" hint-placeholder-count="4">
+                  <div data-om="card" style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.04); padding: 18px 20px;">
+                    <div style="font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #5C5850; font-weight: 600;">{{ c.label }}</div>
+                    <div style="font-size: 23px; font-weight: 600; margin-top: 7px; font-variant-numeric: tabular-nums;">{{ c.value }}</div>
+                    <div style="font-size: 12px; color: #8A8578; margin-top: 3px;">{{ c.note }}</div>
+                  </div>
+                </sc-for>
+              </div>
+
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px;">
+                <div data-om="card" style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.04); padding: 22px;">
+                  <h2 style="font-size: 17px; font-weight: 600; margin: 0 0 4px;">Owed and not yet sent</h2>
+                  <p style="font-size: 12.5px; color: #5C5850; margin: 0 0 12px;">Approved payroll that has not been paid out or remitted. Each of these has a deadline.</p>
+                  <sc-for list="{{ pyr.owed }}" as="w" hint-placeholder-count="3">
+                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #EFEDE7; font-size: 13.5px;">
+                      <span>{{ w.label }}</span>
+                      <span style="font-family: 'IBM Plex Mono', monospace; font-weight: 600;">{{ w.amount }}</span>
+                    </div>
+                  </sc-for>
+                  <sc-if value="{{ pyr.noOwed }}" hint-placeholder-val="{{ false }}">
+                    <div style="font-size: 13px; color: #5C5850;">Nothing outstanding. Everything approved has been paid.</div>
+                  </sc-if>
+                </div>
+
+                <div data-om="card" style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.04); padding: 22px;">
+                  <h2 style="font-size: 17px; font-weight: 600; margin: 0 0 4px;">Payroll history</h2>
+                  <sc-for list="{{ pyr.runs }}" as="r" hint-placeholder-count="3">
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid #EFEDE7;">
+                      <div>
+                        <button onClick="{{ r.open }}" style="border: 0; background: transparent; padding: 0; font-size: 13.5px; font-weight: 600; color: #412402; cursor: pointer; text-decoration: underline;">{{ r.period }}</button>
+                        <div style="font-size: 12px; color: #8A8578;">{{ r.employees }} on the payroll</div>
+                      </div>
+                      <div style="text-align: right;">
+                        <div style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600;">{{ r.net }}</div>
+                        <span style="font-size: 11px; padding: 2px 8px; border-radius: 999px; background: {{ r.statusBg }}; color: {{ r.statusFg }};">{{ r.status }}</span>
+                      </div>
+                    </div>
+                  </sc-for>
+                  <sc-if value="{{ pyr.noRuns }}" hint-placeholder-val="{{ false }}">
+                    <div style="font-size: 13px; color: #5C5850;">No payroll has been run yet.</div>
+                  </sc-if>
+                </div>
+              </div>
+
+              <div data-om="card" style="background: #FDF4E3; border: 1px solid #EBD9B4; border-radius: 6px; padding: 18px 20px; margin-top: 16px;">
+                <div style="font-size: 13px; font-weight: 600; color: #8A5A10;">{{ pyr.ruleLabel }}</div>
+                <div style="font-size: 12.5px; color: #5C5850; margin-top: 4px; line-height: 1.55;">{{ pyr.ruleNote }}</div>
+                <sc-for list="{{ pyr.doubts }}" as="d" hint-placeholder-count="3">
+                  <div style="font-size: 12.5px; color: #5C5850; margin-top: 8px; padding-left: 12px; border-left: 2px solid #EBD9B4;">
+                    <strong>{{ d.item }}</strong> — {{ d.doubt }}
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- ---------------------------------------------- EMPLOYEES -->
+          <sc-if value="{{ pyr.isStaff }}" hint-placeholder-val="{{ false }}">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px;">
+              <div data-om="card" style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; padding: 22px; grid-column: 1 / -1;">
+                <h2 style="font-size: 17px; font-weight: 600; margin: 0 0 12px;">Add an employee</h2>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px;">
+                  <input value="{{ pyr.form.name }}" onChange="{{ pyr.onName }}" placeholder="Full name" style="border: 1px solid #C9C3B7; border-radius: 6px; padding: 9px 11px; font-size: 13px; background: #FFFFFF;" />
+                  <input value="{{ pyr.form.staffNumber }}" onChange="{{ pyr.onStaffNumber }}" placeholder="Staff number" style="border: 1px solid #C9C3B7; border-radius: 6px; padding: 9px 11px; font-size: 13px; background: #FFFFFF;" />
+                  <input value="{{ pyr.form.designation }}" onChange="{{ pyr.onDesignation }}" placeholder="Designation" style="border: 1px solid #C9C3B7; border-radius: 6px; padding: 9px 11px; font-size: 13px; background: #FFFFFF;" />
+                  <input value="{{ pyr.form.gross }}" onChange="{{ pyr.onGross }}" placeholder="Gross monthly salary" style="border: 1px solid #C9C3B7; border-radius: 6px; padding: 9px 11px; font-size: 13px; background: #FFFFFF;" />
+                  <input value="{{ pyr.form.bank }}" onChange="{{ pyr.onBank }}" placeholder="Bank" style="border: 1px solid #C9C3B7; border-radius: 6px; padding: 9px 11px; font-size: 13px; background: #FFFFFF;" />
+                  <input value="{{ pyr.form.accountNumber }}" onChange="{{ pyr.onAccountNumber }}" placeholder="Account number (10 digits)" style="border: 1px solid #C9C3B7; border-radius: 6px; padding: 9px 11px; font-size: 13px; background: #FFFFFF;" />
+                  <input value="{{ pyr.form.hireDate }}" onChange="{{ pyr.onHireDate }}" placeholder="Hired (YYYY-MM-DD)" style="border: 1px solid #C9C3B7; border-radius: 6px; padding: 9px 11px; font-size: 13px; background: #FFFFFF;" />
+                  <input value="{{ pyr.form.annualRent }}" onChange="{{ pyr.onAnnualRent }}" placeholder="Annual rent declared" style="border: 1px solid #C9C3B7; border-radius: 6px; padding: 9px 11px; font-size: 13px; background: #FFFFFF;" />
+                </div>
+                <div style="display: flex; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap;">
+                  <button data-a="" disabled="{{ perm.noAdmin }}" onClick="{{ pyr.addStaff }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; padding: 9px 18px; font-size: 13px; font-weight: 600; cursor: pointer;" style-hover="background: #FAC775; color: #412402;">Add employee</button>
+                  <span style="font-size: 12px; color: #8A8578;">Rent is only used for tax relief, and only if the employee declares it. Leave it blank and no relief is claimed.</span>
+                </div>
+              </div>
+
+              <div data-om="card" style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; padding: 0; grid-column: 1 / -1; overflow: hidden;">
+                <sc-for list="{{ pyr.staff }}" as="e" hint-placeholder-count="4">
+                  <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 13px 20px; border-bottom: 1px solid #EFEDE7;">
+                    <div>
+                      <div style="font-weight: 600; font-size: 13.5px;">{{ e.name }}</div>
+                      <div style="font-size: 12px; color: #8A8578;">{{ e.role }} · {{ e.bank }}</div>
+                    </div>
+                    <div style="text-align: right;">
+                      <div style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600;">{{ e.gross }}</div>
+                      <span style="font-size: 11px; padding: 2px 8px; border-radius: 999px; background: {{ e.statusBg }}; color: {{ e.statusFg }};">{{ e.status }}</span>
+                    </div>
+                  </div>
+                </sc-for>
+                <sc-if value="{{ pyr.noStaff }}" hint-placeholder-val="{{ false }}">
+                  <div style="padding: 26px 20px; font-size: 13px; color: #5C5850;">Nobody on the payroll yet. Add the first employee above.</div>
+                </sc-if>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- --------------------------------------------- RUN PAYROLL -->
+          <sc-if value="{{ pyr.isRun }}" hint-placeholder-val="{{ false }}">
+            <div>
+              <div data-om="card" style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; padding: 22px; margin-bottom: 16px;">
+                <h2 style="font-size: 17px; font-weight: 600; margin: 0 0 4px;">Calculate a month</h2>
+                <p style="font-size: 12.5px; color: #5C5850; margin: 0 0 12px;">Nothing reaches the books until the payroll is approved. A draft can be recalculated as many times as you like.</p>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                  <input value="{{ pyr.form.runYear }}" onChange="{{ pyr.onRunYear }}" placeholder="Year" style="width: 100px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 9px 11px; font-size: 13px; background: #FFFFFF;" />
+                  <input value="{{ pyr.form.runMonth }}" onChange="{{ pyr.onRunMonth }}" placeholder="Month" style="width: 90px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 9px 11px; font-size: 13px; background: #FFFFFF;" />
+                  <input value="{{ pyr.form.payDate }}" onChange="{{ pyr.onPayDate }}" placeholder="Pay date (YYYY-MM-DD)" style="width: 190px; border: 1px solid #C9C3B7; border-radius: 6px; padding: 9px 11px; font-size: 13px; background: #FFFFFF;" />
+                  <button data-a="" disabled="{{ perm.noAdmin }}" onClick="{{ pyr.calculate }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; padding: 9px 18px; font-size: 13px; font-weight: 600; cursor: pointer;" style-hover="background: #FAC775; color: #412402;">Calculate payroll</button>
+                </div>
+              </div>
+
+              <sc-if value="{{ pyr.hasRun }}" hint-placeholder-val="{{ false }}">
+                <div>
+                  <div data-om="card" style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; padding: 22px; margin-bottom: 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; flex-wrap: wrap;">
+                      <div>
+                        <h2 style="font-size: 17px; font-weight: 600; margin: 0;">{{ pyr.run.period }}</h2>
+                        <div style="font-size: 12.5px; color: #5C5850;">{{ pyr.run.employees }} employees · {{ pyr.run.status }}</div>
+                      </div>
+                      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <sc-if value="{{ pyr.run.draft }}" hint-placeholder-val="{{ true }}">
+                          <button data-a="" disabled="{{ perm.noAdmin }}" onClick="{{ pyr.run.approve }}" style="border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; padding: 9px 18px; font-size: 13px; font-weight: 600; cursor: pointer;" style-hover="background: #FAC775; color: #412402;">Approve and post</button>
+                        </sc-if>
+                        <a href="{{ pyr.run.payslipUrl }}" target="_blank" rel="noopener" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 14px; font-size: 12.5px; font-weight: 600; color: #1a1a1a; text-decoration: none;">Payslips (PDF)</a>
+                        <a href="{{ pyr.run.csvUrl }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 14px; font-size: 12.5px; font-weight: 600; color: #1a1a1a; text-decoration: none;">Schedule (CSV)</a>
+                        <a href="{{ pyr.run.xlsUrl }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 14px; font-size: 12.5px; font-weight: 600; color: #1a1a1a; text-decoration: none;">Excel</a>
+                        <a href="{{ pyr.run.pdfUrl }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 14px; font-size: 12.5px; font-weight: 600; color: #1a1a1a; text-decoration: none;">Schedule (PDF)</a>
+                      </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-top: 16px;">
+                      <div><div style="font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: #8A8578;">Gross</div><div style="font-family: 'IBM Plex Mono', monospace; font-weight: 600;">{{ pyr.run.gross }}</div></div>
+                      <div><div style="font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: #8A8578;">PAYE</div><div style="font-family: 'IBM Plex Mono', monospace; font-weight: 600;">{{ pyr.run.paye }}</div></div>
+                      <div><div style="font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: #8A8578;">Pension</div><div style="font-family: 'IBM Plex Mono', monospace; font-weight: 600;">{{ pyr.run.pension }}</div></div>
+                      <div><div style="font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: #8A8578;">Net pay</div><div style="font-family: 'IBM Plex Mono', monospace; font-weight: 600;">{{ pyr.run.net }}</div></div>
+                      <div><div style="font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: #8A8578;">Employer cost</div><div style="font-family: 'IBM Plex Mono', monospace; font-weight: 600;">{{ pyr.run.employerCost }}</div></div>
+                    </div>
+                  </div>
+
+                  <sc-if value="{{ pyr.hasProblems }}" hint-placeholder-val="{{ false }}">
+                    <div style="background: #F7ECEC; border: 1px solid #E4C9C9; border-radius: 6px; padding: 14px 16px; margin-bottom: 16px;">
+                      <div style="font-size: 13px; font-weight: 600; color: #8A2E2E;">The bank will reject these rows</div>
+                      <sc-for list="{{ pyr.problems }}" as="p" hint-placeholder-count="2">
+                        <div style="font-size: 12.5px; color: #8A2E2E; margin-top: 4px;">{{ p.text }}</div>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+
+                  <div data-om="card" style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; overflow: hidden;">
+                    <div style="display: flex; gap: 10px; padding: 10px 20px; background: #F4F3EE; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #5C5850; font-weight: 600;">
+                      <span style="flex: 2;">Employee</span>
+                      <span style="flex: 1; text-align: right;">Gross</span>
+                      <span style="flex: 1; text-align: right;">Pension</span>
+                      <span style="flex: 1; text-align: right;">NHF</span>
+                      <span style="flex: 1; text-align: right;">PAYE</span>
+                      <span style="flex: 1; text-align: right;">Net</span>
+                    </div>
+                    <sc-for list="{{ pyr.lines }}" as="l" hint-placeholder-count="4">
+                      <div style="display: flex; gap: 10px; padding: 11px 20px; border-bottom: 1px solid #EFEDE7; font-size: 13px; font-family: 'IBM Plex Mono', monospace;">
+                        <span style="flex: 2; font-family: 'Familjen Grotesk', system-ui, sans-serif;">{{ l.name }}</span>
+                        <span style="flex: 1; text-align: right;">{{ l.gross }}</span>
+                        <span style="flex: 1; text-align: right;">{{ l.pension }}</span>
+                        <span style="flex: 1; text-align: right;">{{ l.nhf }}</span>
+                        <span style="flex: 1; text-align: right;">{{ l.paye }}</span>
+                        <span style="flex: 1; text-align: right; font-weight: 600;">{{ l.net }}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+              </sc-if>
+            </div>
+          </sc-if>
+
+          <!-- ---------------------------------------------- SETTINGS -->
+          <sc-if value="{{ pyr.isSettings }}" hint-placeholder-val="{{ false }}">
+            <div data-om="card" style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; padding: 22px;">
+              <h2 style="font-size: 17px; font-weight: 600; margin: 0 0 4px;">How salaries are split</h2>
+              <p style="font-size: 12.5px; color: #5C5850; margin: 0 0 10px; line-height: 1.55;">Unless you set your own structure, a gross salary is split 50% basic, 30% housing and 20% transport. This is not cosmetic: pension is contributed on basic, housing and transport together, and NHF on basic alone, so the split decides what is contributed and what is taxed.</p>
+              <div style="font-size: 12.5px; color: #5C5850; line-height: 1.6;">
+                <div><strong>Employee pension</strong> — 8% of basic, housing and transport.</div>
+                <div><strong>Employer pension</strong> — 10%, paid by the business and never deducted from pay.</div>
+                <div><strong>NHF</strong> — 2.5% of basic salary.</div>
+                <div><strong>Rent relief</strong> — 20% of declared annual rent, capped at ₦500,000, replacing the abolished Consolidated Relief Allowance.</div>
+              </div>
+            </div>
+          </sc-if>
+
+        </div>
+      </sc-if>
+
       <!-- ============ SETTINGS ============ -->
       <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 16px;">
@@ -2980,6 +3188,7 @@ const SAFE = Object.freeze({
   cnote: { lines: [], hasError: false, open: false, addLine: NOOP, busy: '', close: NOOP, error: '', estimate: '', issue: NOOP, onIssue: NOOP, onReason: NOOP, opacity: '', reason: '', save: NOOP, subtitle: '', title: '' },
   plink: { open: false, check: NOOP, close: NOOP, copy: NOOP, note: '', noteBg: '', noteFg: '', subtitle: '', title: '', url: '' },
   merch: { providers: [], show: false, storageBlocked: false, note: '', storageNote: '' },
+  pyr: { cards: [], staff: [], runs: [], lines: [], months: [], owed: [], doubts: [], tabs: [], busy: '', error: '', note: '', tab: 'overview', form: {}, run: null, hasRun: false, noStaff: false, noRuns: false, noLines: false, onTab: NOOP, onField: NOOP, addStaff: NOOP, calculate: NOOP, approve: NOOP, period: '', year: '', month: '', ruleNote: '', problems: [] },
   readOnly: { show: false, bg: '', border: '', detail: '', headline: '', rule: '' }
 });
 
@@ -3079,6 +3288,11 @@ class Component extends DCLogic {
       // Set once /auth/config says whether there is a pixel at all, and only
       // when this browser has not already answered.
       askCookies: false,
+      // Payroll. Loaded on first visit to the screen and after anything
+      // that changes it; null means "not fetched yet", which the screen
+      // shows as loading rather than as empty.
+      payTab: 'overview', payOverview: null, payStaff: null, payRuns: null,
+      payRun: null, payForm: {}, payBusy: '', payError: '',
       // Replaced by whatever /auth/config reports. Only ever seen in the
       // moment before that lands.
       trialDays: 14,
@@ -4561,6 +4775,260 @@ class Component extends DCLogic {
     };
   }
 
+  // What the Payroll screen draws.
+  //
+  // Everything money-shaped arrives from the server already in naira — the
+  // routes convert from kobo once, there, so no two screens can round it
+  // differently.
+  payrollVals() {
+    const st = this.state;
+    const o = st.payOverview;
+    const tab = st.payTab || 'overview';
+    const f = st.payForm || {};
+    const now = new Date();
+
+    const TABS = [['overview', 'Overview'], ['staff', 'Employees'],
+      ['run', 'Run payroll'], ['settings', 'Settings']];
+
+    // The same formatter every other screen uses, so payroll figures and
+    // ledger figures cannot be rounded differently.
+    const naira = (v) => money(Number(v) || 0);
+
+    const run = st.payRun;
+    const lines = run && Array.isArray(run.lines) ? run.lines : [];
+    const totals = (run && run.run && run.run.totals) || null;
+
+    const cards = o ? [
+      { label: 'Employees', value: String(o.employees.active),
+        note: o.employees.total !== o.employees.active
+          ? String(o.employees.total - o.employees.active) + ' no longer on payroll' : 'on payroll' },
+      { label: 'Gross this year', value: naira(o.yearToDate.gross), note: String(o.year) },
+      { label: 'PAYE this year', value: naira(o.yearToDate.paye), note: 'withheld for the state' },
+      { label: 'Employer cost', value: naira(o.yearToDate.employerCost),
+        note: 'gross plus pension' }
+    ] : [];
+
+    // Approved and not yet sent. These are debts with deadlines, which is
+    // why they are a list of their own rather than a line on a report.
+    const owed = o ? [
+      ['Salaries', o.outstanding.salaries],
+      ['PAYE', o.outstanding.paye],
+      ['Pension', o.outstanding.pension],
+      ['NHF', o.outstanding.nhf]
+    ].filter((r) => Number(r[1]) > 0).map((r) => ({ label: r[0], amount: naira(r[1]) })) : [];
+
+    const staff = (st.payStaff || []).map((e) => ({
+      id: e.id,
+      name: e.name,
+      role: [e.designation, e.department].filter(Boolean).join(' \u00b7 ') || '\u2014',
+      bank: e.bank ? e.bank + ' \u00b7 ' + (e.accountNumber || 'no account') : 'no bank on file',
+      gross: e.gross === null ? 'no salary set' : naira(e.gross),
+      status: e.status,
+      statusBg: e.status === 'active' ? '#E8F3EC' : '#F1EFEA',
+      statusFg: e.status === 'active' ? '#1E6B45' : '#5C5850'
+    }));
+
+    const runRows = (st.payRuns || []).map((r) => ({
+      id: r.id,
+      period: r.period,
+      employees: String(r.employees || 0),
+      gross: naira(r.gross),
+      net: naira(r.net),
+      status: r.status,
+      statusBg: r.status === 'approved' || r.status === 'paid' ? '#E8F3EC'
+        : r.status === 'reversed' ? '#F7ECEC' : '#FDF4E3',
+      statusFg: r.status === 'approved' || r.status === 'paid' ? '#1E6B45'
+        : r.status === 'reversed' ? '#8A2E2E' : '#8A5A10',
+      open: () => this.openRun(r.id)
+    }));
+
+    const field = (key) => (ev) => {
+      const value = ev && ev.target ? ev.target.value : ev;
+      this.setState((p) => ({ payForm: Object.assign({}, p.payForm, { [key]: value }) }));
+    };
+
+    // buildVals runs on every render, including before anybody has signed
+    // in, so the organisation may not exist yet. The download links are the
+    // only thing here that needs it.
+    const base = st.session && st.session.orgId
+      ? '/api/orgs/' + st.session.orgId + '/payroll/runs/' : '';
+    const runId = run && run.run ? run.run.id : '';
+
+    return {
+      tabs: TABS.map(([id, label]) => ({
+        id, label, on: tab === id, go: () => {
+          this.setState({ payTab: id });
+          if (id === 'staff') this.loadStaff();
+        }
+      })),
+      tab,
+      isOverview: tab === 'overview',
+      isStaff: tab === 'staff',
+      isRun: tab === 'run',
+      isSettings: tab === 'settings',
+
+      loading: !o,
+      cards,
+      owed,
+      noOwed: Boolean(o) && owed.length === 0,
+      months: o ? o.months.map((m) => ({
+        label: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][m.month - 1],
+        gross: naira(m.gross), net: naira(m.net), paye: naira(m.paye)
+      })) : [],
+
+      runs: runRows,
+      noRuns: Boolean(st.payRuns) && runRows.length === 0,
+      staff,
+      noStaff: Boolean(st.payStaff) && staff.length === 0,
+
+      // The honest notice. The three values the published guidance disagreed
+      // about are named on the screen rather than buried in a comment,
+      // because somebody filing a return deserves to know which numbers rest
+      // on a reading rather than on settled law.
+      doubts: o && o.rules ? (o.rules.doubts || []).map((d) => ({
+        item: ({ rentRelief: 'Rent relief', individualMinimumTax: 'Minimum tax',
+          nsitf: 'NSITF' })[d.item] || d.item,
+        doubt: d.doubt
+      })) : [],
+      ruleLabel: o && o.rules ? o.rules.label : '',
+      ruleNote: o && o.rules ? o.rules.note : '',
+
+      run: run && run.run ? {
+        period: run.run.period,
+        status: run.run.status,
+        employees: totals ? String(totals.employees) : '0',
+        gross: totals ? naira(totals.gross) : naira(0),
+        paye: totals ? naira(totals.paye) : naira(0),
+        pension: totals ? naira(totals.employeePension + totals.employerPension) : naira(0),
+        net: totals ? naira(totals.net) : naira(0),
+        employerCost: totals ? naira(totals.employerCost) : naira(0),
+        draft: run.run.status === 'draft',
+        approved: run.run.status === 'approved' || run.run.status === 'paid',
+        payslipUrl: base + runId + '/payslips.pdf',
+        csvUrl: base + runId + '/schedule.csv',
+        xlsUrl: base + runId + '/schedule.xls',
+        pdfUrl: base + runId + '/schedule.pdf',
+        approve: () => this.approvePayroll(runId)
+      } : null,
+      hasRun: Boolean(run && run.run),
+      lines: lines.map((l) => ({
+        name: l.name,
+        role: l.designation || '\u2014',
+        gross: naira(l.gross),
+        pension: naira(l.pension),
+        nhf: naira(l.nhf),
+        paye: naira(l.paye),
+        net: naira(l.net)
+      })),
+      noLines: Boolean(run) && lines.length === 0,
+      // What the bank would reject, said before the file is downloaded.
+      problems: run && Array.isArray(run.problems)
+        ? run.problems.map((p) => ({ text: p.name + ' \u2014 ' + p.problem })) : [],
+      hasProblems: Boolean(run && run.problems && run.problems.length),
+
+      form: {
+        name: f.name || '', staffNumber: f.staffNumber || '', designation: f.designation || '',
+        bank: f.bank || '', accountNumber: f.accountNumber || '', gross: f.gross || '',
+        annualRent: f.annualRent || '', hireDate: f.hireDate || '',
+        runYear: String(f.runYear || now.getFullYear()),
+        runMonth: String(f.runMonth || (now.getMonth() + 1)),
+        payDate: f.payDate || ''
+      },
+      onName: field('name'), onStaffNumber: field('staffNumber'),
+      onDesignation: field('designation'), onBank: field('bank'),
+      onAccountNumber: field('accountNumber'), onGross: field('gross'),
+      onAnnualRent: field('annualRent'), onHireDate: field('hireDate'),
+      onRunYear: field('runYear'), onRunMonth: field('runMonth'), onPayDate: field('payDate'),
+
+      addStaff: () => this.saveEmployee(),
+      calculate: () => this.calculatePayroll(),
+      busy: st.payBusy,
+      saving: st.payBusy === 'saving',
+      calculating: st.payBusy === 'calculating',
+      approving: st.payBusy === 'approving',
+      error: st.payError || '',
+      hasError: Boolean(st.payError)
+    };
+  }
+
+  // ----------------------------- payroll -----------------------------
+  //
+  // Four fetches, each loaded when the tab that needs it is opened rather
+  // than all at once on arrival: a business with two hundred staff should
+  // not wait for the employee list to see this month's totals.
+
+  loadPayroll(force) {
+    const need = [];
+    if (force || !this.state.payOverview) {
+      need.push(API.get(this.orgPath('/payroll/overview'))
+        .then((payOverview) => this.setState({ payOverview }))
+        .catch((err) => this.setState({ payError: err.message })));
+    }
+    if (force || !this.state.payRuns) {
+      need.push(API.get(this.orgPath('/payroll/runs'))
+        .then((r) => this.setState({ payRuns: r.runs || [] }))
+        .catch(() => this.setState({ payRuns: [] })));
+    }
+    return Promise.all(need);
+  }
+
+  loadStaff(force) {
+    if (this.state.payStaff && !force) return Promise.resolve();
+    return API.get(this.orgPath('/payroll/employees'))
+      .then((r) => this.setState({ payStaff: r.employees || [] }))
+      .catch((err) => this.setState({ payStaff: [], payError: err.message }));
+  }
+
+  openRun(id) {
+    this.setState({ payBusy: 'opening', payError: '' });
+    return API.get(this.orgPath('/payroll/runs/' + id))
+      .then((payRun) => this.setState({ payRun, payBusy: '', payTab: 'run' }))
+      .catch((err) => this.setState({ payBusy: '', payError: err.message }));
+  }
+
+  saveEmployee() {
+    const f = this.state.payForm || {};
+    if (!String(f.name || '').trim()) return this.setState({ payError: 'An employee needs a name.' });
+    this.setState({ payBusy: 'saving', payError: '' });
+    return API.post(this.orgPath('/payroll/employees'), {
+      name: f.name, staffNumber: f.staffNumber, designation: f.designation,
+      department: f.department, bank: f.bank, accountName: f.accountName || f.name,
+      accountNumber: f.accountNumber, hireDate: f.hireDate, gross: f.gross,
+      annualRent: f.annualRent, email: f.email
+    })
+      .then(() => {
+        this.setState({ payForm: {}, payBusy: '' });
+        this.flash('Added ' + f.name + '.');
+        return Promise.all([this.loadStaff(true), this.loadPayroll(true)]);
+      })
+      .catch((err) => this.setState({ payBusy: '', payError: err.message }));
+  }
+
+  calculatePayroll() {
+    const f = this.state.payForm || {};
+    const now = new Date();
+    const year = Number(f.runYear) || now.getFullYear();
+    const month = Number(f.runMonth) || (now.getMonth() + 1);
+    this.setState({ payBusy: 'calculating', payError: '' });
+    return API.post(this.orgPath('/payroll/runs'), { year, month, payDate: f.payDate || undefined })
+      .then((out) => {
+        this.setState({ payBusy: '' });
+        return Promise.all([this.openRun(out.run.id), this.loadPayroll(true)]);
+      })
+      .catch((err) => this.setState({ payBusy: '', payError: err.message }));
+  }
+
+  approvePayroll(id) {
+    this.setState({ payBusy: 'approving', payError: '' });
+    return API.post(this.orgPath('/payroll/runs/' + id + '/approve'), {})
+      .then((out) => {
+        this.setState({ payBusy: '' });
+        this.flash(out.alreadyApproved ? 'That payroll was already approved.' : 'Payroll approved and posted.');
+        return Promise.all([this.openRun(id), this.loadPayroll(true)]);
+      })
+      .catch((err) => this.setState({ payBusy: '', payError: err.message }));
+  }
+
   // ---------------- the tenant's own merchant account ----------------
 
   loadMerchant(force) {
@@ -5263,6 +5731,9 @@ class Component extends DCLogic {
       // because it is an admin-only call and every other role would get a 403
       // on the way into a screen they are allowed to see.
       if (screen === 'settings' && this.state.role === 'Admin') this.loadMerchant();
+      // Payroll fetches on arrival rather than at boot: a business that
+      // never opens it should not pay for the queries.
+      if (screen === 'payroll') this.loadPayroll();
     };
   }
 
@@ -6556,7 +7027,7 @@ class Component extends DCLogic {
       ['contacts', church ? 'Members & Vendors' : 'Customers & Suppliers', ''],
       ['bills', 'Bills', String(d.bills.filter((b) => this.balance(b) > 0).length || '')],
       ['transactions', church ? 'Giving & Spending' : 'Expenses & Income', String(d.tx.filter((t) => !t.category).length || '')],
-      ['inventory', 'Products', ''], ['reconcile', 'Reconciliation', ''], ['reports', 'Reports', ''], ['settings', 'Settings', '']]
+      ['inventory', 'Products', ''], ['payroll', 'Payroll', ''], ['reconcile', 'Reconciliation', ''], ['reports', 'Reports', ''], ['settings', 'Settings', '']]
       .filter((n) => !(church && n[0] === 'inventory'));
 
     const ICONS = {
@@ -6570,9 +7041,10 @@ class Component extends DCLogic {
       reconcile: 'M4 12l5 5L20 6M4 6l5 5',
       reports: 'M4 20V10m5 10V4m5 16v-7m5 7V8',
       settings: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM4 12H2m20 0h-2M12 4V2m0 20v-2M6 6L4.5 4.5M19.5 19.5L18 18M18 6l1.5-1.5M4.5 19.5L6 18',
-      ai: 'M12 3l1.9 4.6L18.5 9.5 13.9 11.4 12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3zM18 16.5l.8 1.9 1.9.8-1.9.8-.8 1.9-.8-1.9-1.9-.8 1.9-.8.8-1.9z'
+      ai: 'M12 3l1.9 4.6L18.5 9.5 13.9 11.4 12 16l-1.9-4.6L5.5 9.5l4.6-1.9L12 3zM18 16.5l.8 1.9 1.9.8-1.9.8-.8 1.9-.8-1.9-1.9-.8 1.9-.8.8-1.9z',
+      payroll: 'M16 20v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M9.5 4a3.5 3.5 0 1 1 0 7 3.5 3.5 0 0 1 0-7zM17 11h5M19.5 8.5v5'
     };
-    const GROUPS = [['Overview', ['dashboard', 'ai']], ['Sales', ['invoicing', 'invoices', 'contacts']], ['Purchases', ['bills', 'transactions']], ['Inventory', ['inventory']], ['Accounting', ['reconcile', 'reports']], ['Workspace', ['settings']]];
+    const GROUPS = [['Overview', ['dashboard', 'ai']], ['Sales', ['invoicing', 'invoices', 'contacts']], ['Purchases', ['bills', 'transactions']], ['Inventory', ['inventory']], ['Accounting', ['reconcile', 'reports']], ['People', ['payroll']], ['Workspace', ['settings']]];
     const navMap = {};
     navDefs.forEach((n) => {
       const on = st.screen === n[0];
@@ -6971,8 +7443,8 @@ class Component extends DCLogic {
       navShut: !navOpen, navChevron: navOpen ? '\u2039\u2039' : '\u203a\u203a',
       toggleNav: () => this.setState((s) => ({ navOpen: s.navOpen === false })),
       presets, crumb: st.screen === 'dashboard' ? this.longDate() : o.name + ' · ' + o.type,
-      title: ({ dashboard: this.greeting() + ', ' + this.firstName(), ai: 'Profitna AI', invoicing: 'Invoicing', transactions: church ? 'Giving & Spending' : 'Expenses & Income', invoices: church ? 'Pledges & Receivables' : 'Invoices & Receivables', bills: 'Bills & Payables', contacts: church ? 'Members & Vendors' : 'Customers & Suppliers', inventory: 'Products & Stock', reconcile: 'Bank Reconciliation', reports: 'Financial Reports', settings: 'Settings' })[st.screen] || 'Dashboard',
-      subtitle: ({ dashboard: "Here's how your business is doing today.", ai: 'Your intelligent financial assistant.', invoicing: 'Create, send and collect \u2014 and the books keep themselves.', transactions: 'Every naira in and out, coded to an account.', invoices: 'Who owes you, and how long it has been outstanding.', bills: 'What you owe, and when it falls due.', contacts: 'Customers, suppliers and what they are worth to you.', inventory: 'Stock on hand, cost and value.', reconcile: 'Match your bank against your books.', reports: 'Statements you can hand to an accountant.', settings: 'Business profile, accounts, team and subscription.' })[st.screen] || '',
+      title: ({ dashboard: this.greeting() + ', ' + this.firstName(), ai: 'Profitna AI', invoicing: 'Invoicing', transactions: church ? 'Giving & Spending' : 'Expenses & Income', invoices: church ? 'Pledges & Receivables' : 'Invoices & Receivables', bills: 'Bills & Payables', contacts: church ? 'Members & Vendors' : 'Customers & Suppliers', inventory: 'Products & Stock', payroll: 'Payroll', reconcile: 'Bank Reconciliation', reports: 'Financial Reports', settings: 'Settings' })[st.screen] || 'Dashboard',
+      subtitle: ({ dashboard: "Here's how your business is doing today.", ai: 'Your intelligent financial assistant.', invoicing: 'Create, send and collect \u2014 and the books keep themselves.', transactions: 'Every naira in and out, coded to an account.', invoices: 'Who owes you, and how long it has been outstanding.', bills: 'What you owe, and when it falls due.', contacts: 'Customers, suppliers and what they are worth to you.', inventory: 'Stock on hand, cost and value.', payroll: 'Staff, salaries, PAYE and pension — and the books keep themselves.', reconcile: 'Match your bank against your books.', reports: 'Statements you can hand to an accountant.', settings: 'Business profile, accounts, team and subscription.' })[st.screen] || '',
       newTxLabel: church ? 'Record giving' : 'New transaction',
       incomeWord, partyWord: church ? 'Member / Vendor' : 'Client / Vendor', fundWord: church ? 'Fund' : 'Method',
       isDashboard: st.screen === 'dashboard', isTx: st.screen === 'transactions', isAI: st.screen === 'ai',
@@ -7005,6 +7477,13 @@ class Component extends DCLogic {
       isLedgerDoc: st.screen === 'invoices' || st.screen === 'bills', isContacts: st.screen === 'contacts',
       isInventory: st.screen === 'inventory', isReconcile: st.screen === 'reconcile',
       isReports: st.screen === 'reports', isSettings: st.screen === 'settings',
+      isPayroll: st.screen === 'payroll',
+      // `pay` is taken: it is the subscription paywall's binding, defined
+      // later in this same object, so a payroll section called `pay` was
+      // silently overwritten and every tab on the screen rendered empty.
+      // A duplicate key in an object literal fails in total silence, which
+      // is why this one took a browser and a printed view-model to find.
+      pyr: this.section('payroll', () => this.payrollVals(), SAFE.pyr),
       // Drives the stylesheet that greys out what this role cannot reach, and
       // the disabled state that stops the keyboard reaching it either.
       roleKey: st.role === 'Admin' ? 'admin' : st.role === 'Viewer' ? 'viewer' : 'accountant',
