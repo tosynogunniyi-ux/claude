@@ -29,8 +29,18 @@ COPY server/package.json server/package-lock.json ./server/
 RUN cd server && npm ci --omit=dev
 
 COPY server ./server
-COPY web/Profitna.dc.html web/support.js web/admin.html ./web/
-COPY web/vendor ./web/vendor
+
+# The whole directory, rather than the files named one at a time.
+#
+# It used to list them: Profitna.dc.html, support.js, admin.html, vendor. That
+# is a trap, and it sprang the day /privacy was added — the route existed, the
+# file did not reach the image, and sendFile threw into the 500 handler. A page
+# that is served has to be a page that ships, and nothing about adding a route
+# reminds you to come back here.
+#
+# Nothing in web/ is secret and nothing in it is large; .dockerignore already
+# keeps node_modules, .env files and logs out of every COPY in this file.
+COPY web ./web
 
 # Somewhere to write dumps, owned by the user that writes them. A host that
 # mounts a volume over this path must give it to uid 1000, or the backup will

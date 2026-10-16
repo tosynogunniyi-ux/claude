@@ -595,6 +595,44 @@ async function signup(call, email, book, org) {
     /off unless you/i.test(privacy.text));
   check('/cookies reaches the same page', (await reader('GET', '/cookies')).status === 200);
 
+  // ------------------------------------------- what is routed must be shipped
+  //
+  // The fault this exists to prevent, because it has happened: /privacy was
+  // added to the routes and the file was not added to the Dockerfile's list of
+  // web files, so the route worked everywhere except production, where
+  // sendFile threw into the 500 handler. No test caught it because every test
+  // runs against the repository, where the file is obviously present.
+  //
+  // So this reads the two files and compares them. It is a static check and
+  // needs no server, which is the point: it fails on the laptop rather than on
+  // the live site.
+  console.log('\nevery page the server serves is in the image');
+
+  const fs = require('fs');
+  const pathMod = require('path');
+  const indexSrc = fs.readFileSync(pathMod.join(__dirname, '..', 'src', 'index.js'), 'utf8');
+  const dockerfile = fs.readFileSync(pathMod.join(__dirname, '..', '..', 'Dockerfile'), 'utf8');
+
+  const pages = [];
+  const sendFileRe = /sendFile\(path\.join\(WEB_ROOT,\s*'([^']+)'/g;
+  let hit;
+  while ((hit = sendFileRe.exec(indexSrc)) !== null) pages.push(hit[1]);
+  check('the server serves at least the app, the console and the privacy page',
+    pages.length >= 3, pages.join(', '));
+
+  const copies = dockerfile.split('\n').filter((l) => /^COPY\s/.test(l) && /web/.test(l));
+  // One COPY of the whole directory covers everything and cannot drift.
+  const wholeDir = copies.some((l) => /^COPY\s+web\s+\.\/web\/?$/.test(l.trim()));
+  const copied = copies.join(' ');
+
+  for (const file of pages) {
+    check('  ' + file + ' exists in web/',
+      fs.existsSync(pathMod.join(__dirname, '..', '..', 'web', file)));
+    check('  ' + file + ' reaches the image',
+      wholeDir || copied.includes('web/' + file),
+      'not covered by any COPY in the Dockerfile');
+  }
+
   console.log('\n' + passed + ' passed, ' + failures.length + ' failed');
   if (failures.length) {
     failures.forEach((f) => console.log('  - ' + f));

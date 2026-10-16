@@ -410,11 +410,11 @@ have locked a business out of its own books.
 `SEED_DEMO_DATA=true` fills each new account with eight months of sample
 Nigerian books. Leave it unset in production so real accounts start empty.
 
-Sixteen test suites, 1,154 checks, run against a live server and a real database:
+Sixteen test suites, 1,163 checks, run against a live server and a real database:
 
 | Command | Checks | Covers |
 |---|---|---|
-| `npm run smoke` | 136 | Signup, ledger, invoices, inventory, imports, tenant isolation, the privacy notice |
+| `npm run smoke` | 145 | Signup, ledger, invoices, inventory, imports, tenant isolation, the privacy notice, and that every page the server routes is a page the image ships |
 | `npm run smoke:admin` | 103 | The Control Center, its auth, its second factor and the outbox |
 | `npm run test:billing` | 54 | A trial through to a charge, a decline, a retry, a recovery |
 | `npm run test:monnify` | 85 | The processor, amounts, webhooks, and the live switch |
