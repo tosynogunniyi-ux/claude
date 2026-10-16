@@ -149,6 +149,17 @@ async function activate(organizationId, { reference, email, userId }) {
     seats: sub.seats
   });
 
+  // Money confirmed. Two things follow, neither awaited and neither able to
+  // fail this: any trial reminder already written and waiting out quiet hours
+  // is cancelled, so it cannot land the morning after the payment; and the
+  // paid-onboarding message is decided now rather than up to a quarter of an
+  // hour later.
+  //
+  // The conditions would have declined to re-qualify anyway — every trial
+  // step tests that the account is still trialing and unpaid — so this is
+  // belt and braces for the one window the conditions cannot see into.
+  require('../email').paymentConfirmed(organizationId);
+
   // Handed back so the caller can report the sale with the figure the
   // processor confirmed, rather than the figure the browser hoped for.
   return {

@@ -47,6 +47,9 @@ what it can honestly do:
 | `ADMIN_IP_ALLOWLIST` | The console is reachable from any address. |
 | `ADMIN_TOTP` | Two-factor is required. Set it to `off` only if you cannot use an authenticator app. |
 | `BILLING_SCHEDULER` | Trials end and terms renew automatically. Set it to `off` to stop that. |
+| `EMAIL_SMTP_HOST` etc. | Automatic email is decided and recorded but not sent. The outbox holds what would have gone out, with the reason on each row. |
+| `EMAIL_SENDING` | Messages are held rather than sent even with a provider configured. Set it to `on` deliberately, after reading the outbox. |
+| `EMAIL_SCHEDULER` | The lifecycle pass runs every 15 minutes. `off` stops it. |
 | `RECURRING_SCHEDULER` | Recurring invoices raise themselves hourly. Set it to `off` to stop that; schedules can still be run by hand. |
 | `SCREENS_REQUIRE_BROWSER` | `npm run test:screens` skips when no Chromium is present. Set it to `1` in CI so a missing browser fails the run instead of quietly not checking that the interface cannot be taken down. |
 | `CREDENTIALS_KEY` | Online collection is **hidden**, not broken: the Settings panel and every Pay-link button are absent, and nothing is stored in the clear as a fallback. The boot log and `/api/health` say why. Setting the variable brings the panel back on its own. |
@@ -745,6 +748,172 @@ false, and nothing could set it — so 7.5% could never have been applied to
 anything. The smoke suite found it by asserting VAT appeared and getting
 zero. `PATCH /orgs/:id` now carries it, along with the address, phone, email,
 website, TIN and RC number an invoice has to print.
+
+## Automatic email
+
+Profitna had never sent an email. That was deliberate and stated throughout —
+invitations produce a link to copy, and nothing claimed to send mail — so this
+is the first time an address is used for anything, and it is built in
+proportion to that.
+
+Everything here runs now except the last hop. With no mail provider
+configured, messages are decided, rendered and recorded with "no mail provider
+is configured" on the row. They are not marked sent, not thrown away, and the
+moment credentials appear they are there to be read before anything goes out.
+
+### Nothing is queued in advance
+
+This is the one design decision everything else follows from, and the brief
+asked for it in a sentence: messages must be conditional, not blindly sent on
+every listed day.
+
+The obvious build is a queue — somebody signs up, schedule the day-3 email for
+three days' time. It is wrong. By day 3 the person may have activated, paid,
+been suspended, asked to hear nothing, or closed the account, and the queued
+message knows none of it. Patching that means chasing every queued row
+whenever anything changes, and the one you forget is the one that tells a
+paying customer their trial is about to expire.
+
+So nothing is queued. The pass asks, for each organisation, **what is true
+now**, and a step is due only if its condition holds at the moment of sending.
+
+That is also the whole of requirement E. Somebody who pays on day 9 never
+receives the day-10 message, the expiry reminder or the expiry notice — not
+because something cancelled them, but because every trial condition tests
+"still trialing and unpaid" and a paid account answers no. No mechanism was
+needed; it falls out of asking the question late rather than early.
+
+Each condition is a pure function of `(signals, now)`, which is why most of
+`test:email` needs no database, no clock and no mail server. A lifecycle
+system whose conditions cannot be tested in isolation will email the wrong
+person eventually.
+
+### The sequence, and what makes each one conditional
+
+| When | Message | Sent only if |
+|---|---|---|
+| Registration | Welcome and the first step | Always, within 3 days of signup |
+| 24h | Setup assistance | **Nothing recorded yet** — not merely "has not logged in" |
+| Day 3 | Offer of help | Still not activated, still trialing, not paid |
+| Day 6 **after activating** | Feature guidance | Activated, and measured from the activation, not the signup |
+| Day 10 | Where the trial stands | Still trialing, **no card on file**, not paid |
+| 48h before expiry | The expiry reminder | Still trialing and unpaid, on **this subscription's own** end date |
+| At expiry | Account status | Trial actually ended, still unpaid |
+| After confirmed payment | Paid onboarding | A payment row exists and the processor confirmed it |
+| A week after paying | One more note, then silence | Still active |
+| Each failed charge | What the bank said, one per attempt | Keyed by attempt number |
+| After the last retry | We have stopped trying | Status is past due |
+
+"Activated" means the business recorded something real — a transaction, an
+invoice or a bill. Derived, not a column somebody has to remember to set.
+
+The expiry date is **this subscription's own**: `trial_start` plus the
+`trial_days` stored on the row, not today's constant. The default went 14 → 30
+→ 14, and each account keeps the promise made when it signed up. A test
+asserts a 30-day trial is reminded on day 28 and is *not* told on day 12 that
+it is about to end.
+
+The day-6 guidance is chosen from what the business is **not** using yet — no
+bank account, invoices but no payments recorded, invoices raised by hand every
+month. A business already doing all of it is pointed at its reports rather
+than sold something. That is what makes it guidance instead of a newsletter.
+
+### Nothing fires months late
+
+Each step has an upper bound as well as a lower one, and there is a hard
+backstop: nothing is sent about an event older than `EMAIL_MAX_EVENT_AGE_DAYS`
+(3). Without it, switching this on would have sent every organisation ever
+created whichever step its age happened to land in — a day-3 nudge to somebody
+who signed up last year. A test asserts an account created 400 days ago
+qualifies for nothing at all.
+
+### Idempotency
+
+One message per `(organisation, kind, dedupe_key, user)`, with a unique index
+behind it. The key carries whatever makes an occurrence distinct — the trial
+end date, the charge attempt number — so a second trial produces a second
+reminder and a retried pass does not. Five simultaneous passes write one row
+between them, and the database refuses a duplicate inserted by hand.
+
+### Retries, and the difference between a blip and a wall
+
+A wrong password retried four times is four more wrong passwords, and a
+mailbox that does not exist never will. So failures are classified:
+
+- **Temporary** (4xx, a reset connection): retried five times over about a day
+  and a half, widening each step.
+- **Permanent** (5xx, no such user, authentication failed): given up on at
+  once, **and the address is suppressed** — which is what protects the sending
+  domain's reputation, and the reputation is shared by every customer on it.
+- **Held** (no provider, sending switched off): not an attempt, so it does not
+  consume one. These are not already exhausted when a provider appears.
+
+### Consent, and the line the law actually draws
+
+Three categories, declared with their justification attached, because the
+sender refuses to send a message whose category it does not recognise:
+
+| | Basis | Default | Can be switched off |
+|---|---|---|---|
+| **About your account** | contract | on | **No** — see below |
+| **Help getting started** | legitimate interest | on | Yes, one click |
+| **News and offers** | **consent** | **off** | Yes |
+
+Nothing in the lifecycle above is marketing. The category exists so that
+nothing can later be added and quietly treated as onboarding.
+
+Account messages cannot be switched off, and the preferences page says so
+rather than offering a switch that does nothing: somebody who stops them stops
+learning that their card failed, which is not a kindness. Unsubscribing from
+everything stops the optional categories and not those. Closing the account
+stops everything.
+
+**Suppression is different from preference, and overrides it.** A hard bounce
+or a spam complaint belongs to the *address*, outlives the account, survives
+deletion and recreation, and stops everything including account messages.
+Continuing to send to somebody who reported you is how a domain gets blocked.
+
+### Unsubscribing
+
+- A 256-bit token in the path identifies the person. No session — demanding
+  one is how an unsubscribe link becomes a spam complaint — and no way to
+  enumerate an address or guess at somebody else's preferences.
+- `List-Unsubscribe` and `List-Unsubscribe-Post` headers, so one-click works.
+  Gmail and Yahoo both require it of bulk senders now.
+- The link unsubscribes **immediately** rather than showing a confirmation.
+  Making somebody click twice is how an unsubscribe becomes a complaint; the
+  undo on the resulting page is what makes that safe.
+- An unknown or malformed token changes nothing, says so, and returns 200 —
+  a 4xx here is replaced by the proxy's own error page, which would leave the
+  person believing they are still subscribed.
+
+### Quiet hours
+
+Account messages go when they happen; a card failing at 02:00 is news at
+02:00. Optional ones wait for 08:00–20:00 West Africa Time, with a few minutes
+of jitter so a thousand accounts do not all send on the same second.
+
+### Switching it on
+
+Two variables, deliberately separate:
+
+1. `EMAIL_SMTP_HOST`, `EMAIL_SMTP_USER`, `EMAIL_SMTP_PASSWORD`, `EMAIL_FROM` —
+   any provider that speaks SMTP (Zoho, Mailgun, SendGrid, Amazon SES,
+   Postmark, Resend). Port 587 for STARTTLS or 465 for implicit TLS; the code
+   derives which from the port, because getting that wrong fails as a timeout
+   and tells nobody anything.
+2. `EMAIL_SENDING=on`.
+
+Keeping them apart is what makes the first deployment safe. Credentials can be
+in place and proved while sending is still off, so the outbox fills with
+exactly what would have gone out and somebody can read it before a single
+customer hears from us.
+
+**The sending domain needs SPF and DKIM published before anything reaches an
+inbox rather than a spam folder.** That is DNS, not code, and no amount of
+correct software substitutes for it.
+
+`/api/health` reports both states. `npm run test:email` — 89 checks.
 
 ## Not being locked out of your own books
 

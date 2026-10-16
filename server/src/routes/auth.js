@@ -251,6 +251,13 @@ router.post('/signup', async (req, res, next) => {
       custom: { content_name: book === 'church' ? 'church books' : 'business books', status: 'trial' }
     });
 
+    // The welcome email, straight away rather than waiting up to a quarter of
+    // an hour for the scheduled pass — fifteen minutes later has missed the
+    // moment somebody was actually looking at the screen. Not awaited, for
+    // the same reason the ad event above is not: a slow mail server must not
+    // slow a signup, let alone fail one.
+    require('../email').nudge(created.orgId);
+
     res.status(201).json({
       session: await sessionFor(created.userId),
       // The browser fires the same event with this id. Meta keeps whichever

@@ -131,6 +131,28 @@ money and it is never an intermediary. The keys that collect Profitna's own
 subscription fees and the keys that collect a customer's invoice payment are
 different keys in different places, and no code path can confuse them.
 
+**Automatic email** — the lifecycle: a welcome, setup help if nothing has been
+recorded after a day, an offer of help on day 3, guidance six days after they
+actually start using it, where the trial stands on day 10, a reminder 48 hours
+before the real expiry date, the account status at expiry, and a paid
+onboarding once money has been confirmed. Plus a note for each failed charge.
+
+Every one of them is conditional. Nothing is queued in advance: the pass asks
+what is true *now*, so somebody who activates on day 2 never gets the day-3
+message and somebody who pays on day 9 never gets the expiry reminder — not
+because anything cancelled them, but because they never qualify.
+
+Three classes of message, kept apart: account messages (which cannot be
+switched off, and the preferences page says why), getting-started help (one
+click to stop), and marketing (off until somebody deliberately turns it on —
+and nothing in the lifecycle is in that class). A bounce or a spam complaint
+suppresses the address for everything, permanently, because that belongs to
+the mailbox rather than to the account.
+
+**It does not send yet.** See "Still open" — it needs a mail provider and a
+sending domain, and until then every message is decided, written down and
+held so you can read exactly what would have gone out.
+
 **Trial length, per account** — the default is 14 days for new sign-ups. It
 went 14 → 30 → 14, and the second change could not work like the first: the
 length is now recorded on each subscription when it is created, so lowering
@@ -321,6 +343,26 @@ have locked a business out of its own books.
   that business. Pay-link buttons appear on invoices only once an account has
   been connected *and* proved, so a button never appears before it works.
 
+- **Automatic email needs a provider and a domain.** The whole lifecycle is
+  built and running — it decides who is due what every fifteen minutes and
+  writes each message down — but nothing is sent until a mail provider is
+  configured. Two steps, deliberately separate:
+
+  1. Set `EMAIL_SMTP_HOST`, `EMAIL_SMTP_USER`, `EMAIL_SMTP_PASSWORD` and
+     `EMAIL_FROM` in Easypanel. Any provider that speaks SMTP will do — Zoho
+     is the cheapest of the ones common in Nigeria; Mailgun, SendGrid, Amazon
+     SES, Postmark and Resend all work the same way.
+  2. **Publish SPF and DKIM records for the sending domain.** This is DNS, not
+     code. Without it the mail goes to spam however correct the software is,
+     and the first few hundred messages are what decide the domain's
+     reputation for months.
+
+  Then read the outbox — `/api/orgs/<id>/email`, or the `email_messages` table
+  — and look at what has been held. Only then set `EMAIL_SENDING=on`. The two
+  are separate variables precisely so you can look first.
+
+  `GET /api/health` reports both states under `email`.
+
 - **Ask Profitna needs its key.** The code is live but the screen will keep
   saying "Simulated · no model connected" until `ANTHROPIC_API_KEY` is set in
   Easypanel → your app service → Environment. `GET /api/health` reports
@@ -345,7 +387,7 @@ have locked a business out of its own books.
 `SEED_DEMO_DATA=true` fills each new account with eight months of sample
 Nigerian books. Leave it unset in production so real accounts start empty.
 
-Fifteen test suites, 1,035 checks, run against a live server and a real database:
+Sixteen test suites, 1,124 checks, run against a live server and a real database:
 
 | Command | Checks | Covers |
 |---|---|---|
@@ -362,5 +404,6 @@ Fifteen test suites, 1,035 checks, run against a live server and a real database
 | `npm run test:ledger` | 62 | Double entry: balance, idempotency, reversals, closed periods, backfill |
 | `npm run test:payments` | 151 | Receipts across several invoices, money on account, credit notes, gateways, webhooks, forged signatures |
 | `npm run test:recurring` | 50 | Schedules: the dates, catching up, stopping, and that nobody is billed twice |
+| `npm run test:email` | 89 | The lifecycle conditions, consent, idempotency, retries and unsubscribing |
 | `npm run test:screens` | 119 | That no broken response can take the interface down, proved by breaking them |
 | `npm run test:trial` | 16 | That changing the trial length leaves running trials alone |

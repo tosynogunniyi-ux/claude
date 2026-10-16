@@ -19,6 +19,7 @@ const aiRoutes = require('./routes/ai');
 const invoicingRoutes = require('./routes/invoicing');
 const paymentRoutes = require('./routes/payments');
 const recurringRoutes = require('./routes/recurring');
+const emailRoutes = require('./routes/email');
 const payRoutes = require('./routes/pay');
 
 const app = express();
@@ -87,6 +88,10 @@ app.get('/api/health', async (req, res) => {
     // reaching this container — the one thing that cannot be worked out from
     // the outside, and the thing that makes the feature silently absent.
     merchantCredentials: require('./crypto').configured() ? 'encrypted at rest' : 'off',
+    // Whether the lifecycle emails are deciding, and whether they are
+    // actually going anywhere. The two are separate on purpose: credentials
+    // can be in place and proved while sending is still off.
+    email: require('./email').describe(),
     // Zero is the only good answer. A number here means something threw where
     // nothing was listening: the server kept serving rather than dying, which
     // is the right trade for a live site, but the fault is real and the log
@@ -101,6 +106,12 @@ app.get('/api/health', async (req, res) => {
 // by necessity: the payer has no Profitna account. Mounted after the JSON
 // parser because neither reads a body.
 app.use('/api/pay', payRoutes.router);
+
+// Unsubscribing and email preferences. Public and unauthenticated by
+// necessity: the person clicking is in their mail client with no session, and
+// demanding one is how an unsubscribe link becomes a spam complaint. The
+// 256-bit token in the path is what identifies them.
+app.use('/api/email', emailRoutes.router);
 
 app.use('/api/auth', authRoutes.router);
 // Following an invitation link happens before there is anything to sign in
@@ -130,6 +141,7 @@ orgScoped.use(aiRoutes.router);
 orgScoped.use(invoicingRoutes.router);
 orgScoped.use(paymentRoutes.router);
 orgScoped.use(recurringRoutes.router);
+orgScoped.use(emailRoutes.orgRouter);
 app.use('/api/orgs/:orgId', requireAuth, orgScoped);
 
 // The prototype is served from here, so the API is same-origin and the session
@@ -165,6 +177,9 @@ for (const w of require('./integrations/meta').warnings()) {
   console.warn('WARNING: ' + w);
 }
 for (const w of require('./crypto').warnings()) {
+  console.warn('WARNING: ' + w);
+}
+for (const w of require('./email').warnings()) {
   console.warn('WARNING: ' + w);
 }
 
@@ -221,6 +236,10 @@ if (require.main === module) {
     // Raises the invoices that schedules say are due. Its own advisory lock,
     // so more than one container does not bill the same month twice.
     require('./invoicing/recurring').start();
+    // Decides who is due what, and sends it. Records either way: with no mail
+    // provider configured the outbox still fills, so what would have gone out
+    // can be read before anything does.
+    require('./email').start();
   });
 }
 
