@@ -349,17 +349,44 @@ have locked a business out of its own books.
   configured. Two steps, deliberately separate:
 
   1. Set `EMAIL_SMTP_HOST`, `EMAIL_SMTP_USER`, `EMAIL_SMTP_PASSWORD` and
-     `EMAIL_FROM` in Easypanel. Any provider that speaks SMTP will do — Zoho
-     is the cheapest of the ones common in Nigeria; Mailgun, SendGrid, Amazon
-     SES, Postmark and Resend all work the same way.
+     `EMAIL_FROM` in Easypanel. Any provider that speaks SMTP will do.
+     **Hostinger Email, which profitna.com already has:**
+
+     | Variable | Value |
+     |---|---|
+     | `EMAIL_SMTP_HOST` | `smtp.hostinger.com` |
+     | `EMAIL_SMTP_PORT` | `465` (or `587`; the code derives TLS from the port) |
+     | `EMAIL_SMTP_USER` | the whole mailbox address, e.g. `noreply@profitna.com` |
+     | `EMAIL_SMTP_PASSWORD` | that mailbox's own password |
+     | `EMAIL_FROM` | the same address as the user |
+     | `EMAIL_REPLY_TO` | where a reply should land, e.g. `support@profitna.com` |
+
+     The address in `EMAIL_FROM` must be a real mailbox on the domain and the
+     same one being logged in as — Hostinger refuses to send as an address the
+     authenticated mailbox does not own, which is correct of it and the
+     commonest way this is got wrong. Mailgun, SendGrid, Amazon SES, Postmark,
+     Resend and Zoho are the same four variables with different values, so
+     outgrowing Hostinger's hourly limits later costs no code change.
   2. **Publish SPF and DKIM records for the sending domain.** This is DNS, not
      code. Without it the mail goes to spam however correct the software is,
      and the first few hundred messages are what decide the domain's
-     reputation for months.
+     reputation for months. On Hostinger, if profitna.com's DNS is also with
+     Hostinger, both are usually added when the mailbox is created — confirm
+     it in hPanel rather than assuming, because a perfectly working login
+     sends perfectly spam-foldered mail.
 
-  Then read the outbox — `/api/orgs/<id>/email`, or the `email_messages` table
-  — and look at what has been held. Only then set `EMAIL_SENDING=on`. The two
-  are separate variables precisely so you can look first.
+  Then, in the owner console → **Email**:
+
+  - **Check credentials** proves the login. Sends nothing.
+  - **Send test** puts one real message on the wire, past `EMAIL_SENDING`, so
+    you can see where it lands. The body is fixed in `provider.js`; nothing
+    typed in the console reaches it.
+  - The outbox below is every message the journey has decided, held and in
+    full — the same thing `/api/orgs/<id>/email` shows one business, across
+    all of them.
+
+  Only then set `EMAIL_SENDING=on`. The two are separate variables precisely
+  so you can look first.
 
   `GET /api/health` reports both states under `email`.
 
@@ -387,12 +414,12 @@ have locked a business out of its own books.
 `SEED_DEMO_DATA=true` fills each new account with eight months of sample
 Nigerian books. Leave it unset in production so real accounts start empty.
 
-Sixteen test suites, 1,124 checks, run against a live server and a real database:
+Sixteen test suites, 1,139 checks, run against a live server and a real database:
 
 | Command | Checks | Covers |
 |---|---|---|
 | `npm run smoke` | 130 | Signup, ledger, invoices, inventory, imports, tenant isolation |
-| `npm run smoke:admin` | 88 | The Control Center, its auth and its second factor |
+| `npm run smoke:admin` | 103 | The Control Center, its auth, its second factor and the outbox |
 | `npm run test:billing` | 54 | A trial through to a charge, a decline, a retry, a recovery |
 | `npm run test:monnify` | 85 | The processor, amounts, webhooks, and the live switch |
 | `npm run test:ask` | 60 | What Profitna AI may read, and that its tables are the database's |

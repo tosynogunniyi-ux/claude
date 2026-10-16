@@ -448,6 +448,72 @@ async function makeOwner(email, password) {
     'no failed-login record'
   );
 
+  // ------------------------------------------------------------------ email
+  //
+  // The boot log and /api/health both tell the operator to read the outbox
+  // before switching sending on. These checks are what keep that instruction
+  // from pointing at a route that does not exist.
+  console.log('\nthe email outbox');
+
+  const outbox = await admin('GET', '/api/admin/email');
+  check('the outbox loads', outbox.status === 200 && Array.isArray(outbox.body.messages),
+    'status ' + outbox.status);
+  check('it says what state the provider is in',
+    Boolean(outbox.body.provider && outbox.body.provider.state), JSON.stringify(outbox.body.provider));
+  // The requirement sentence names EMAIL_SMTP_PASSWORD, which is the variable
+  // to set and not the value in it — so this looks for a key holding a secret
+  // and for the configured password itself, rather than for the word.
+  const providerKeys = Object.keys(outbox.body.provider || {});
+  const configuredPassword = String(process.env.EMAIL_SMTP_PASSWORD || '');
+  check('it never includes the password',
+    !providerKeys.some((k) => /pass|secret|credential/i.test(k)) &&
+    (!configuredPassword || !JSON.stringify(outbox.body.provider).includes(configuredPassword)),
+    providerKeys.join(', '));
+  check('it counts every outcome, not only the sent ones',
+    outbox.body.counts && ['queued', 'sent', 'failed', 'suppressed', 'held', 'cancelled']
+      .every((k) => typeof outbox.body.counts[k] === 'number'),
+    JSON.stringify(outbox.body.counts));
+
+  const outboxFiltered = await admin('GET', '/api/admin/email?status=sent');
+  check('it filters by outcome', outboxFiltered.status === 200 &&
+    outboxFiltered.body.messages.every((m) => m.status === 'sent'));
+
+  const outboxBadStatus = await admin('GET', '/api/admin/email?status=nonsense');
+  check('an outcome that does not exist is ignored rather than erroring',
+    outboxBadStatus.status === 200, 'status ' + outboxBadStatus.status);
+
+  const missingMessage = await admin('GET',
+    '/api/admin/email/00000000-0000-0000-0000-000000000000');
+  check('a message that does not exist answers 404', missingMessage.status === 404,
+    'status ' + missingMessage.status);
+
+  // With no provider configured these answer 503 and name what is missing —
+  // which is the useful answer, and the one the live deployment gets today.
+  const verify = await admin('POST', '/api/admin/email/verify');
+  check('checking the credentials either works or says what is missing',
+    verify.status === 200 || verify.status === 503 || verify.status === 424,
+    'status ' + verify.status);
+  if (verify.status !== 200) {
+    check('and names the variables rather than failing silently',
+      /EMAIL_SMTP|refused/i.test(verify.body.error || ''), verify.body.error);
+  } else {
+    check('and says which host it reached', Boolean(verify.body.host));
+  }
+
+  const badTest = await admin('POST', '/api/admin/email/test', { to: 'not-an-address' });
+  check('a test to something that is not an address is refused before any send',
+    badTest.status === 400, 'status ' + badTest.status);
+
+  const emailRun = await admin('POST', '/api/admin/email/run');
+  check('the pass can be run by hand', emailRun.status === 200, 'status ' + emailRun.status);
+  check('and says whether it ran or why not',
+    emailRun.body.ran === true || typeof emailRun.body.reason === 'string', JSON.stringify(emailRun.body));
+
+  const emailAudit = await admin('GET', '/api/admin/activity?scope=platform');
+  check('every one of those is written to the audit log',
+    emailAudit.body.events.some((e) => String(e.action).startsWith('email.')),
+    JSON.stringify(emailAudit.body.events.slice(0, 5).map((e) => e.action)));
+
   // -------------------------------------------------------------- isolation
   console.log('\nisolation between the two authentication systems');
 
@@ -456,6 +522,15 @@ async function makeOwner(email, password) {
 
   const tenantTriesUsers = await tenant('GET', '/api/admin/users');
   check('nor its user list', tenantTriesUsers.status === 401, 'status ' + tenantTriesUsers.status);
+
+  // The outbox holds every address Profitna has written to, across every
+  // account, so it must be behind the same door as the rest of the console.
+  const tenantTriesOutbox = await tenant('GET', '/api/admin/email');
+  check('nor the outbox', tenantTriesOutbox.status === 401, 'status ' + tenantTriesOutbox.status);
+
+  const tenantTriesTestSend = await tenant('POST', '/api/admin/email/test', { to: 'x@example.com' });
+  check('nor can it make the server send anything', tenantTriesTestSend.status === 401,
+    'status ' + tenantTriesTestSend.status);
 
   const adminTriesBooks = await admin('GET', '/api/orgs/' + orgId + '/data');
   check('a console session cannot read a tenant ledger', adminTriesBooks.status === 401, 'status ' + adminTriesBooks.status);

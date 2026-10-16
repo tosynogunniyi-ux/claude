@@ -79,19 +79,32 @@ function nullify(json) {
   } catch { return 'null'; }
 }
 
-async function go(page, label, wait) {
-  const ok = await page.evaluate((t) => {
-    const all = [...document.querySelectorAll('button')].filter((b) => !b.disabled);
+// Click something by its label.
+//
+// `where` says which part of the page to look in, and it is not a nicety: the
+// sidebar has a screen called Invoices and the Invoicing screen has a tab
+// called Invoices. Searching the whole document for "Invoices" finds the
+// sidebar one, navigates away from Invoicing, and every tab after it reads as
+// missing — which is a test looking in the wrong place, not a broken app.
+async function click(page, label, wait, where) {
+  const ok = await page.evaluate(({ t, scope }) => {
+    const inside = (b) => (scope === 'main' ? !b.closest('aside') : scope === 'nav' ? Boolean(b.closest('aside')) : true);
+    const all = [...document.querySelectorAll('button')].filter((b) => !b.disabled && inside(b));
     // A navigation button carries its count — "Bills 5" — so an exact match
     // misses exactly the screens that have something on them.
     const el = all.find((b) => b.textContent.trim() === t)
       || all.find((b) => b.textContent.trim().replace(/\s*\d+$/, '') === t);
     if (el) { el.click(); return true; }
     return false;
-  }, label);
+  }, { t: label, scope: where || 'any' });
   await page.waitForTimeout(wait || 900);
   return ok;
 }
+
+// A screen, from the sidebar.
+const go = (page, label, wait) => click(page, label, wait, 'any');
+// A tab or a button on the screen already open, never the sidebar.
+const goTab = (page, label, wait) => click(page, label, wait, 'main');
 
 // The three facts worth knowing after every navigation.
 function inspect(page) {
@@ -169,7 +182,7 @@ function inspect(page) {
     console.log('\nand every tab inside Invoicing');
     await go(page, 'Invoicing', 1500);
     for (const tab of TABS) {
-      const found = await go(page, tab, 1300);
+      const found = await goTab(page, tab, 1300);
       const state = await inspect(page);
       const errs = sinceLast();
       containedSince();
@@ -186,14 +199,14 @@ function inspect(page) {
     ];
     for (const [screen, tab, open, close] of FORMS) {
       await go(page, screen, 1200);
-      await go(page, tab, 1100);
-      const opened = await go(page, open, 1800);
+      await goTab(page, tab, 1100);
+      const opened = await goTab(page, open, 1800);
       const state = await inspect(page);
       const errs = sinceLast();
       check(open.replace('+ ', '').toLowerCase() + ' opens',
         opened && !state.crashed && errs.length === 0,
         !opened ? 'button not found' : state.crashed ? 'crash panel' : errs.join(' | '));
-      await go(page, close, 900);
+      await goTab(page, close, 900);
       sinceLast();
     }
 
@@ -220,7 +233,7 @@ function inspect(page) {
         sinceLast();
 
         await go(page, ep.screen, 1500);
-        if (ep.tab) await go(page, ep.tab, 1300);
+        if (ep.tab) await goTab(page, ep.tab, 1300);
         const state = await inspect(page);
         const errs = sinceLast();
         const held = containedSince();
@@ -285,7 +298,7 @@ function inspect(page) {
     sinceLast(); containedSince();
 
     await go(page, 'Invoicing', 1500);
-    await go(page, 'Receivables', 1500);
+    await goTab(page, 'Receivables', 1500);
     const broken = await inspect(page);
     const escaped = sinceLast();
     const caught = containedSince();

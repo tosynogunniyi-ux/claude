@@ -66,8 +66,9 @@ function requirement() {
   if (!s.from) missing.push('EMAIL_FROM');
   if (!missing.length) return null;
   return 'Set ' + missing.join(', ') + ' to send email. Any provider that speaks SMTP will do ' +
-    '(Zoho, Mailgun, SendGrid, Amazon SES, Postmark, Resend). The sending domain needs SPF and ' +
-    'DKIM records published before anything will reach an inbox rather than a spam folder.';
+    '(Hostinger, Zoho, Mailgun, SendGrid, Amazon SES, Postmark, Resend). The sending domain ' +
+    'needs SPF and DKIM records published before anything will reach an inbox rather than a ' +
+    'spam folder.';
 }
 
 // Switched on separately from being configured.
@@ -156,6 +157,55 @@ async function send({ to, toName, subject, text, html, unsubscribeUrl, category,
   }
 }
 
+// One message, deliberately, past the EMAIL_SENDING switch.
+//
+// verify() proves the credentials are accepted. It does not prove a message
+// arrives, and those are different questions: SPF and DKIM are DNS, the
+// provider's own sending limits are policy, and both fail with a perfectly
+// good login. So the operator needs to put one real message on the wire
+// before switching sending on for every customer, and this is it.
+//
+// Safe to expose on the owner's console because the content is fixed here —
+// nothing the caller supplies ends up in the body — so the worst it can do is
+// send one plain note saying Profitna's email works. It is audited, and it
+// never touches email_messages: it is not part of anybody's journey.
+async function sendTest(to) {
+  if (!configured()) {
+    const err = new Error(requirement());
+    err.status = 503;
+    err.code = 'NO_MAIL_PROVIDER';
+    throw err;
+  }
+  const s = settings();
+  const address = trim(to) || s.from;
+  const when = new Date().toISOString();
+  try {
+    const info = await transport().sendMail({
+      from: { name: s.fromName, address: s.from },
+      to: address,
+      replyTo: s.replyTo || undefined,
+      subject: 'Profitna mail test',
+      text: 'This is a test from the Profitna console.\n\n' +
+        'If it reached you, the SMTP credentials work and mail leaves the server.\n\n' +
+        'Host: ' + s.host + ':' + s.port + '\nFrom: ' + s.from + '\nSent: ' + when + '\n\n' +
+        'What this does not prove: that it landed in an inbox rather than a spam ' +
+        'folder. That is SPF and DKIM, which are DNS records on the sending domain, ' +
+        'not settings in this application.\n',
+      headers: { 'X-Profitna-Category': 'test' }
+    });
+    return { sent: true, to: address, host: s.host, port: s.port, from: s.from,
+      messageId: info && info.messageId, sending: sendingEnabled() };
+  } catch (err) {
+    const { message, permanent } = classify(err);
+    // 424 rather than 5xx, for the reason verify() gives below.
+    const out = new Error('The mail provider refused that: ' + message);
+    out.status = 424;
+    out.code = 'MAIL_SEND_REFUSED';
+    out.permanent = permanent;
+    throw out;
+  }
+}
+
 // Prove the credentials without sending anything. What the operator runs
 // after setting the variables, and what the health check reports.
 async function verify() {
@@ -215,6 +265,6 @@ function warnings() {
 }
 
 module.exports = {
-  send, verify, configured, sendingEnabled, requirement, describe, warnings,
+  send, sendTest, verify, configured, sendingEnabled, requirement, describe, warnings,
   settings, classify, reset, PERMANENT
 };

@@ -87,6 +87,9 @@
   .pill-expired, .pill-failed, .pill-suspended { background: var(--red-bg); color: var(--red); }
   .pill-past_due, .pill-pending { background: var(--amber-bg); color: var(--amber); }
   .pill-cancelled, .pill-none, .pill-deactivated, .pill-refunded { background: var(--slate-bg); color: var(--slate); }
+  .pill-sent { background: var(--green-bg); color: var(--green); }
+  .pill-queued, .pill-held { background: var(--amber-bg); color: var(--amber); }
+  .pill-suppressed { background: var(--red-bg); color: var(--red); }
 
   #shell { display: flex; min-height: 100vh; align-items: stretch; }
   #side {
@@ -233,7 +236,8 @@
     admin: null,
     users: { q: '', status: '', sub: '', book: '', cycle: '', sort: 'created', dir: 'desc', page: 1 },
     subs: { q: '', status: '', cycle: '', expiring: false, sort: 'expires', dir: 'asc', page: 1 },
-    payments: { q: '', status: '', from: '', to: '', page: 1 }
+    payments: { q: '', status: '', from: '', to: '', page: 1 },
+    email: { q: '', status: '', page: 1 }
   };
 
   var $ = function (id) { return document.getElementById(id); };
@@ -318,7 +322,8 @@
     trial: 'Trial', active: 'Active', past_due: 'Past due', expired: 'Expired',
     cancelled: 'Cancelled', suspended: 'Suspended', none: 'No plan',
     deactivated: 'Deactivated', success: 'Success', failed: 'Failed',
-    pending: 'Pending', refunded: 'Refunded', trialing: 'Trial'
+    pending: 'Pending', refunded: 'Refunded', trialing: 'Trial',
+    queued: 'Queued', sent: 'Sent', held: 'Held', suppressed: 'Suppressed'
   };
 
   function pill(value) {
@@ -373,6 +378,7 @@
     { id: 'users', label: 'Users', title: 'Registered users' },
     { id: 'subscriptions', label: 'Subscriptions', title: 'Subscriptions' },
     { id: 'payments', label: 'Payments', title: 'Payments' },
+    { id: 'email', label: 'Email', title: 'Automatic email' },
     { id: 'activity', label: 'Activity', title: 'Activity log' },
     { id: 'security', label: 'Security', title: 'Console security' }
   ];
@@ -405,6 +411,7 @@
       if (state.view === 'users') return await renderUsers();
       if (state.view === 'subscriptions') return await renderSubscriptions();
       if (state.view === 'payments') return await renderPayments();
+      if (state.view === 'email') return await renderEmail();
       if (state.view === 'activity') return await renderActivity();
       if (state.view === 'security') return await renderSecurity();
     } catch (err) {
@@ -1149,6 +1156,247 @@
     $('p-from').onchange = function (e) { f.from = e.target.value; f.page = 1; renderPayments(); };
     $('p-to').onchange = function (e) { f.to = e.target.value; f.page = 1; renderPayments(); };
     wirePager('p', f, renderPayments, d);
+  }
+
+  // ------------------------------------------------------------------ email
+
+  // The outbox, and the two buttons that answer the only questions worth
+  // asking before switching sending on: do the credentials work, and does a
+  // message actually leave the building. Every message is written down before
+  // it is attempted, so with no provider configured this page already holds
+  // exactly what would have gone out.
+
+  function emailBanner(d) {
+    var p = d.provider || {};
+    var tone = { bg: 'var(--green-bg)', fg: 'var(--green)' };
+    var head;
+    var body;
+
+    if (p.state === 'off') {
+      tone = { bg: 'var(--red-bg)', fg: 'var(--red)' };
+      head = 'No mail provider is configured';
+      body = esc(p.requirement || '') +
+        ' Nothing is lost in the meantime: every message below was decided and written down, ' +
+        'and will send once credentials are in place.';
+    } else if (p.state === 'sending') {
+      head = 'Sending as ' + esc(p.from || '');
+      body = esc((p.host || '') + ':' + (p.port || '')) + ' · login ' + esc(p.user || '') +
+        (p.replyTo ? ' · replies to ' + esc(p.replyTo) : '');
+    } else {
+      tone = { bg: 'var(--amber-bg)', fg: 'var(--amber)' };
+      head = 'Configured, but not sending';
+      body = esc((p.host || '') + ':' + (p.port || '')) + ' as ' + esc(p.from || '') +
+        '. Messages are rendered and held. Read them below, then set EMAIL_SENDING=on.';
+    }
+
+    return '<div class="card pad" style="background:' + tone.bg + ';">' +
+      '<div style="display:flex; gap:14px; align-items:flex-start; flex-wrap:wrap;">' +
+        '<div style="flex:1 1 320px;">' +
+          '<div style="font-weight:600; color:' + tone.fg + ';">' + esc(head) + '</div>' +
+          '<div style="font-size:13px; color:var(--muted); margin-top:4px;">' + body + '</div>' +
+          '<div style="font-size:12.5px; color:var(--faint); margin-top:8px;">' +
+            'Scheduler ' + esc(d.scheduler) + (d.lastRun
+              ? ' · last pass ' + esc(ago(d.lastRun.at)) + ', decided ' + count(d.lastRun.decided) +
+                ', sent ' + count(d.lastRun.sent)
+              : ' · has not run yet this boot') +
+          '</div>' +
+        '</div>' +
+        '<div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">' +
+          '<button class="btn ghost" id="e-verify">Check credentials</button>' +
+          '<input id="e-to" placeholder="Send a test to…" style="width:190px;" />' +
+          '<button class="btn ghost" id="e-test">Send test</button>' +
+          '<button class="btn ghost" id="e-run">Run the pass now</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  async function renderEmail() {
+    loading();
+    var f = state.email;
+    var d = await api('/email' + query({ q: f.q, status: f.status, page: f.page, pageSize: 25 }));
+
+    var counts = d.counts || {};
+    var total = ['queued', 'sent', 'failed', 'suppressed', 'held', 'cancelled']
+      .reduce(function (sum, k) { return sum + (counts[k] || 0); }, 0);
+
+    var html = emailBanner(d);
+
+    html += '<div class="grid-2" style="margin-top:16px;">' +
+      '<div class="card pad">' +
+        '<h2 class="h2">Where every message ended up</h2>' +
+        '<div style="margin-top:14px;">' + (total
+          ? stateBars([
+              { label: 'Sent', value: counts.sent || 0, colour: '#2F7D52' },
+              { label: 'Waiting to send', value: counts.queued || 0, colour: '#B8863A' },
+              { label: 'Held — nothing configured, or sending off', value: counts.held || 0, colour: '#B8863A' },
+              { label: 'Not allowed — suppressed or undeliverable', value: counts.suppressed || 0, colour: '#A33A32' },
+              { label: 'Failed after every retry', value: counts.failed || 0, colour: '#A33A32' },
+              { label: 'Cancelled — no longer true', value: counts.cancelled || 0, colour: '#6B7483' }
+            ], total)
+          : '<div style="color:var(--muted); font-size:13px;">Nothing has been decided yet. ' +
+            'The pass runs every fifteen minutes and on signup.</div>') +
+        '</div>' +
+      '</div>' +
+      '<div class="card pad">' +
+        '<h2 class="h2">What is not in here</h2>' +
+        '<div style="font-size:13px; color:var(--muted); margin-top:8px; line-height:1.6;">' +
+          'Whether a message landed in an inbox rather than a spam folder. That is ' +
+          '<strong>SPF</strong> and <strong>DKIM</strong> on the sending domain — DNS records, ' +
+          'not settings in this application — and mail will send perfectly while failing both.' +
+        '</div>' +
+        '<div style="font-size:12.5px; color:var(--faint); margin-top:10px;">' +
+          'A message marked sent means the mail server accepted it. Bounces and complaints ' +
+          'arrive later and are recorded against the message.' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
+    html += '<div class="card pad filters" style="margin-top:16px;">' +
+      '<input id="e-q" placeholder="Search address or subject" value="' + esc(f.q) + '" style="flex:1 1 240px;" />' +
+      selectBox('e-status', f.status, [['', 'Any outcome'], ['sent', 'Sent'], ['queued', 'Queued'],
+        ['held', 'Held'], ['failed', 'Failed'], ['suppressed', 'Suppressed'], ['cancelled', 'Cancelled']]) +
+      '<span style="margin-left:auto; font-size:13px; color:var(--muted);">' + count(d.total) + ' message' +
+        (d.total === 1 ? '' : 's') + '</span>' +
+    '</div>';
+
+    html += '<div class="card" style="margin-top:16px;">' +
+      (d.messages.length
+        ? '<div style="overflow-x:auto;"><table><thead><tr>' +
+            '<th>Decided</th><th>To</th><th>Message</th><th>Account</th><th>Outcome</th><th></th>' +
+          '</tr></thead><tbody>' +
+          d.messages.map(function (m) {
+            return '<tr>' +
+              '<td class="mono" style="font-size:12.5px; white-space:nowrap;">' + esc(ago(m.createdAt)) + '</td>' +
+              '<td class="mono" style="font-size:12.5px;">' + esc(m.to) + '</td>' +
+              '<td><div style="font-weight:500;">' + esc(m.subject) + '</div>' +
+                '<div style="font-size:12px; color:var(--faint);">' +
+                  esc(String(m.kind).replace(/_/g, ' ')) + ' · ' + esc(m.category) +
+                  (m.attempts ? ' · ' + count(m.attempts) + ' attempt' + (m.attempts === 1 ? '' : 's') : '') +
+                '</div></td>' +
+              '<td style="font-size:13px;">' + esc(m.orgName || '—') + '</td>' +
+              '<td>' + pill(m.status) +
+                ((m.reason || m.error)
+                  ? '<div style="font-size:12px; color:var(--muted); margin-top:3px; max-width:260px;">' +
+                    esc(m.error || m.reason) + '</div>'
+                  : '') + '</td>' +
+              '<td style="text-align:right; padding-right:20px;">' +
+                '<button class="btn ghost" data-read="' + esc(m.id) + '" style="padding:5px 11px; font-size:12.5px;">Read</button>' +
+              '</td></tr>';
+          }).join('') +
+          '</tbody></table></div>' + pager('e', d.total, { page: d.page, pageSize: d.pageSize })
+        : '<div class="empty">Nothing matches those filters.' +
+          '<div style="margin-top:6px; font-size:12.5px;">Messages appear here the moment the ' +
+          'journey decides one is due — before any attempt to send it.</div></div>') +
+    '</div>';
+
+    $('page').innerHTML = html;
+
+    var debounce = null;
+    $('e-q').oninput = function (ev) {
+      clearTimeout(debounce);
+      var value = ev.target.value;
+      debounce = setTimeout(function () { f.q = value; f.page = 1; renderEmail(); }, 280);
+    };
+    $('e-status').onchange = function (ev) { f.status = ev.target.value; f.page = 1; renderEmail(); };
+    wirePager('e', f, renderEmail, d);
+
+    $('e-verify').onclick = async function () {
+      var b = $('e-verify');
+      b.disabled = true;
+      b.textContent = 'Checking…';
+      try {
+        var r = await send('/email/verify', 'POST', {});
+        toast('The mail server accepted the login — ' + r.host + ':' + r.port + '.');
+      } catch (err) {
+        toast(err.message, true);
+      } finally {
+        b.disabled = false;
+        b.textContent = 'Check credentials';
+      }
+    };
+
+    $('e-test').onclick = async function () {
+      var b = $('e-test');
+      b.disabled = true;
+      b.textContent = 'Sending…';
+      try {
+        var r = await send('/email/test', 'POST', { to: $('e-to').value });
+        toast('Sent to ' + r.to + '. If it does not arrive, check SPF and DKIM.');
+      } catch (err) {
+        toast(err.message, true);
+      } finally {
+        b.disabled = false;
+        b.textContent = 'Send test';
+      }
+    };
+
+    $('e-run').onclick = async function () {
+      var b = $('e-run');
+      b.disabled = true;
+      b.textContent = 'Running…';
+      try {
+        var r = await send('/email/run', 'POST', {});
+        toast(r.ran
+          ? 'Decided ' + r.decided.written + ', sent ' + r.sent.sent + '.'
+          : r.reason);
+        renderEmail();
+      } catch (err) {
+        toast(err.message, true);
+        b.disabled = false;
+        b.textContent = 'Run the pass now';
+      }
+    };
+
+    Array.prototype.forEach.call($('page').querySelectorAll('[data-read]'), function (b) {
+      b.onclick = function () { readEmail(b.getAttribute('data-read')); };
+    });
+  }
+
+  // The message as it was written. Read rather than described: the fastest way
+  // to find out that a template reads badly is to look at it.
+  async function readEmail(id) {
+    var d = await api('/email/' + id);
+    var rows = [
+      ['To', (d.toName ? d.toName + ' <' + d.to + '>' : d.to)],
+      ['Subject', d.subject],
+      ['Why', String(d.kind).replace(/_/g, ' ') + ' · ' + d.category],
+      ['Account', d.orgName || '—'],
+      ['Outcome', (LABELS[d.status] || d.status) + (d.reason ? ' — ' + d.reason : '')],
+      ['Attempts', String(d.attempts) + (d.error ? ' · last error: ' + d.error : '')],
+      ['Decided', day(d.createdAt)],
+      ['Sent', d.sentAt ? day(d.sentAt) : 'not sent']
+    ];
+
+    $('page').innerHTML = '<div class="card">' +
+      '<div class="pad" style="border-bottom:1px solid var(--line); display:flex; gap:12px; align-items:center;">' +
+        '<button class="btn ghost" id="e-back">← Back to email</button>' +
+        (d.hasHtml
+          ? '<a class="btn ghost" href="' + esc('/api/admin/email/' + d.id + '?format=html') +
+            '" target="_blank" rel="noopener" style="text-decoration:none;">Open as the reader sees it</a>'
+          : '') +
+      '</div>' +
+      '<table><tbody>' + rows.map(function (r) {
+        return '<tr><td style="padding-left:20px; width:120px; color:var(--muted); font-size:13px;">' +
+          esc(r[0]) + '</td><td>' + esc(r[1]) + '</td></tr>';
+      }).join('') + '</tbody></table>' +
+      '<div class="pad" style="border-top:1px solid var(--line);">' +
+        '<div style="font-size:12.5px; color:var(--muted); margin-bottom:8px;">The message, as plain text</div>' +
+        '<pre class="mono" style="white-space:pre-wrap; font-size:12.5px; line-height:1.6; margin:0;">' +
+          esc(d.text) + '</pre>' +
+      '</div>' +
+      (d.events && d.events.length
+        ? '<div class="pad" style="border-top:1px solid var(--line);">' +
+          '<div style="font-size:12.5px; color:var(--muted); margin-bottom:8px;">What the provider said afterwards</div>' +
+          d.events.map(function (e) {
+            return '<div style="font-size:13px;">' + esc(e.event) +
+              (e.detail ? ' — ' + esc(e.detail) : '') +
+              ' <span class="mono" style="color:var(--faint); font-size:12px;">' + esc(ago(e.occurredAt)) + '</span></div>';
+          }).join('') + '</div>'
+        : '') +
+    '</div>';
+
+    $('e-back').onclick = function () { renderEmail(); };
   }
 
   // --------------------------------------------------------------- activity

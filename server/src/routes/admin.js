@@ -961,4 +961,193 @@ router.get('/activity', async (req, res, next) => {
   }
 });
 
+// ------------------------------------------------------------------- email
+//
+// The outbox, across every account. The boot log and /api/health both tell
+// the operator to read this before switching EMAIL_SENDING on, and that
+// instruction is only worth giving if there is somewhere to read it: with no
+// provider configured the journey still runs and still records, so what would
+// have gone out is sitting here in full before a single customer hears
+// anything.
+
+const EMAIL_STATUSES = ['queued', 'sent', 'failed', 'suppressed', 'held', 'cancelled'];
+
+router.get('/email', async (req, res, next) => {
+  try {
+    const p = page(req);
+    const params = [];
+    const where = [];
+    if (EMAIL_STATUSES.includes(req.query.status)) {
+      params.push(req.query.status);
+      where.push(`m.status = $${params.length}`);
+    }
+    if (req.query.kind) {
+      params.push(String(req.query.kind).slice(0, 60));
+      where.push(`m.kind = $${params.length}`);
+    }
+    if (req.query.q) {
+      params.push('%' + String(req.query.q).trim().slice(0, 120) + '%');
+      where.push(`(m.to_address ILIKE $${params.length} OR m.subject ILIKE $${params.length})`);
+    }
+
+    const [rows, byStatus] = await Promise.all([
+      many(
+        `SELECT m.id, m.kind, m.category, m.subject, m.to_address, m.status, m.reason,
+                m.attempts, m.last_error, m.next_attempt_at, m.sent_at, m.created_at,
+                o.name AS org_name, o.id AS org_id,
+                (COUNT(*) OVER ())::int AS total_count
+           FROM email_messages m
+           LEFT JOIN organizations o ON o.id = m.organization_id
+          ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
+          ORDER BY m.created_at DESC
+          LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+        [...params, p.size, p.offset]
+      ),
+      // Unfiltered on purpose: the counts are the shape of the whole outbox,
+      // and they would be useless if they only described the current filter.
+      many('SELECT status, COUNT(*)::int AS n FROM email_messages GROUP BY status')
+    ]);
+
+    const counts = {};
+    for (const s of EMAIL_STATUSES) counts[s] = 0;
+    for (const r of byStatus) counts[r.status] = r.n;
+
+    res.json({
+      // State, never a credential: describe() masks the user and omits the
+      // password entirely.
+      provider: require('../email/provider').describe(),
+      scheduler: require('../email').enabled() ? 'on' : 'off',
+      lastRun: require('../email').lastRun(),
+      counts,
+      messages: rows.map((r) => ({
+        id: r.id,
+        orgId: r.org_id,
+        orgName: r.org_name,
+        kind: r.kind,
+        category: r.category,
+        subject: r.subject,
+        to: r.to_address,
+        status: r.status,
+        reason: r.reason,
+        attempts: r.attempts,
+        error: r.last_error,
+        nextAttemptAt: r.next_attempt_at,
+        sentAt: r.sent_at,
+        createdAt: r.created_at
+      })),
+      total: rows.length ? rows[0].total_count : 0,
+      page: p.number,
+      pageSize: p.size
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// One message, as it was written, with whatever the provider later said about
+// it. `?format=html` renders the body itself — the fastest way to find out
+// that a template reads badly is to look at it.
+router.get('/email/:id', async (req, res, next) => {
+  try {
+    const row = await one(
+      `SELECT m.*, o.name AS org_name FROM email_messages m
+         LEFT JOIN organizations o ON o.id = m.organization_id
+        WHERE m.id = $1`,
+      [req.params.id]
+    );
+    if (!row) return res.status(404).json({ error: 'No such message.' });
+    if (String(req.query.format) === 'html' && row.body_html) {
+      return res.type('html').send(row.body_html);
+    }
+    const events = await many(
+      'SELECT event, detail, occurred_at AS "occurredAt" FROM email_events WHERE message_id = $1 ORDER BY occurred_at',
+      [row.id]
+    );
+    res.json({
+      id: row.id,
+      orgId: row.organization_id,
+      orgName: row.org_name,
+      kind: row.kind,
+      category: row.category,
+      subject: row.subject,
+      to: row.to_address,
+      toName: row.to_name,
+      status: row.status,
+      reason: row.reason,
+      attempts: row.attempts,
+      error: row.last_error,
+      nextAttemptAt: row.next_attempt_at,
+      sentAt: row.sent_at,
+      createdAt: row.created_at,
+      dedupeKey: row.dedupe_key,
+      text: row.body_text,
+      hasHtml: Boolean(row.body_html),
+      events
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Does the mail provider accept these credentials? No message is sent.
+router.post('/email/verify', async (req, res, next) => {
+  try {
+    const result = await require('../email/provider').verify();
+    await adminAudit(req, 'email.verify', 'email', null, { host: result.host, port: result.port });
+    res.json(result);
+  } catch (err) {
+    if (err.status) {
+      await adminAudit(req, 'email.verify.failed', 'email', null, { reason: err.message });
+      return res.status(err.status).json({ error: err.message, code: err.code });
+    }
+    next(err);
+  }
+});
+
+// One real message, past the EMAIL_SENDING switch, to prove mail actually
+// leaves the server. Defaults to EMAIL_FROM so the common case needs nothing
+// typed. The body is fixed in provider.js — nothing posted here reaches it.
+router.post('/email/test', async (req, res, next) => {
+  try {
+    const to = String((req.body || {}).to || '').trim();
+    if (to && !require('../email/consent').deliverable(to)) {
+      return bad(res, 'That is not an address mail could be delivered to.');
+    }
+    const result = await require('../email/provider').sendTest(to);
+    await adminAudit(req, 'email.test', 'email', null, { to: result.to, host: result.host });
+    res.json(Object.assign({}, result, {
+      note: 'Sent. Arriving in an inbox rather than a spam folder is SPF and DKIM on the ' +
+        'sending domain, which are DNS records and not settings in this application.'
+    }));
+  } catch (err) {
+    if (err.status) {
+      await adminAudit(req, 'email.test.failed', 'email', null, { reason: err.message });
+      return res.status(err.status).json({ error: err.message, code: err.code });
+    }
+    next(err);
+  }
+});
+
+// Run the pass now rather than waiting up to a quarter of an hour. Decides
+// and sends exactly as the scheduled pass does, under the same advisory lock,
+// so it is safe to press twice.
+router.post('/email/run', async (req, res, next) => {
+  try {
+    const result = await require('../email').runOnce({ sendLimit: 50 });
+    await adminAudit(req, 'email.run', 'email', null,
+      result ? { decided: result.decided.written, sent: result.sent.sent } : { skipped: true });
+    if (!result) {
+      return res.status(200).json({
+        ran: false,
+        reason: require('../email').enabled()
+          ? 'Another container is running the pass right now. Nothing was missed — it will finish.'
+          : 'The scheduler is off (EMAIL_SCHEDULER=off).'
+      });
+    }
+    res.json(Object.assign({ ran: true }, result));
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = { router };
