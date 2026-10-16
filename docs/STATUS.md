@@ -343,52 +343,32 @@ have locked a business out of its own books.
   that business. Pay-link buttons appear on invoices only once an account has
   been connected *and* proved, so a button never appears before it works.
 
-- **Automatic email needs a provider and a domain.** The whole lifecycle is
-  built and running — it decides who is due what every fifteen minutes and
-  writes each message down — but nothing is sent until a mail provider is
-  configured. Two steps, deliberately separate:
+- **Automatic email is live.** Sending since 16 October 2026, through Hostinger
+  Email as `info@profitna.com`, replies to `support@profitna.com`. A test
+  message landed in a Gmail inbox rather than the spam folder, which is the
+  only evidence that counts for SPF and DKIM.
 
-  1. Set `EMAIL_SMTP_HOST`, `EMAIL_SMTP_USER`, `EMAIL_SMTP_PASSWORD` and
-     `EMAIL_FROM` in Easypanel. Any provider that speaks SMTP will do.
-     **Hostinger Email, which profitna.com already has:**
+  The configuration, recorded so it can be rebuilt: `EMAIL_SMTP_HOST=smtp.hostinger.com`,
+  `EMAIL_SMTP_PORT=465`, `EMAIL_SMTP_USER` and `EMAIL_FROM` both
+  `info@profitna.com`, `EMAIL_REPLY_TO=support@profitna.com`, `EMAIL_SENDING=on`.
+  The user and the from address must be the same mailbox — Hostinger refuses
+  to send as an address the authenticated mailbox does not own, and that is
+  the one thing that catches people out. Mailgun, SendGrid, Amazon SES,
+  Postmark, Resend and Zoho are the same variables with different values, so
+  outgrowing Hostinger's hourly limits costs no code change.
 
-     | Variable | Value |
-     |---|---|
-     | `EMAIL_SMTP_HOST` | `smtp.hostinger.com` |
-     | `EMAIL_SMTP_PORT` | `465` (or `587`; the code derives TLS from the port) |
-     | `EMAIL_SMTP_USER` | the whole mailbox address, e.g. `noreply@profitna.com` |
-     | `EMAIL_SMTP_PASSWORD` | that mailbox's own password |
-     | `EMAIL_FROM` | the same address as the user |
-     | `EMAIL_REPLY_TO` | where a reply should land, e.g. `support@profitna.com` |
+  Owner console → **Email** has the outbox across every account, the counts by
+  outcome, **Check credentials** (proves the login, sends nothing) and **Send
+  test** (one real message, fixed body, past the sending switch).
+  `GET /api/health` reports the state under `email`.
 
-     The address in `EMAIL_FROM` must be a real mailbox on the domain and the
-     same one being logged in as — Hostinger refuses to send as an address the
-     authenticated mailbox does not own, which is correct of it and the
-     commonest way this is got wrong. Mailgun, SendGrid, Amazon SES, Postmark,
-     Resend and Zoho are the same four variables with different values, so
-     outgrowing Hostinger's hourly limits later costs no code change.
-  2. **Publish SPF and DKIM records for the sending domain.** This is DNS, not
-     code. Without it the mail goes to spam however correct the software is,
-     and the first few hundred messages are what decide the domain's
-     reputation for months. On Hostinger, if profitna.com's DNS is also with
-     Hostinger, both are usually added when the mailbox is created — confirm
-     it in hPanel rather than assuming, because a perfectly working login
-     sends perfectly spam-foldered mail.
-
-  Then, in the owner console → **Email**:
-
-  - **Check credentials** proves the login. Sends nothing.
-  - **Send test** puts one real message on the wire, past `EMAIL_SENDING`, so
-    you can see where it lands. The body is fixed in `provider.js`; nothing
-    typed in the console reaches it.
-  - The outbox below is every message the journey has decided, held and in
-    full — the same thing `/api/orgs/<id>/email` shows one business, across
-    all of them.
-
-  Only then set `EMAIL_SENDING=on`. The two are separate variables precisely
-  so you can look first.
-
-  `GET /api/health` reports both states under `email`.
+- **Nothing feeds the suppression list yet.** `email_suppressions` is built,
+  honoured on every send and overrides every preference — but plain SMTP has
+  no webhook, so no bounce or spam complaint reaches it automatically.
+  Hostinger returns failures as delivery notices to the `info@` mailbox, which
+  means somebody has to read them and suppress by hand. Harmless at current
+  volume; the first thing to fix on moving to Mailgun or SES, both of which
+  post the events this table was designed for.
 
 - **Ask Profitna needs its key.** The code is live but the screen will keep
   saying "Simulated · no model connected" until `ANTHROPIC_API_KEY` is set in
