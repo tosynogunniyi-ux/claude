@@ -22,7 +22,13 @@ const docShape = (r) => ({
   issue: r.issue_date,
   due: r.due_date,
   total: r.total,
+  // What is no longer owed, however it stopped being owed.
   paid: r.paid || 0,
+  // The two halves of it, when the query supplied them: money that actually
+  // arrived, and credit notes applied. A screen that shows "paid" without
+  // this distinction is telling a customer they paid something they did not.
+  received: r.received === undefined ? undefined : Number(r.received),
+  credited: r.credited === undefined ? undefined : Number(r.credited),
   base: r.base_status
 });
 
@@ -63,7 +69,23 @@ const orgShape = (r) => ({
   vatRate: String(r.vat_rate),
   openingCash: String(r.opening_cash),
   contributions: String(r.owner_contributions),
-  fixedAssets: String(r.fixed_assets)
+  fixedAssets: String(r.fixed_assets),
+  // Whether there is a logo, and when it last changed — the bytes come from
+  // /logo, and this timestamp is what busts the browser's cache for them.
+  hasLogo: Boolean(r.logo_mime),
+  logoUpdatedAt: r.logo_updated_at || null,
+  // What an invoice has to carry, and how this business is taxed.
+  address: r.address || '',
+  phone: r.phone || '',
+  email: r.email || '',
+  website: r.website || '',
+  tin: r.tin || '',
+  rcNumber: r.rc_number || '',
+  vatRegistered: Boolean(r.vat_registered),
+  pricesIncludeVat: Boolean(r.prices_include_vat),
+  whtRate: String((r.default_wht_bp || 0) / 100),
+  invoiceTerms: r.invoice_terms || '',
+  paymentInstructions: r.payment_instructions || ''
 });
 
 module.exports = { txShape, docShape, contactShape, itemShape, bankShape, orgShape };

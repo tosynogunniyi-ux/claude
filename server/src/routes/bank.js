@@ -1,6 +1,7 @@
 const express = require('express');
 const { many, one, query, tx: transaction } = require('../db');
 const { requireOrg, audit } = require('../auth');
+const banking = require('./banking');
 const shape = require('../shape');
 
 const router = express.Router({ mergeParams: true });
@@ -72,6 +73,10 @@ router.post('/bank/import', requireOrg('accountant'), async (req, res, next) => 
 
     const result = await transaction(async (client) => {
       const created = { tx: [], bank: [] };
+      // A statement comes from one account. Which one can be said in the
+      // request; otherwise it is the primary account, as everywhere else.
+      const bankAccountId = await banking.resolveAccount(req.orgId, (req.body || {}).bankAccountId, 'Bank transfer');
+
       for (const r of rows) {
         const amount = Math.abs(Number(r.amount) || 0);
         if (!amount) continue;
@@ -79,12 +84,13 @@ router.post('/bank/import', requireOrg('accountant'), async (req, res, next) => 
 
         const ledger = (await client.query(
           `INSERT INTO transactions
-             (organization_id, type, date, amount, category, fund, party, description, method, source, created_by)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'import', $10) RETURNING *`,
+             (organization_id, type, date, amount, category, fund, party, description, method,
+              bank_account_id, source, created_by)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'import', $11) RETURNING *`,
           [
             req.orgId, type, r.date, amount, String(r.category || ''), r.fund || null,
             String(r.party || ''), String(r.description || r.narration || ''),
-            'Bank transfer', req.user.id
+            'Bank transfer', bankAccountId, req.user.id
           ]
         )).rows[0];
 

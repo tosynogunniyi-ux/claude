@@ -106,7 +106,7 @@ say "Configuring secrets"
 if [ -f .env ]; then
   echo ".env already exists — leaving it untouched"
 else
-  cp .env.deploy.example .env
+  cp deploy/.env.example .env
   # Generated on the server: these values never leave it and are not in git.
   POSTGRES_PASSWORD="$(openssl rand -base64 24 | tr -d '/+=')"
   JWT_SECRET="$(openssl rand -hex 48)"

@@ -3,6 +3,9 @@ const { many, one, query, tx: transaction } = require('../db');
 const { requireOrg, audit } = require('../auth');
 const shape = require('../shape');
 const { byKeyword } = require('../categorize');
+const money = require('../money');
+const gl = require('../accounting/post');
+const banking = require('./banking');
 const anthropic = require('../integrations/anthropic');
 
 const router = express.Router({ mergeParams: true });
@@ -29,19 +32,34 @@ router.post('/transactions', requireOrg('accountant'), async (req, res, next) =>
     if (!b.description) return res.status(400).json({ error: 'Add a description.' });
     if (!amount) return res.status(400).json({ error: 'Add an amount.' });
     const type = b.type === 'income' ? 'income' : 'expense';
+    const method = String(b.method || 'Bank transfer');
 
-    const row = await one(
-      `INSERT INTO transactions
-         (organization_id, type, date, amount, category, fund, party, description, method, source, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'manual', $10)
-       RETURNING *`,
-      [
-        req.orgId, type, b.date || today(), amount,
-        String(b.category || ''), b.fund || null,
-        String(b.party || ''), String(b.description || ''),
-        String(b.method || 'Bank transfer'), req.user.id
-      ]
-    );
+    // Which account the money moved through. Named if the entry says so,
+    // otherwise the primary one for a bank method and nothing at all for
+    // cash — a cash sale must not inflate a bank balance.
+    const bankAccountId = await banking.resolveAccount(req.orgId, b.bankAccountId, method);
+
+    // The cash-book row and its ledger entry are written together, so a
+    // committed transaction is always a posted transaction. Doing them
+    // separately leaves a window — and a crash inside that window leaves
+    // books that do not agree with their own ledger.
+    const row = await transaction(async (client) => {
+      const created = (await client.query(
+        `INSERT INTO transactions
+           (organization_id, type, date, amount, category, fund, party, description, method,
+            bank_account_id, source, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'manual', $11)
+         RETURNING *`,
+        [
+          req.orgId, type, b.date || today(), amount,
+          String(b.category || ''), b.fund || null,
+          String(b.party || ''), String(b.description || ''),
+          method, bankAccountId, req.user.id
+        ]
+      )).rows[0];
+      await gl.cashTransaction(client, { orgId: req.orgId, tx: created, userId: req.user.id });
+      return created;
+    });
     await audit(req.orgId, req.user.id, 'transaction.created', 'transaction', row.id, { amount, type });
     res.status(201).json({ tx: shape.txShape(row) });
   } catch (err) {
@@ -185,19 +203,66 @@ function documentRoutes({ path, table, contactTable, contactColumn, nameColumn, 
           ? { prefix: 'PLG-', base: 301 }
           : { prefix, base };
         const number = b.number || (await nextNumber(client, req.orgId, table, series.prefix, series.base));
+        const draft = b.base === 'draft';
+
+        // Invoices carry the Smart Invoicing columns as well: the amount in
+        // integer kobo, and when it was issued. Written on the way in rather
+        // than backfilled later, so the two representations never drift from
+        // the moment this deploys. Bills have no such columns, hence the
+        // branch rather than one shared statement.
+        const extraColumns = table === 'invoices' ? ', total_kobo, subtotal_kobo, issued_at' : '';
+        const extraValues = table === 'invoices' ? ', $11, $11, $12' : '';
+        const args = [
+          req.orgId, number, contact ? contact.id : null, partyName,
+          b.issue || today(), b.due || today(), total,
+          b.fund || null, b.notes || null,
+          draft ? 'draft' : 'sent'
+        ];
+        if (table === 'invoices') {
+          args.push(money.toKobo(total), draft ? null : new Date().toISOString());
+        }
+
         const doc = (await client.query(
           `INSERT INTO ${table}
-             (organization_id, number, ${contactColumn}, ${nameColumn}, issue_date, due_date, total, fund, notes, base_status)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+             (organization_id, number, ${contactColumn}, ${nameColumn}, issue_date, due_date, total, fund, notes, base_status${extraColumns})
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10${extraValues})
            RETURNING id, number, ${contactColumn} AS party_id, ${nameColumn} AS party_name,
                      issue_date, due_date, total, base_status, 0 AS paid`,
-          [
-            req.orgId, number, contact ? contact.id : null, partyName,
-            b.issue || today(), b.due || today(), total,
-            b.fund || null, b.notes || null,
-            b.base === 'draft' ? 'draft' : 'sent'
-          ]
+          args
         )).rows[0];
+
+        // The timeline starts here. Append-only, so what it shows is a record
+        // of what happened rather than a reading of the current state.
+        if (table === 'invoices') {
+          await client.query(
+            `INSERT INTO invoice_events (invoice_id, organization_id, event, actor_user_id)
+             VALUES ($1, $2, 'created', $3)` + (draft ? '' : `,
+                    ($1, $2, 'finalised', $3)`),
+            [doc.id, req.orgId, req.user.id]
+          );
+        }
+
+        // Into the general ledger, in the same transaction that created the
+        // document — so a committed invoice is always a posted invoice and
+        // there is no window in which the books and the ledger disagree.
+        // A draft posts nothing: it is not a receivable until it is issued.
+        if (!draft) {
+          if (table === 'invoices') {
+            await gl.invoiceIssued(client, {
+              orgId: req.orgId,
+              invoice: Object.assign({}, doc, { client_name: partyName, category: b.category }),
+              lines: [],
+              totals: { net: money.toKobo(total), tax: 0, total: money.toKobo(total) },
+              userId: req.user.id
+            });
+          } else {
+            await gl.billIssued(client, {
+              orgId: req.orgId,
+              bill: Object.assign({}, doc, { vendor_name: partyName, category: b.category }),
+              userId: req.user.id
+            });
+          }
+        }
 
         return { doc: shape.docShape(doc), contact: createdContact };
       });
@@ -254,9 +319,9 @@ function documentRoutes({ path, table, contactTable, contactColumn, nameColumn, 
         const church = req.bookType === 'church';
         const ledger = (await client.query(
           `INSERT INTO transactions
-             (organization_id, type, date, amount, category, fund, party, description, method, source,
-              ${isBill ? 'ref_bill_id' : 'ref_invoice_id'}, ref_payment_id, created_by)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+             (organization_id, type, date, amount, category, fund, party, description, method, bank_account_id,
+              source, ${isBill ? 'ref_bill_id' : 'ref_invoice_id'}, ref_payment_id, created_by)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
            RETURNING *`,
           [
             req.orgId,
@@ -267,10 +332,17 @@ function documentRoutes({ path, table, contactTable, contactColumn, nameColumn, 
             doc[nameColumn],
             'Payment against ' + doc.number,
             payment.method,
+            await banking.resolveAccount(req.orgId, (req.body || {}).bankAccountId, payment.method),
             isBill ? 'bill' : 'invoice',
             doc.id, payment.id, req.user.id
           ]
         )).rows[0];
+
+        // The cash-book row above already moved money; this records the same
+        // event in the ledger as a settlement of the receivable or payable,
+        // not as new revenue — which was recognised when the document was
+        // issued. Posting revenue twice is the classic double count.
+        await gl.cashTransaction(client, { orgId: req.orgId, tx: ledger, userId: req.user.id });
 
         const paid = (await client.query(
           `SELECT COALESCE(SUM(amount), 0) AS paid FROM ${paymentTable} WHERE ${isBill ? 'bill_id' : 'invoice_id'} = $1`,
@@ -363,15 +435,20 @@ router.post('/inventory/:id/move', requireOrg('accountant'), async (req, res, ne
         [req.orgId, item.id, qty]
       )).rows[0];
 
+      const bankAccountId = dir === 'buy'
+        ? await banking.resolveAccount(req.orgId, null, 'Bank transfer')
+        : null;
       const ledger = (await client.query(
         `INSERT INTO transactions
-           (organization_id, type, date, amount, category, party, description, method, source, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'stock', $9) RETURNING *`,
+           (organization_id, type, date, amount, category, party, description, method, bank_account_id,
+            source, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'stock', $10) RETURNING *`,
         dir === 'buy'
           ? [req.orgId, 'expense', today(), qty * item.cost, 'Inventory Purchases', item.supplier || '',
-             'Received ' + qty + ' × ' + item.name, 'Bank transfer', req.user.id]
+             'Received ' + qty + ' × ' + item.name, 'Bank transfer', bankAccountId, req.user.id]
+          // A counter sale is cash, so it deliberately lands on no account.
           : [req.orgId, 'income', today(), qty * item.price, 'Product Sales', 'Counter sale',
-             'Sold ' + qty + ' × ' + item.name, 'Cash', req.user.id]
+             'Sold ' + qty + ' × ' + item.name, 'Cash', null, req.user.id]
       )).rows[0];
 
       return { item: shape.itemShape(updated), tx: shape.txShape(ledger) };
