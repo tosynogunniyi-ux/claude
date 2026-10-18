@@ -318,7 +318,10 @@ have locked a business out of its own books.
 - **The privacy notice could carry a registered address.** `web/privacy.html`
   is complete and served at `/privacy` and `/cookies`: Mideops Professional
   Services Ltd as the controller, the United Kingdom named as where the data
-  sits, and everything else describing what the code actually does. It gives
+  sits — confirmed against hPanel on 18 October 2026, after the VPS's IP
+  geolocated to Brazil and raised a false alarm; the page is right and the
+  IP data is not — and everything else describing what the code actually
+  does. It gives
   support@profitna.com as the contact, which satisfies the Act. A registered
   office address and RC number are not required but are usual on a Nigerian
   company's privacy notice, and worth adding when convenient.
