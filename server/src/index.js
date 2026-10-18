@@ -93,6 +93,16 @@ app.get('/api/health', async (req, res) => {
     // actually going anywhere. The two are separate on purpose: credentials
     // can be in place and proved while sending is still off.
     email: require('./email').describe(),
+    // Which tax rules payroll would use today, and how many values in them
+    // are still unconfirmed. Added because "is my deploy live" was asked of
+    // this endpoint and it could not answer: payroll shipped, this did not
+    // mention it, and the only way to tell was to sign in and look at the
+    // sidebar. Anything the deployment can change should be visible here.
+    payroll: (() => {
+      const statutory = require('./payroll/statutory');
+      const rules = statutory.rulesFor(new Date().toISOString().slice(0, 10));
+      return { rules: rules.id, unconfirmed: statutory.doubts(rules).length };
+    })(),
     // Zero is the only good answer. A number here means something threw where
     // nothing was listening: the server kept serving rather than dying, which
     // is the right trade for a live site, but the fault is real and the log

@@ -581,6 +581,19 @@ async function signup(call, email, book, org) {
   // up has to be able to read what happens to their data before they hand any
   // of it over, and a cookie banner that links to a 404 is worse than no
   // banner at all.
+  // Health reports what a deployment can change. If payroll ships and this
+  // stays silent, the only way to tell a deploy landed is to sign in and look
+  // at a menu — which is how an hour got spent on exactly that question.
+  console.log('\nhealth says what is deployed');
+  const deployed = await (await fetch(BASE + '/api/health')).json();
+  check('health answers', deployed.ok === true);
+  check('it names the payroll rules in force',
+    deployed.payroll && /^NG-/.test(deployed.payroll.rules), JSON.stringify(deployed.payroll));
+  check('and how many of them are still unconfirmed',
+    typeof deployed.payroll.unconfirmed === 'number', JSON.stringify(deployed.payroll));
+  check('it never leaks a credential',
+    !/password|secret|key=/i.test(JSON.stringify(deployed).replace(/EMAIL_SMTP_PASSWORD|CREDENTIALS_KEY|ANTHROPIC_API_KEY/g, '')));
+
   console.log('\nthe privacy notice');
 
   const reader = client();

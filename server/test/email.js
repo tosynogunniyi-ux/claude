@@ -340,7 +340,15 @@ const isDue = (s, kind, at) => kindsDue(s, at).includes(kind);
       "SELECT * FROM email_messages WHERE organization_id = $1 AND kind = 'welcome'", [live.id]);
     check('the message was written before any attempt to send it',
       held && held.body_text.length > 100 && held.subject.length > 5);
-    await outbox.flush({ limit: 10 });
+    // deliver() on this message rather than flush() over a batch.
+    //
+    // flush takes the first few rows that are due across the whole database,
+    // so on a developer's machine — where every other suite's signups have
+    // left their own welcome messages behind — the message this test is about
+    // may simply not be in the batch, and the assertion below reads 'queued'
+    // and fails for a reason that has nothing to do with the code. The test
+    // is about one message; it should act on one message.
+    await outbox.deliver(held);
     const afterFlush = await one('SELECT * FROM email_messages WHERE id = $1', [held.id]);
     check('and is held, not sent and not failed',
       afterFlush.status === 'held' && afterFlush.sent_at === null,
