@@ -594,6 +594,70 @@ async function signup(call, email, book, org) {
   check('it never leaks a credential',
     !/password|secret|key=/i.test(JSON.stringify(deployed).replace(/EMAIL_SMTP_PASSWORD|CREDENTIALS_KEY|ANTHROPIC_API_KEY/g, '')));
 
+  // ------------------------------------------------------- one address
+  //
+  // www and the bare name must not be two sites. They were: signing in on one
+  // left you signed out on the other, because a cookie set for one hostname
+  // is not sent to the other.
+  console.log('\nwww goes to one place');
+
+  // Raw http, not fetch: `Host` is a forbidden header in fetch and undici
+  // drops it without a word, so a test written with fetch quietly asks for
+  // the wrong hostname and passes for the wrong reason.
+  const asHost = (host, path, method, extra) => new Promise((resolve, reject) => {
+    const target = new URL(BASE);
+    const req = require('http').request({
+      host: target.hostname,
+      port: target.port || 80,
+      path: path || '/',
+      method: method || 'GET',
+      headers: Object.assign({ Host: host }, extra || {})
+    }, (res) => {
+      res.resume();
+      res.on('end', () => resolve({
+        status: res.statusCode,
+        headers: { get: (k) => res.headers[String(k).toLowerCase()] || null }
+      }));
+    });
+    req.on('error', reject);
+    req.end();
+  });
+
+  // Behind the proxy, which is the only way this is reached in production.
+  const TLS = { 'X-Forwarded-Proto': 'https' };
+
+  const wwwHit = await asHost('www.profitna.com', '/', 'GET', TLS);
+  check('www is redirected, permanently', wwwHit.status === 301, 'status ' + wwwHit.status);
+  check('…to the bare name, over https',
+    wwwHit.headers.get('location') === 'https://profitna.com/',
+    wwwHit.headers.get('location'));
+
+  const deep = await asHost('www.profitna.com', '/privacy?x=1', 'GET', TLS);
+  check('…keeping the path and the query',
+    deep.headers.get('location') === 'https://profitna.com/privacy?x=1',
+    deep.headers.get('location'));
+
+  // And it does not invent a scheme it was not reached by: a plain http
+  // request stays http, and the proxy's own http-to-https rule handles that
+  // hop. Guessing here is how a redirect loop starts.
+  const plain = await asHost('www.profitna.com', '/');
+  check('…and the scheme is the one it arrived on, not a guess',
+    plain.headers.get('location') === 'http://profitna.com/',
+    plain.headers.get('location'));
+
+  const bare = await asHost('profitna.com', '/api/health');
+  check('the bare name is served, not bounced', bare.status === 200, 'status ' + bare.status);
+
+  // The one that would quietly break payments.
+  const hook = await asHost('www.profitna.com', '/api/webhooks/monnify', 'POST');
+  check('a webhook is never redirected, whatever host it arrives on',
+    hook.status !== 301 && hook.status !== 302, 'status ' + hook.status);
+
+  // And the one that would make this an open redirect.
+  const forged = await asHost('evil.example.com', '/');
+  check('a forged Host header is not followed anywhere',
+    forged.status !== 301 && forged.status !== 302, 'status ' + forged.status);
+
   console.log('\nthe privacy notice');
 
   const reader = client();

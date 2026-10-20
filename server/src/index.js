@@ -30,6 +30,49 @@ const app = express();
 const faults = { rejections: 0, exceptions: 0, last: null };
 app.set('trust proxy', 1);
 
+// One address, not several.
+//
+// A site reachable as both www.profitna.com and profitna.com is two sites as
+// far as a browser is concerned: two cookie jars, so signing in on one leaves
+// you signed out on the other, and two of everything in a search index. The
+// proxy in front of this app terminates TLS for whatever hostnames it has
+// been given; this decides which of them is the real one and sends the rest
+// there.
+//
+// Only GET and HEAD. A 301 on a POST is how a payment webhook gets lost:
+// providers do not reliably follow redirects, and those that do may drop the
+// body doing it. A webhook that arrives on the wrong hostname is better
+// handled than bounced.
+const CANONICAL_HOST = (() => {
+  const base = process.env.PUBLIC_BASE_URL || process.env.PUBLIC_URL || '';
+  if (!base) return null;
+  try {
+    return new URL(/^https?:/.test(base) ? base : 'https://' + base).host.toLowerCase();
+  } catch {
+    return null;
+  }
+})();
+
+app.use((req, res, next) => {
+  if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+  const host = String(req.get('host') || '').toLowerCase();
+  if (!host) return next();
+
+  // With no PUBLIC_BASE_URL to compare against, the rule is simply that the
+  // bare name wins — which is the convention this product's links already
+  // assume and the one its certificate is issued for.
+  const want = CANONICAL_HOST || (host.startsWith('www.') ? host.slice(4) : host);
+  if (host === want) return next();
+
+  // Never redirect to a host we were not configured for. Without this, a
+  // request carrying a forged Host header would be answered with a redirect
+  // to wherever the attacker named — a tidy open redirect on every page.
+  if (!CANONICAL_HOST && !host.startsWith('www.')) return next();
+
+  const proto = req.get('x-forwarded-proto') || req.protocol || 'https';
+  return res.redirect(301, proto + '://' + want + req.originalUrl);
+});
+
 // Webhooks verify a signature over the exact bytes received, so they are
 // mounted before the JSON parser can rewrite the body.
 app.post('/api/webhooks/paystack', express.raw({ type: '*/*' }), subscriptionRoutes.paystackWebhook);
