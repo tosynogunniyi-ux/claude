@@ -687,8 +687,21 @@ async function outstandingOf(orgId, invoiceId) {
       invoiceId: payable.id, email: 'payer@example.ng', returnBase: BASE + '/api/pay/return'
     });
     check('a hosted checkout URL comes back', /^https:\/\/checkout\.test\//.test(link.url), link.url);
+    // Not "does not contain A7". Twenty-four random hex characters contain
+    // any given pair about one time in eleven, so that assertion failed for
+    // nobody's fault roughly every eleventh run — the worst kind of test,
+    // because it teaches people to re-run until it passes.
+    //
+    // The real claim is that the reference is not derived from the invoice,
+    // and the way to show that is to generate a thousand and watch them all
+    // differ, and to check none carries the invoice number itself.
+    const refs = new Set();
+    for (let i = 0; i < 1000; i++) refs.add(collect.newReference());
     check('the reference is random, not the invoice number',
-      /^PI-[0-9A-F]{24}$/.test(link.reference) && !link.reference.includes('A7'), link.reference);
+      /^PI-[0-9A-F]{24}$/.test(link.reference) &&
+      !link.reference.includes(payable.number) &&
+      refs.size === 1000,
+      link.reference + ' / ' + refs.size + ' distinct of 1000');
     const initialise = seen.initialise[seen.initialise.length - 1];
     check('the tenant\'s own secret key authorised it, not Profitna\'s',
       initialise.provider === 'paystack' && initialise.body.amount === 12500000,

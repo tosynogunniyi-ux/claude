@@ -413,7 +413,7 @@ have locked a business out of its own books.
 `SEED_DEMO_DATA=true` fills each new account with eight months of sample
 Nigerian books. Leave it unset in production so real accounts start empty.
 
-Seventeen test suites, 1,333 checks, run against a live server and a real database:
+Seventeen test suites, 1,335 checks, run against a live server and a real database:
 
 | Command | Checks | Covers |
 |---|---|---|
@@ -432,5 +432,5 @@ Seventeen test suites, 1,333 checks, run against a live server and a real databa
 | `npm run test:recurring` | 50 | Schedules: the dates, catching up, stopping, and that nobody is billed twice |
 | `npm run test:email` | 89 | The lifecycle conditions, consent, idempotency, retries and unsubscribing |
 | `npm run test:payroll` | 124 | Nigerian PAYE at every band boundary, pension and NHF, the year month by month, approval, posting and reversal |
-| `npm run test:screens` | 154 | That no broken response can take the interface down, proved by breaking them |
+| `npm run test:screens` | 156 | That no broken response can take the interface down, proved by breaking them |
 | `npm run test:trial` | 16 | That changing the trial length leaves running trials alone |

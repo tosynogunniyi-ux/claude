@@ -516,6 +516,8 @@ window.__resources = {
 
       <div style="margin-top: 22px; font-size: 11.5px; color: #8A8578;">
         <a href="/privacy" target="_blank" rel="noopener" style="color: #5C5850;">Privacy and cookies</a>
+        <span style="margin: 0 6px;">·</span>
+        <a href="mailto:support@profitna.com" style="color: #5C5850;">support@profitna.com</a>
       </div>
 
     </div>
@@ -2400,6 +2402,16 @@ window.__resources = {
           </div>
 
           <div data-om="card" style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.04), 0 1px 3px rgba(19,19,19,.06); padding: 24px; grid-column: 1 / -1;">
+            <h2 style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 19px; font-weight: 600; margin: 0 0 6px;">Help and support</h2>
+            <p style="font-size: 12.5px; color: #5C5850; margin: 0 0 14px; line-height: 1.5;">Something wrong, something confusing, or a figure you cannot explain — write to us and a person reads it. Include the reference below and we will know which books you mean without asking.</p>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+              <a href="{{ help.mailto }}" style="display: inline-block; border: 0; background: #1a1a1a; color: #FFFFFF; border-radius: 6px; padding: 9px 17px; font-size: 12.5px; font-weight: 600; text-decoration: none;" style-hover="background: #FAC775; color: #412402;">Email {{ help.address }}</a>
+              <button onClick="{{ help.copy }}" style="border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 15px; font-size: 12.5px; font-weight: 600; cursor: pointer;" style-hover="background: #F4F3EE;">{{ help.copyLabel }}</button>
+            </div>
+            <div style="margin-top: 12px; font-size: 11.5px; color: #8A8578; font-family: 'IBM Plex Mono', monospace; word-break: break-all;">{{ help.reference }}</div>
+          </div>
+
+          <div data-om="card" style="background: #FFFFFF; border: 1px solid #E5E1D8; border-radius: 6px; box-shadow: 0 1px 2px rgba(19,19,19,.04), 0 1px 3px rgba(19,19,19,.06); padding: 24px; grid-column: 1 / -1;">
             <h2 style="font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 19px; font-weight: 600; margin: 0 0 6px;">Privacy and cookies</h2>
             <p style="font-size: 12.5px; color: #5C5850; margin: 0 0 14px; line-height: 1.5;">What Profitna collects, who else receives it, and how long it is kept. The same page carries the advertising-cookie switch, so a choice made once can be changed at any time.</p>
             <a href="/privacy" target="_blank" rel="noopener" style="display: inline-block; border: 1px solid #C9C3B7; background: #FFFFFF; border-radius: 6px; padding: 8px 15px; font-size: 12.5px; font-weight: 600; color: #1a1a1a; text-decoration: none;">Read the privacy notice</a>
@@ -3188,6 +3200,7 @@ const SAFE = Object.freeze({
   cnote: { lines: [], hasError: false, open: false, addLine: NOOP, busy: '', close: NOOP, error: '', estimate: '', issue: NOOP, onIssue: NOOP, onReason: NOOP, opacity: '', reason: '', save: NOOP, subtitle: '', title: '' },
   plink: { open: false, check: NOOP, close: NOOP, copy: NOOP, note: '', noteBg: '', noteFg: '', subtitle: '', title: '', url: '' },
   merch: { providers: [], show: false, storageBlocked: false, note: '', storageNote: '' },
+  help: { address: 'support@profitna.com', mailto: 'mailto:support@profitna.com', reference: '', copyLabel: 'Copy reference', copy: NOOP },
   pyr: { cards: [], staff: [], runs: [], lines: [], months: [], owed: [], doubts: [], tabs: [], busy: '', error: '', note: '', tab: 'overview', form: {}, run: null, hasRun: false, noStaff: false, noRuns: false, noLines: false, onTab: NOOP, onField: NOOP, addStaff: NOOP, calculate: NOOP, approve: NOOP, period: '', year: '', month: '', ruleNote: '', problems: [] },
   readOnly: { show: false, bg: '', border: '', detail: '', headline: '', rule: '' }
 });
@@ -3291,6 +3304,7 @@ class Component extends DCLogic {
       // Payroll. Loaded on first visit to the screen and after anything
       // that changes it; null means "not fetched yet", which the screen
       // shows as loading rather than as empty.
+      helpCopied: false,
       payTab: 'overview', payOverview: null, payStaff: null, payRuns: null,
       payRun: null, payForm: {}, payBusy: '', payError: '',
       // Replaced by whatever /auth/config reports. Only ever seen in the
@@ -4948,6 +4962,52 @@ class Component extends DCLogic {
       approving: st.payBusy === 'approving',
       error: st.payError || '',
       hasError: Boolean(st.payError)
+    };
+  }
+
+  // ------------------------- help and support -------------------------
+  //
+  // One address, and a reference that saves the first two emails of every
+  // support thread. "It is not working" with no idea which books are meant
+  // costs a round trip before anyone can look at anything, so the reference
+  // carries the organisation id, the signed-in email and the app's own
+  // version — all things support would otherwise have to ask for.
+  //
+  // Nothing secret is in it. The organisation id is already in the address
+  // bar of every screen, and the email is the person's own.
+  helpVals() {
+    const st = this.state;
+    const ses = st.session || {};
+    const address = 'support@profitna.com';
+
+    const reference = [
+      'Organisation: ' + (ses.orgName || st.org || 'unknown'),
+      'Reference: ' + (ses.orgId || 'not signed in'),
+      'Signed in as: ' + (ses.email || 'unknown')
+    ].join('\n');
+
+    const body = 'Describe what happened, and what you expected instead.\n\n' +
+      '\u2014\u2014 please leave the lines below, they tell us which books to look at \u2014\u2014\n' +
+      reference + '\nScreen: ' + (st.screen || 'unknown');
+
+    return {
+      address,
+      mailto: 'mailto:' + address +
+        '?subject=' + encodeURIComponent('Profitna support \u2014 ' + (ses.orgName || st.org || '')) +
+        '&body=' + encodeURIComponent(body),
+      reference: (ses.orgId ? 'Reference ' + ses.orgId : 'Sign in to get your reference'),
+      copyLabel: st.helpCopied ? 'Copied' : 'Copy reference',
+      copy: () => {
+        const done = () => {
+          this.setState({ helpCopied: true });
+          this.flash('Reference copied. Paste it into your message.');
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(reference).then(done, () => this.flash('Copy it from the line below.'));
+        } else {
+          this.flash('Copy it from the line below.');
+        }
+      }
     };
   }
 
@@ -7484,6 +7544,7 @@ class Component extends DCLogic {
       // A duplicate key in an object literal fails in total silence, which
       // is why this one took a browser and a printed view-model to find.
       pyr: this.section('payroll', () => this.payrollVals(), SAFE.pyr),
+      help: this.section('settings', () => this.helpVals(), SAFE.help),
       // Drives the stylesheet that greys out what this role cannot reach, and
       // the disabled state that stops the keyboard reaching it either.
       roleKey: st.role === 'Admin' ? 'admin' : st.role === 'Viewer' ? 'viewer' : 'accountant',

@@ -211,6 +211,27 @@ function inspect(page) {
         !found ? 'no tab button' : state.crashed ? 'crash panel' : errs.join(' | '));
     }
 
+    // The one thing a person looks for when something is wrong. It is built
+    // from the session, so it is also the thing that breaks first when the
+    // session is not what it expects.
+    console.log('\nsomebody can find support');
+    await go(page, 'Settings', 1800);
+    const helpSeen = await page.evaluate(() => {
+      const link = [...document.querySelectorAll('a')]
+        .find((a) => (a.getAttribute('href') || '').startsWith('mailto:support@profitna.com'));
+      return {
+        card: /Help and support/.test(document.body.innerText),
+        link: Boolean(link),
+        carriesReference: link
+          ? decodeURIComponent(link.getAttribute('href')).includes('Reference:')
+          : false
+      };
+    });
+    check('the support address is on the settings screen', helpSeen.card && helpSeen.link,
+      JSON.stringify(helpSeen));
+    check('and the message it opens already says which books to look at',
+      helpSeen.carriesReference, JSON.stringify(helpSeen));
+
     console.log('\nand every form opens');
     const FORMS = [
       ['Invoicing', 'Invoices', '+ Create invoice', 'Close'],
