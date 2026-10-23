@@ -4,39 +4,223 @@ const express = require('express');
 const cookieParser = require('cookie-parser');
 
 const { requireAuth } = require('./auth');
+const { requireSubscription } = require('./access');
+const { gate } = require('./admin-auth');
 const authRoutes = require('./routes/auth');
+const invitationRoutes = require('./routes/invitations');
+const adminRoutes = require('./routes/admin');
+const memberRoutes = require('./routes/members');
 const orgRoutes = require('./routes/org');
+const bankingRoutes = require('./routes/banking');
 const ledgerRoutes = require('./routes/ledger');
 const bankRoutes = require('./routes/bank');
 const subscriptionRoutes = require('./routes/subscription');
+const aiRoutes = require('./routes/ai');
+const invoicingRoutes = require('./routes/invoicing');
+const paymentRoutes = require('./routes/payments');
+const recurringRoutes = require('./routes/recurring');
+const payrollRoutes = require('./routes/payroll');
+const emailRoutes = require('./routes/email');
+const payRoutes = require('./routes/pay');
 
 const app = express();
+
+// Counted here so /api/health can report them; see the handlers at the foot
+// of this file for why the process keeps serving rather than exiting.
+const faults = { rejections: 0, exceptions: 0, last: null };
 app.set('trust proxy', 1);
+
+// One address, not several.
+//
+// A site reachable as both www.profitna.com and profitna.com is two sites as
+// far as a browser is concerned: two cookie jars, so signing in on one leaves
+// you signed out on the other, and two of everything in a search index. The
+// proxy in front of this app terminates TLS for whatever hostnames it has
+// been given; this decides which of them is the real one and sends the rest
+// there.
+//
+// Only GET and HEAD. A 301 on a POST is how a payment webhook gets lost:
+// providers do not reliably follow redirects, and those that do may drop the
+// body doing it. A webhook that arrives on the wrong hostname is better
+// handled than bounced.
+const CANONICAL_HOST = (() => {
+  const base = process.env.PUBLIC_BASE_URL || process.env.PUBLIC_URL || '';
+  if (!base) return null;
+  try {
+    return new URL(/^https?:/.test(base) ? base : 'https://' + base).host.toLowerCase();
+  } catch {
+    return null;
+  }
+})();
+
+app.use((req, res, next) => {
+  if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+  const host = String(req.get('host') || '').toLowerCase();
+  if (!host) return next();
+
+  // With no PUBLIC_BASE_URL to compare against, the rule is simply that the
+  // bare name wins — which is the convention this product's links already
+  // assume and the one its certificate is issued for.
+  const want = CANONICAL_HOST || (host.startsWith('www.') ? host.slice(4) : host);
+  if (host === want) return next();
+
+  // Never redirect to a host we were not configured for. Without this, a
+  // request carrying a forged Host header would be answered with a redirect
+  // to wherever the attacker named — a tidy open redirect on every page.
+  if (!CANONICAL_HOST && !host.startsWith('www.')) return next();
+
+  const proto = req.get('x-forwarded-proto') || req.protocol || 'https';
+  return res.redirect(301, proto + '://' + want + req.originalUrl);
+});
 
 // Webhooks verify a signature over the exact bytes received, so they are
 // mounted before the JSON parser can rewrite the body.
 app.post('/api/webhooks/paystack', express.raw({ type: '*/*' }), subscriptionRoutes.paystackWebhook);
+app.post('/api/webhooks/monnify', express.raw({ type: '*/*' }), subscriptionRoutes.monnifyWebhook);
 app.post('/api/webhooks/mono', express.json(), bankRoutes.monoWebhook);
+
+// A tenant's own gateway posting about a customer's invoice payment. One URL
+// per organisation per provider, the token in the path being the only thing
+// that says which — never a field in a body that has not been authenticated
+// yet. Raw, for the same reason as the two above: the signature is over the
+// bytes that arrived.
+app.post('/api/pay/hook/:token', express.raw({ type: '*/*' }), payRoutes.hook);
 
 app.use(express.json({ limit: '2mb' }));
 app.use(cookieParser());
 
-app.get('/api/health', (req, res) => res.json({ ok: true }));
+// Enough to answer the three questions that otherwise need a guess: is the
+// code I just deployed the code that is running, is the container restarting
+// under me, and is the database answering. Public, so it carries no secret
+// and no configuration — only facts about this process.
+const BOOTED_AT = new Date().toISOString();
+app.get('/api/health', async (req, res) => {
+  const started = Date.now();
+  let db = 'ok';
+  try {
+    await require('./db').query('SELECT 1');
+  } catch (err) {
+    db = 'failing: ' + err.message;
+  }
+  res.json({
+    ok: db === 'ok',
+    db,
+    dbMs: Date.now() - started,
+    // A small number here means the app has restarted recently, which is the
+    // difference between "my change is not deployed" and "it crashed again".
+    uptimeSeconds: Math.round(process.uptime()),
+    bootedAt: BOOTED_AT,
+    // Two values that move with the code, so a stale deploy is visible
+    // without digging: both changed in the releases around this one.
+    trialDays: require('./pricing').TRIAL_DAYS,
+    paymentProvider: require('./integrations/gateway').name(),
+    // Whether Ask Profitna has a model behind it, and which one. No key is
+    // revealed by either answer.
+    askModel: require('./ai/ask').configured() ? require('./ai/ask').model() : null,
+    // Which halves of the ad tracking have what they need. Names a state, not
+    // a value: the pixel id is public anyway and the token appears nowhere.
+    // "off" here with the code deployed means the variables are not reaching
+    // this container, which is a different problem from the code being old
+    // and is otherwise indistinguishable from it.
+    metaTracking: (() => {
+      const m = require('./integrations/meta');
+      if (m.configured()) return 'browser and server';
+      return m.browserConfigured() ? 'browser only — no access token' : 'off';
+    })(),
+    // Whether tenants can connect their own payment accounts, so customers
+    // can pay their invoices online. "off" means CREDENTIALS_KEY is not
+    // reaching this container — the one thing that cannot be worked out from
+    // the outside, and the thing that makes the feature silently absent.
+    merchantCredentials: require('./crypto').configured() ? 'encrypted at rest' : 'off',
+    // Whether the lifecycle emails are deciding, and whether they are
+    // actually going anywhere. The two are separate on purpose: credentials
+    // can be in place and proved while sending is still off.
+    email: require('./email').describe(),
+    // Which tax rules payroll would use today, and how many values in them
+    // are still unconfirmed. Added because "is my deploy live" was asked of
+    // this endpoint and it could not answer: payroll shipped, this did not
+    // mention it, and the only way to tell was to sign in and look at the
+    // sidebar. Anything the deployment can change should be visible here.
+    payroll: (() => {
+      const statutory = require('./payroll/statutory');
+      const rules = statutory.rulesFor(new Date().toISOString().slice(0, 10));
+      return { rules: rules.id, unconfirmed: statutory.doubts(rules).length };
+    })(),
+    // Zero is the only good answer. A number here means something threw where
+    // nothing was listening: the server kept serving rather than dying, which
+    // is the right trade for a live site, but the fault is real and the log
+    // has the stack. Shown because a process quietly limping is worse than
+    // one that fell over honestly.
+    faults: faults.rejections + faults.exceptions === 0
+      ? 'none'
+      : { rejections: faults.rejections, exceptions: faults.exceptions, last: faults.last }
+  });
+});
+// Where a customer lands after paying, and a reference they can poll. Public
+// by necessity: the payer has no Profitna account. Mounted after the JSON
+// parser because neither reads a body.
+app.use('/api/pay', payRoutes.router);
+
+// Unsubscribing and email preferences. Public and unauthenticated by
+// necessity: the person clicking is in their mail client with no session, and
+// demanding one is how an unsubscribe link becomes a spam complaint. The
+// 256-bit token in the path is what identifies them.
+app.use('/api/email', emailRoutes.router);
+
 app.use('/api/auth', authRoutes.router);
+// Following an invitation link happens before there is anything to sign in
+// with, so this is keyed on the token rather than on a session.
+app.use('/api/invitations', invitationRoutes.router);
+
+// The platform owner's console. `gate` answers 404 — not 401 — when no owner
+// account exists or the caller is outside ADMIN_IP_ALLOWLIST, so a deployment
+// that has not run create-admin advertises nothing to probe at.
+app.use('/api/admin', gate, adminRoutes.router);
 
 const orgScoped = express.Router({ mergeParams: true });
+// Subscription routes come first and sit in front of the gate: an account
+// locked out for not having paid still has to be able to pay.
+orgScoped.use(subscriptionRoutes.router);
+// Managing the team stays reachable alongside them: an admin locked out at
+// the paywall can still see who is on the books.
+orgScoped.use(memberRoutes.router);
+// Past the end of the trial — or of a paid term — the books answer 402 with
+// what the paywall needs. Nothing is deleted; it opens again on payment.
+orgScoped.use(requireSubscription);
 orgScoped.use(orgRoutes.router);
+orgScoped.use(bankingRoutes.router);
 orgScoped.use(ledgerRoutes.router);
 orgScoped.use(bankRoutes.router);
-orgScoped.use(subscriptionRoutes.router);
+orgScoped.use(aiRoutes.router);
+orgScoped.use(invoicingRoutes.router);
+orgScoped.use(paymentRoutes.router);
+orgScoped.use(recurringRoutes.router);
+orgScoped.use(payrollRoutes.router);
+orgScoped.use(emailRoutes.orgRouter);
 app.use('/api/orgs/:orgId', requireAuth, orgScoped);
 
 // The prototype is served from here, so the API is same-origin and the session
 // cookie needs no cross-site relaxation.
-// Only the two files the app is made of: the rest of project/ holds working
-// material (spec, schema, spreadsheets) that must not be publicly served.
-const WEB_ROOT = path.join(__dirname, '..', '..', 'project');
+// Only the files the app is actually made of are served.
+const WEB_ROOT = path.join(__dirname, '..', '..', 'web');
 app.get('/', (req, res) => res.sendFile(path.join(WEB_ROOT, 'Profitna.dc.html')));
+
+// Nothing in the product links here, and the path can be moved somewhere
+// unguessable with ADMIN_PATH. That is obscurity, not security — the console
+// is protected by the credentials behind it — but it keeps the login form out
+// of the way of people who have no business finding it.
+const ADMIN_PATH = (process.env.ADMIN_PATH || '/admin').replace(/\/+$/, '') || '/admin';
+app.get(ADMIN_PATH.startsWith('/') ? ADMIN_PATH : '/' + ADMIN_PATH, gate, (req, res) =>
+  res.sendFile(path.join(WEB_ROOT, 'admin.html'))
+);
+// The privacy policy and cookie notice. A plain page, served from the same
+// origin so the choice it writes is the cookie the app reads and the server
+// sees. Two paths because a cookie banner says "cookies" and a footer says
+// "privacy", and a visitor should not have to know they are the same page.
+app.get(['/privacy', '/privacy.html', '/cookies'], (req, res) =>
+  res.sendFile(path.join(WEB_ROOT, 'privacy.html'))
+);
+
 app.get('/support.js', (req, res) => res.sendFile(path.join(WEB_ROOT, 'support.js')));
 app.use('/vendor', express.static(path.join(WEB_ROOT, 'vendor'), { maxAge: '1y', index: false }));
 
@@ -47,9 +231,79 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Something went wrong on our side.' });
 });
 
+// Said once at boot, where whoever just edited the keys is watching. Each of
+// these is a mismatch that otherwise surfaces as a customer's card failing.
+for (const w of require('./integrations/monnify').warnings()) {
+  console.warn('WARNING: ' + w);
+}
+for (const w of require('./integrations/meta').warnings()) {
+  console.warn('WARNING: ' + w);
+}
+for (const w of require('./crypto').warnings()) {
+  console.warn('WARNING: ' + w);
+}
+for (const w of require('./email').warnings()) {
+  console.warn('WARNING: ' + w);
+}
+
+// What happens when something throws where nothing is listening.
+//
+// Node's default for an unhandled promise rejection is to terminate. For a
+// library that is right; for the single process serving a live accounting
+// product it is not. The realistic source is background work — the billing
+// pass, a backup, the ledger backfill, a recurring schedule — and a lost
+// promise in a timer should not take the books offline for every business
+// using them at three in the morning. The HTTP server is still healthy and
+// still serving; killing it turns a background hiccup into an outage.
+//
+// So it is logged loudly and counted, and the count is on /api/health — the
+// one thing worse than a crash is a process quietly limping while everyone
+// assumes it is fine. Nothing here swallows anything: the reason and the
+// stack go to the log in full.
+function record(kind, err) {
+  faults[kind] += 1;
+  faults.last = {
+    kind,
+    at: new Date().toISOString(),
+    message: (err && err.message) || String(err)
+  };
+  console.error('UNHANDLED ' + kind.toUpperCase().replace(/S$/, '') + ' — the server is still ' +
+    'serving, but this is a fault that should not exist:');
+  console.error(err && err.stack ? err.stack : err);
+}
+
+process.on('unhandledRejection', (reason) => record('rejections', reason));
+process.on('uncaughtException', (err) => record('exceptions', err));
+
 if (require.main === module) {
+  // Fail at boot rather than at the first sign-in attempt: a missing secret is
+  // a deployment mistake, and it is far cheaper to find in the startup log.
+  for (const required of ['DATABASE_URL', 'JWT_SECRET']) {
+    if (!process.env[required]) {
+      console.error(required + ' is not set — refusing to start. See server/README.md.');
+      process.exit(1);
+    }
+  }
+
   const port = Number(process.env.PORT) || 4000;
-  app.listen(port, () => console.log('Profitna server listening on http://localhost:' + port));
+  // Binds all interfaces so a reverse proxy in another container can reach it.
+  app.listen(port, '0.0.0.0', () => {
+    console.log('Profitna server listening on port ' + port);
+    console.log('If your proxy targets a different port, set PORT to match it.');
+    // Ends trials and renews terms. Holds a Postgres advisory lock for each
+    // pass, so running more than one container does not charge twice.
+    require('./billing').start();
+    // Takes a verified pg_dump on a schedule, under its own advisory lock.
+    require('./backup').start();
+  require('./accounting/backfill').start();
+    // Raises the invoices that schedules say are due. Its own advisory lock,
+    // so more than one container does not bill the same month twice.
+    require('./invoicing/recurring').start();
+    // Decides who is due what, and sends it. Records either way: with no mail
+    // provider configured the outbox still fills, so what would have gone out
+    // can be read before anything does.
+    require('./email').start();
+  });
 }
 
 module.exports = app;
