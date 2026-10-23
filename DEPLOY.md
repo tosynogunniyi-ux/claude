@@ -164,6 +164,20 @@ Propagation is usually minutes at TTL 300. **Do not start Caddy until this
 resolves** — Let's Encrypt validates over the live domain, and repeated
 failures hit a rate limit that locks you out for an hour.
 
+**DNS is only half of it.** The records above decide where a browser knocks;
+something still has to answer for that hostname. With Caddy from this
+repository, `deploy/Caddyfile` covers both names. On Easypanel the proxy is
+its own, and it answers only for the hostnames listed against the service:
+
+> Easypanel → the app service → **Domains** → add **both** `profitna.com` and
+> `www.profitna.com`, each with HTTPS on, **path `/` and port `4000`**.
+
+Port 4000 is the one the container listens on; Easypanel's form offers 3000
+by default, and a domain pointed at 3000 answers with its own 404 while
+looking correctly configured. A hostname with an A record but no entry here
+fails in the browser with a certificate warning rather than anything that
+names the cause — which is exactly how an afternoon goes missing.
+
 ### 3. Open the firewall
 
 Ports 80 and 443 must reach the box: check hPanel → VPS → **Firewall**, and on

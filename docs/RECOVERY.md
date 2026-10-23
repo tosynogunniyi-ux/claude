@@ -84,7 +84,11 @@ Postgres of the same major version to read it.
    ```
 5. `docker compose up -d` — migrations run before the server starts, so a dump
    from an older schema is brought up to date automatically.
-6. Point the `A` records for `@` and `www` at the new IP, TTL 300.
+6. Point the `A` records for `@` and `www` at the new IP, TTL 300 — then
+   add **both** hostnames to the proxy. On Easypanel: the app service →
+   Domains, HTTPS on, path `/`, port `4000`. DNS alone is not enough; the
+   proxy answers only for hostnames it has been given, and a missing one
+   shows as a certificate warning rather than anything that names itself.
 7. Check `https://profitna.com/api/health`.
 
 ## What this outage should change
