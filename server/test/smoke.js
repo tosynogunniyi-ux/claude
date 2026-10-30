@@ -6,6 +6,11 @@
 
 const BASE = process.env.SMOKE_BASE || 'http://localhost:4000';
 const { TRIAL_DAYS } = require('../src/pricing');
+// Only to put an account into a state the API deliberately offers no way to
+// reach: nothing deletes or closes a user over HTTP, and the signup message
+// for a closed account is worth proving all the same.
+require('dotenv').config();
+const { pool } = require('../src/db');
 
 let passed = 0;
 const failures = [];
@@ -84,6 +89,31 @@ async function signup(call, email, book, org) {
 
   const dup = await signup(client(), 'smoke-sme-' + stamp + '@mideops.ng', 'sme', 'Mideops Ventures');
   check('a second signup on the same email is refused', dup.status === 409);
+  check('…and a live account is told to sign in', /Sign in instead/.test(dup.body.error || ''),
+    dup.body.error);
+
+  // A closed account keeps its email, because its books are still attached to
+  // the person who kept them. The message has to say that, rather than send
+  // somebody to a sign-in that will also refuse them.
+  await pool.query("UPDATE users SET status = 'deactivated' WHERE email = $1",
+    ['smoke-sme-' + stamp + '@mideops.ng']);
+  const closedAgain = await signup(client(), 'smoke-sme-' + stamp + '@mideops.ng', 'sme', 'Mideops Ventures');
+  check('a closed account still holds its email', closedAgain.status === 409);
+  check('…and says so, rather than telling them to sign in',
+    /closed Profitna account/.test(closedAgain.body.error || '') &&
+    !/Sign in instead/.test(closedAgain.body.error || ''),
+    closedAgain.body.error);
+  check('…and says how to get it back',
+    /support@profitna\.com/.test(closedAgain.body.error || ''), closedAgain.body.error);
+
+  await pool.query("UPDATE users SET status = 'suspended' WHERE email = $1",
+    ['smoke-sme-' + stamp + '@mideops.ng']);
+  const suspendedAgain = await signup(client(), 'smoke-sme-' + stamp + '@mideops.ng', 'sme', 'Mideops Ventures');
+  check('a suspended account is distinguished from a closed one',
+    /suspended Profitna account/.test(suspendedAgain.body.error || ''), suspendedAgain.body.error);
+
+  await pool.query("UPDATE users SET status = 'active' WHERE email = $1",
+    ['smoke-sme-' + stamp + '@mideops.ng']);
 
   const badLogin = await client()('POST', '/api/auth/login', {
     email: 'smoke-sme-' + stamp + '@mideops.ng',

@@ -99,10 +99,35 @@ async function createAccount({ name, orgName, email, password, googleSub, book, 
   const passwordHash = password ? await bcrypt.hash(password, 12) : null;
 
   return tx(async (client) => {
-    const existing = await client.query('SELECT id FROM users WHERE email = $1', [email]);
+    // An email can only belong to one account, and a closed account keeps
+    // its email.
+    //
+    // That is deliberate: this is an accounting product, and the person who
+    // raised an invoice in March is attached to it. Freeing their address for
+    // somebody else would put a new person's name on old financial records.
+    // So nothing here deletes a user, and the owner's console only changes a
+    // status.
+    //
+    // What that leaves is a message that has to be true. "Sign in instead" is
+    // sound advice for a live account and useless for a closed one — signing
+    // in is exactly what will be refused — and somebody told their email is
+    // taken, who has just closed that very account, is owed the reason.
+    const existing = await client.query(
+      'SELECT id, status FROM users WHERE email = $1', [email]
+    );
     if (existing.rows.length) {
-      const err = new Error('An account already exists for that email. Sign in instead.');
+      const status = existing.rows[0].status;
+      const err = new Error(
+        status === 'deactivated'
+          ? 'That email belongs to a closed Profitna account. Its books are still here, so ' +
+            'the address cannot start a new one. Write to support@profitna.com to reopen it.'
+          : status === 'suspended'
+            ? 'That email belongs to a suspended Profitna account. Write to ' +
+              'support@profitna.com to restore it.'
+            : 'An account already exists for that email. Sign in instead.'
+      );
       err.status = 409;
+      err.code = status === 'active' ? 'EMAIL_IN_USE' : 'ACCOUNT_' + String(status).toUpperCase();
       throw err;
     }
 
