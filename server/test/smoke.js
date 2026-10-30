@@ -587,6 +587,12 @@ async function signup(call, email, book, org) {
   console.log('\nhealth says what is deployed');
   const deployed = await (await fetch(BASE + '/api/health')).json();
   check('health answers', deployed.ok === true);
+  check('it says whether Google sign-in can complete',
+    deployed.googleSignIn && ['on', 'off', 'misconfigured'].includes(deployed.googleSignIn.state),
+    JSON.stringify(deployed.googleSignIn));
+  check('…and when it cannot, says what to set rather than only that it is off',
+    deployed.googleSignIn.state === 'on' || /GOOGLE_CLIENT_ID/.test(deployed.googleSignIn.requirement || ''),
+    JSON.stringify(deployed.googleSignIn));
   check('it names the payroll rules in force',
     deployed.payroll && /^NG-/.test(deployed.payroll.rules), JSON.stringify(deployed.payroll));
   check('and how many of them are still unconfirmed',

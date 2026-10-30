@@ -114,6 +114,12 @@ app.get('/api/health', async (req, res) => {
     // without digging: both changed in the releases around this one.
     trialDays: require('./pricing').TRIAL_DAYS,
     paymentProvider: require('./integrations/gateway').name(),
+    // Whether Google sign-in can actually complete. "off" means the client id
+    // is not reaching this container; "misconfigured" means something is set
+    // that is not an OAuth client id at all — a project number, most often,
+    // which fails at Google with a message about origins that sends you
+    // looking in the wrong place.
+    googleSignIn: require('./integrations/google').describe(),
     // Whether Ask Profitna has a model behind it, and which one. No key is
     // revealed by either answer.
     askModel: require('./ai/ask').configured() ? require('./ai/ask').model() : null,
@@ -237,6 +243,9 @@ for (const w of require('./integrations/monnify').warnings()) {
   console.warn('WARNING: ' + w);
 }
 for (const w of require('./integrations/meta').warnings()) {
+  console.warn('WARNING: ' + w);
+}
+for (const w of require('./integrations/google').warnings()) {
   console.warn('WARNING: ' + w);
 }
 for (const w of require('./crypto').warnings()) {

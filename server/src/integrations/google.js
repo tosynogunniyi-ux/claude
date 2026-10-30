@@ -23,4 +23,35 @@ async function verify(credential) {
   return { sub: claims.sub, email: String(claims.email).toLowerCase(), name: claims.name || null };
 }
 
-module.exports = { configured, verify };
+// For /api/health. A client id is public — it is in the page source of every
+// site that offers Google sign-in — but the useful fact is the shape, not the
+// value: a project number pasted where a client id belongs is the commonest
+// way this is set wrong, and it fails at Google with a message about the
+// origin rather than about the id.
+function describe() {
+  const id = String(process.env.GOOGLE_CLIENT_ID || '').trim();
+  if (!id) return { state: 'off', requirement: REQUIREMENT };
+  if (!/\.apps\.googleusercontent\.com$/.test(id)) {
+    return {
+      state: 'misconfigured',
+      requirement: 'GOOGLE_CLIENT_ID does not end in .apps.googleusercontent.com, so it is ' +
+        'not an OAuth client id. A project number or a Firebase project id will not work here: ' +
+        'take the Web client id from Google Cloud Console, APIs & Services, Credentials.'
+    };
+  }
+  // The project number prefix only, which is already public and lets you tell
+  // two projects apart without printing the whole credential.
+  return { state: 'on', client: id.split('-')[0] + '-…apps.googleusercontent.com' };
+}
+
+const REQUIREMENT =
+  'Set GOOGLE_CLIENT_ID to the Web OAuth client id from Google Cloud Console, APIs & Services, ' +
+  'Credentials. Sign-in also needs the site\'s origins listed there, and the OAuth consent ' +
+  'screen published — while it is in Testing, only listed test users can sign in.';
+
+function warnings() {
+  const d = describe();
+  return d.state === 'misconfigured' ? [d.requirement] : [];
+}
+
+module.exports = { configured, verify, describe, warnings, REQUIREMENT };
