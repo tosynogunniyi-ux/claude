@@ -23,7 +23,6 @@ window.__resources = {
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
 <link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
-<script src="./vendor/xlsx.full.min.js"></script>
 <style>
   body { margin: 0; background: #F4F3EE; font-family: 'Familjen Grotesk', system-ui, sans-serif; font-size: 14px; line-height: 1.55; color: #1a1a1a; -webkit-font-smoothing: antialiased; }
   * { box-sizing: border-box; }
@@ -3050,6 +3049,31 @@ window.__resources = {
 <script type="text/x-dc" data-dc-script data-props="{}">
 const TODAY = new Date();
 
+// The spreadsheet reader, on demand.
+//
+// xlsx is 860 KB — larger than the rest of the application put together —
+// and it is needed by one screen, for one kind of file. It used to load on
+// every boot for everybody, including the many people who never import an
+// Excel workbook at all. Now it is fetched when somebody picks the Excel
+// import, and waited for rather than hoped for when the file arrives.
+let xlsxReady = null;
+function loadXlsx() {
+  if (window.XLSX) return Promise.resolve(window.XLSX);
+  if (!xlsxReady) {
+    xlsxReady = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = '/vendor/xlsx.full.min.js';
+      s.async = true;
+      s.onload = () => window.XLSX
+        ? resolve(window.XLSX)
+        : reject(new Error('the spreadsheet reader loaded but did not start'));
+      s.onerror = () => { xlsxReady = null; reject(new Error('the spreadsheet reader could not be downloaded')); };
+      document.head.appendChild(s);
+    });
+  }
+  return xlsxReady;
+}
+
 const SME_INCOME = ['Product Sales', 'Service Fees', 'Consulting', 'Subscription Revenue', 'Other Income'];
 const SME_EXPENSE = [
   ['Rent - Business Premises', 100], ['Salaries & Wages', 100], ['Inventory Purchases', 100],
@@ -6075,20 +6099,26 @@ class Component extends DCLogic {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
     const isExcel = /\.(xlsx|xls)$/i.test(file.name);
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        if (isExcel) {
-          if (!window.XLSX) { this.flash('Spreadsheet reader still loading — try again in a moment.'); return; }
-          const wb = window.XLSX.read(new Uint8Array(reader.result), { type: 'array', cellDates: true });
-          const sheet = wb.Sheets[wb.SheetNames[0]];
-          this.ingest(window.XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: '' }), file.name);
-        } else {
-          this.ingest(this.splitDelimited(reader.result), file.name);
-        }
-      } catch (err) { this.flash('Could not read that file: ' + err.message); }
+    const read = () => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          if (isExcel) {
+            const wb = window.XLSX.read(new Uint8Array(reader.result), { type: 'array', cellDates: true });
+            const sheet = wb.Sheets[wb.SheetNames[0]];
+            this.ingest(window.XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: '' }), file.name);
+          } else {
+            this.ingest(this.splitDelimited(reader.result), file.name);
+          }
+        } catch (err) { this.flash('Could not read that file: ' + err.message); }
+      };
+      if (isExcel) reader.readAsArrayBuffer(file); else reader.readAsText(file);
     };
-    if (isExcel) reader.readAsArrayBuffer(file); else reader.readAsText(file);
+    if (!isExcel) { read(); return; }
+    // Usually already here, because choosing the Excel import started the
+    // download. If it is not, the wait happens once, with something on screen.
+    if (!window.XLSX) this.flash('Opening the workbook…');
+    loadXlsx().then(read).catch((err) => this.flash('Could not read that file: ' + err.message));
   };
 
   fetchSheet = () => {
@@ -6228,7 +6258,8 @@ class Component extends DCLogic {
       ['paste', 'Paste rows', 'Copy cells straight out of a spreadsheet.']
     ];
     const sources = srcDefs.map((s) => ({
-      label: s[1], desc: s[2], go: () => this.setImp({ source: s[0] }),
+      label: s[1], desc: s[2],
+      go: () => { if (s[0] === 'excel') loadXlsx().catch(() => {}); this.setImp({ source: s[0] }); },
       bg: imp.source === s[0] ? '#FAEEDA' : '#FFFFFF', border: imp.source === s[0] ? '#B8863A' : '#E7E3DA'
     }));
     const coded = (imp.rows || []).filter((r) => r.category).length;

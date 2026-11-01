@@ -109,6 +109,21 @@ async function click(page, label, wait, where) {
   return ok;
 }
 
+// Some buttons are a heading with a sentence under it, so their text is the
+// label plus the explanation. This clicks on the heading.
+async function clickStarting(page, label, wait) {
+  const ok = await page.evaluate((t) => {
+    const b = [...document.querySelectorAll('button')]
+      .filter((x) => !x.disabled)
+      .find((x) => x.textContent.trim().startsWith(t));
+    if (!b) return false;
+    b.click();
+    return true;
+  }, label);
+  await page.waitForTimeout(wait || 900);
+  return ok;
+}
+
 // A screen, from the sidebar.
 const go = (page, label, wait) => click(page, label, wait, 'any');
 // A tab or a button on the screen already open, never the sidebar.
@@ -361,6 +376,42 @@ function inspect(page) {
     await page.unrouteAll().catch(() => {});
 
     // ------------------------------------------------------------------
+    // ------------------------------------------------------------------
+    console.log('\nand the spreadsheet reader stays off the boot path');
+
+    // xlsx is 860 KB — larger than everything else the application loads put
+    // together — and one screen needs it, for one kind of file. It used to be
+    // downloaded by everybody on every boot. This is the check that it is not
+    // quietly put back, and that the screen that needs it still gets it.
+    const xlsxHits = [];
+    page.on('request', (r) => { if (/xlsx\.full/.test(r.url())) xlsxHits.push(r.url()); });
+
+    await page.goto(BASE + '/app', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(1500);
+    sinceLast();
+    containedSince();
+    check('booting the application does not download it', xlsxHits.length === 0, xlsxHits.join(' '));
+    check('and nothing else has pulled it in',
+      (await page.evaluate(() => typeof window.XLSX)) === 'undefined');
+
+    await go(page, 'Expenses & Income', 1400);
+    check('the import dialog still opens', await clickStarting(page, 'Import statement', 1000));
+    check('and the Excel import can still be chosen',
+      await clickStarting(page, 'Microsoft Excel', 400));
+
+    let readerReady = false;
+    try {
+      await page.waitForFunction(() => Boolean(window.XLSX), null, { timeout: 25000 });
+      readerReady = true;
+    } catch { readerReady = false; }
+    check('choosing it fetches the reader, once', xlsxHits.length === 1, String(xlsxHits.length));
+    check('and the reader is ready to open a workbook',
+      readerReady && (await page.evaluate(() => typeof (window.XLSX || {}).read)) === 'function');
+
+    const importErrs = sinceLast();
+    containedSince();
+    check('with nothing thrown on the way', importErrs.length === 0, importErrs.join(' | '));
+
     console.log('\nand the server itself');
     // Node ends the process on an unhandled rejection by default. For the one
     // process serving a live accounting product that turns a hiccup in a

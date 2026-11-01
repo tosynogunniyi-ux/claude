@@ -33,6 +33,7 @@
     "@anthropic-ai/sdk": "^0.71.0",
     "@react-pdf/renderer": "^4.9.0",
     "bcryptjs": "^2.4.3",
+    "compression": "^1.8.2",
     "cookie-parser": "^1.4.7",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",

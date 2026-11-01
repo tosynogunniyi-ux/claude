@@ -174,7 +174,7 @@ in Profitna, the position is different and section 4 explains it.</p>
   <tr><td>Keep the activity log, prevent fraud and abuse, keep backups</td><td><strong>Our legitimate interest</strong> in a product that is accurate and secure</td></tr>
   <tr><td>Help you get started with the parts you have not used</td><td><strong>Our legitimate interest.</strong> You can switch these off at any time</td></tr>
   <tr><td>Keep accounting and tax records</td><td><strong>Legal obligation</strong></td></tr>
-  <tr><td>Advertising and measurement (Meta)</td><td><strong>Your consent</strong>, and nothing happens until you give it</td></tr>
+  <tr><td>Advertising and measurement (Meta, Google Analytics)</td><td><strong>Your consent</strong>, and nothing happens until you give it</td></tr>
   <tr><td>Marketing email from us</td><td><strong>Your consent</strong>, which is off by default and which you can withdraw in one click</td></tr>
 </table>
 
@@ -209,7 +209,7 @@ except where noted.</p>
   <tr><td>Mono</td><td>If you connect a bank account, Mono brokers that connection and returns transactions. Their own privacy terms apply to the bank-side consent you give them.</td></tr>
   <tr><td>Anthropic</td><td>If you use <strong>Ask Profitna</strong>, your question and a snapshot of the figures needed to answer it are sent to Anthropic's Claude API, which generates the answer. It is not used to train their models. Do not type anything into the question box you would not want sent — and if you would rather none of it went, simply do not use that feature.</td></tr>
   <tr><td>Hostinger</td><td>Hosts our servers and sends our email, so they handle the data in transit and at rest.</td></tr>
-  <tr><td>Google</td><td>Only if you choose to sign in with Google, and only to confirm who you are.</td></tr>
+  <tr><td>Google</td><td>Two separate things. If you choose to sign in with Google, Google confirms who you are. Separately, and <strong>only with your consent</strong>, Google Analytics counts visits to our public pages — which page was read, roughly where in the world the browser is, and whether the visit led to a signup. Analytics is never loaded inside the application, so it never sees anything from your books.</td></tr>
   <tr><td>Meta (Facebook, Instagram)</td><td><strong>Only with your consent.</strong> If you accept advertising cookies, Meta receives your IP address, your browser user-agent, Meta's own cookie identifiers, and your email, name and user id <em>each hashed with SHA-256</em> so they leave as scrambled values rather than readable text. Meta never receives anything from your books. See section 10 to turn this off.</td></tr>
   <tr><td>Backup storage</td><td>Database backups, so that a lost server is not a lost business. They are currently held on the same United Kingdom infrastructure as the live service. If we ever move them to a separate storage provider we will name it here before we do.</td></tr>
   <tr><td>Courts, regulators and law enforcement</td><td>Where we are legally required to. We tell you unless we are forbidden from telling you.</td></tr>
@@ -298,7 +298,19 @@ you.</strong></p>
   <tr><th>Cookie</th><th>What it does</th><th>How long</th></tr>
   <tr><td><code>_fbp</code></td><td>Meta's identifier for this browser, used to measure whether an advert led to a signup</td><td>About 3 months</td></tr>
   <tr><td><code>_fbc</code></td><td>Records which advert you arrived from, when you arrive from one</td><td>About 3 months</td></tr>
+  <tr><td><code>_ga</code>, <code>_ga_*</code></td><td>Google Analytics, on our public pages only, to count which of them are read and which lead to a signup</td><td>Up to 2 years</td></tr>
 </table>
+
+<p>Google Analytics runs on the public pages — the home page, pricing, features and the rest.
+It is loaded with every storage permission <em>denied</em> until you accept: before that it
+writes nothing to your browser at all. It is <strong>never</strong> loaded inside the
+application, so nothing it does can see an invoice, a payslip, a customer or a figure in
+your books. The same answer governs it as governs Meta: one choice, below, and the
+application, our server and Google Analytics all obey it.</p>
+
+<p>Two further tags may appear in the page source: a Google Search Console and a Bing
+Webmaster Tools verification string. They are inert text that proves to those two that we
+own this domain. They set nothing, load nothing and see nothing.</p>
 
 <div class="card" id="choice">
   <h3 style="margin-top:0;">Your choice</h3>

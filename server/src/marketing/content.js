@@ -264,6 +264,43 @@ const paye = (title, intro, note, band) => {
 </div></section>`;
 };
 
+// The questions, declared once.
+//
+// They are rendered on the page and repeated as structured data for the
+// machines reading it, and those two must say the same thing — a FAQ marked
+// up with answers a visitor cannot see is the kind of thing Google calls
+// spam and removes a site's rich results for. One array, both uses.
+const HOME_QUESTIONS = [
+  ['What does it cost?',
+    naira(MONTHLY) + ' per user per month, or ' + naira(ANNUAL) + ' per user per year. ' +
+    '<a href="/pricing">Full pricing</a>.'],
+  ['Do I need a card to start?',
+    'No. The ' + TRIAL + '-day trial asks for nothing to pay with, and nothing is charged ' +
+    'until you choose a plan.'],
+  ['Can my accountant use it?',
+    'Yes. Invite them as an accountant and they can keep the books without being able to ' +
+    'change your subscription or approve payroll. <a href="/solutions/accountants">More</a>.'],
+  ['Is it for churches too?',
+    'Yes, with a different ledger: funds and giving rather than sales and VAT. ' +
+    '<a href="/solutions/churches">More</a>.']
+];
+
+const PRICING_QUESTIONS = [
+  ['Is there really no card at signup?',
+    'No card. The ' + TRIAL + '-day trial asks for nothing to pay with. Payment is collected ' +
+    'at the end of it, and only if you choose to continue.'],
+  ['What is a user?',
+    'One person with their own sign-in. A viewer who only reads reports still counts, because ' +
+    'they still have an account.'],
+  ['Can I change how many users I have?',
+    'Yes. Seats can go up at any time, and down to the number of people actually using it.'],
+  ['What happens when the trial ends?',
+    'The books close until you activate a subscription. Nothing is deleted, and everything is ' +
+    'there when you come back.'],
+  ['Do churches pay the same?',
+    'Yes. The church ledger is the same price as the business one.']
+];
+
 // ------------------------------------------------------------------- pages
 
 const PAGES = [];
@@ -272,6 +309,9 @@ const add = (p) => { PAGES.push(p); return p; };
 // ------------------------------------------------------------------- home
 add({
   path: '/',
+  name: 'Profitna',
+  product: true,
+  faqs: HOME_QUESTIONS,
   title: 'Profitna — Accounting and business finance for Nigerian businesses',
   description:
     'Invoicing, double-entry bookkeeping, Nigerian payroll with 2026 PAYE, and financial ' +
@@ -340,26 +380,15 @@ add({
       'Payslips, invoices and statements carry your logo and print on A4. The naira sign renders ' +
       'properly, which sounds like a small thing until you have been sent a PDF where it does not.'
     ], true) +
-    faq([
-      ['What does it cost?',
-        naira(MONTHLY) + ' per user per month, or ' + naira(ANNUAL) + ' per user per year. ' +
-        '<a href="/pricing">Full pricing</a>.'],
-      ['Do I need a card to start?',
-        'No. The ' + TRIAL + '-day trial asks for nothing to pay with, and nothing is charged ' +
-        'until you choose a plan.'],
-      ['Can my accountant use it?',
-        'Yes. Invite them as an accountant and they can keep the books without being able to ' +
-        'change your subscription or approve payroll. <a href="/solutions/accountants">More</a>.'],
-      ['Is it for churches too?',
-        'Yes, with a different ledger: funds and giving rather than sales and VAT. ' +
-        '<a href="/solutions/churches">More</a>.']
-    ]) +
+    faq(HOME_QUESTIONS) +
     closer('Start keeping books you can trust')
 });
 
 // --------------------------------------------------------------- features
 add({
   path: '/features',
+  name: 'Features',
+  product: true,
   title: 'Features — invoicing, bookkeeping, payroll and reports | Profitna',
   description:
     'Everything Profitna does today: recurring invoices, receipts and credit notes, a ' +
@@ -413,6 +442,9 @@ add({
 // ---------------------------------------------------------------- pricing
 add({
   path: '/pricing',
+  name: 'Pricing',
+  product: true,
+  faqs: PRICING_QUESTIONS,
   title: 'Pricing — ' + naira(MONTHLY) + ' per user per month | Profitna',
   description:
     'Profitna costs ' + naira(MONTHLY) + ' per user per month or ' + naira(ANNUAL) + ' per user ' +
@@ -453,21 +485,7 @@ add({
         <li>Your own branding on invoices and payslips</li>
       </ul>
     </div></div></section>` +
-    faq([
-      ['Is there really no card at signup?',
-        'No card. The ' + TRIAL + '-day trial asks for nothing to pay with. Payment is collected ' +
-        'at the end of it, and only if you choose to continue.'],
-      ['What is a user?',
-        'One person with their own sign-in. A viewer who only reads reports still counts, because ' +
-        'they still have an account.'],
-      ['Can I change how many users I have?',
-        'Yes. Seats can go up at any time, and down to the number of people actually using it.'],
-      ['What happens when the trial ends?',
-        'The books close until you activate a subscription. Nothing is deleted, and everything is ' +
-        'there when you come back.'],
-      ['Do churches pay the same?',
-        'Yes. The church ledger is the same price as the business one.']
-    ], true) +
+    faq(PRICING_QUESTIONS, true) +
     closer('Try it for ' + TRIAL + ' days')
 });
 

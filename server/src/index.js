@@ -2,6 +2,7 @@ require('dotenv').config();
 const path = require('path');
 const express = require('express');
 const cookieParser = require('cookie-parser');
+const compression = require('compression');
 
 const { requireAuth } = require('./auth');
 const { requireSubscription } = require('./access');
@@ -30,6 +31,21 @@ const app = express();
 // of this file for why the process keeps serving rather than exiting.
 const faults = { rejections: 0, exceptions: 0, last: null };
 app.set('trust proxy', 1);
+
+// Compress what goes out.
+//
+// The application is one 530 KB HTML file and a 130 KB copy of React, and the
+// public pages are 15-25 KB of text each. None of it was compressed, which on
+// a Nigerian mobile connection is the difference between a page arriving and
+// a page being waited for. gzip takes the application's HTML to about a fifth
+// of its size and costs a few milliseconds of CPU.
+//
+// First in the stack, so it covers the static files and the API alike. It
+// leaves alone anything already encoded, anything under a kilobyte, and any
+// response whose handler asks it to by setting `x-no-compression`.
+app.use(compression({
+  filter: (req, res) => (res.getHeader('x-no-compression') ? false : compression.filter(req, res))
+}));
 
 // One address, not several.
 //
@@ -121,6 +137,11 @@ app.get('/api/health', async (req, res) => {
     // which fails at Google with a message about origins that sends you
     // looking in the wrong place.
     googleSignIn: require('./integrations/google').describe(),
+    // Whether the public pages are being measured, whether Search Console and
+    // Bing have been claimed, and whether a measurement id is a measurement
+    // id. "off" is a perfectly good answer: nothing is loaded and no cookie
+    // is written until GA4_MEASUREMENT_ID is set.
+    analytics: require('./marketing/analytics').describe(),
     // Whether Ask Profitna has a model behind it, and which one. No key is
     // revealed by either answer.
     askModel: require('./ai/ask').configured() ? require('./ai/ask').model() : null,
@@ -245,6 +266,12 @@ app.get(['/privacy', '/privacy.html', '/cookies'], (req, res) =>
 // pastes a link into.
 app.get('/og.png', (req, res) =>
   res.sendFile(path.join(WEB_ROOT, 'og.png'), { maxAge: '30d' })
+);
+
+// The square mark the structured data points at as the organisation's logo.
+// Search results and AI assistants both ask for it by that name.
+app.get('/logo.png', (req, res) =>
+  res.sendFile(path.join(WEB_ROOT, 'logo.png'), { maxAge: '30d' })
 );
 
 app.get('/support.js', (req, res) => res.sendFile(path.join(WEB_ROOT, 'support.js')));

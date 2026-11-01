@@ -146,6 +146,115 @@ const between = (html, re) => (html.match(re) || [])[1] || '';
       'status ' + res.status);
   }
 
+  console.log('\nand every page says what it is, in a form a machine reads');
+
+  const ld = {};
+  for (const page of PAGES) {
+    const html = fetched[page.path].body;
+    const raw = between(html, /<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+    let data = null;
+    try { data = JSON.parse(raw.replace(/\\u003c/g, '<')); } catch (e) { data = null; }
+    ld[page.path] = data;
+    check(page.path + ' carries structured data that parses', Boolean(data),
+      raw ? raw.slice(0, 60) : 'none found');
+  }
+
+  const typesOn = (path) => (ld[path] ? ld[path]['@graph'].map((n) => n['@type']) : []);
+
+  check('it is a schema.org graph',
+    PAGES.every((p) => ld[p.path] && ld[p.path]['@context'] === 'https://schema.org'));
+  check('every page names the company behind it',
+    PAGES.every((p) => typesOn(p.path).includes('Organization')));
+  check('and the site it belongs to',
+    PAGES.every((p) => typesOn(p.path).includes('WebSite')));
+  check('every page but the home page has a breadcrumb',
+    PAGES.every((p) => p.path === '/' || typesOn(p.path).includes('BreadcrumbList')));
+  check('the home page describes the product',
+    typesOn('/').includes('SoftwareApplication'));
+  check('so do features and pricing',
+    typesOn('/features').includes('SoftwareApplication') &&
+    typesOn('/pricing').includes('SoftwareApplication'));
+
+  const org = ld['/']['@graph'].find((n) => n['@type'] === 'Organization');
+  check('the organisation is the one that actually operates it',
+    org.legalName === 'Mideops Professional Services Ltd', org.legalName);
+  check('and points at a logo that exists', Boolean(org.logo && org.logo.url));
+  const logo = await get('/logo.png');
+  check('  which answers 200 as an image', logo.status === 200 &&
+    /image\/png/.test(logo.headers['content-type'] || ''), 'status ' + logo.status);
+
+  // The markup must not be able to say a different price from the paywall.
+  const software = ld['/pricing']['@graph'].find((n) => n['@type'] === 'SoftwareApplication');
+  const prices = software.offers.map((o) => o.price);
+  check('the marked-up monthly price is the one charged',
+    prices.includes(String(pricing.PER_USER_MONTHLY)), prices.join(', '));
+  check('and so is the annual one',
+    prices.includes(String(pricing.PER_USER_ANNUAL)), prices.join(', '));
+  check('priced in naira', software.offers.every((o) => o.priceCurrency === 'NGN'));
+
+  // Marked-up answers a visitor cannot see are what gets a site's rich
+  // results removed.
+  for (const path of ['/', '/pricing']) {
+    const faqNode = ld[path]['@graph'].find((n) => n['@type'] === 'FAQPage');
+    check(path + ' marks up its questions', Boolean(faqNode));
+    const visibleText = visible(fetched[path].body);
+    const everyQuestionShown = faqNode.mainEntity.every((q) => visibleText.includes(q.name));
+    check('  and every one of them is on the page', everyQuestionShown,
+      (faqNode.mainEntity.find((q) => !visibleText.includes(q.name)) || {}).name);
+    const everyAnswerShown = faqNode.mainEntity.every((q) =>
+      visibleText.includes(q.acceptedAnswer.text.slice(0, 40)));
+    check('  as is every answer', everyAnswerShown);
+  }
+
+  // Nothing invented. These are the claims a search engine penalises hardest
+  // and the ones there is no evidence for.
+  const everyNode = PAGES.flatMap((p) => (ld[p.path] ? ld[p.path]['@graph'] : []));
+  check('nothing claims a rating', !everyNode.some((n) => n.aggregateRating || n.review));
+  check('nothing claims an award', !everyNode.some((n) => n.award || n.awards));
+
+  console.log('\nmeasurement is off until it is configured, and consented after');
+
+  const offHtml = fetched['/'].body;
+  check('no analytics is loaded with no measurement id set',
+    !/googletagmanager/.test(offHtml));
+  check('and no consent bar is shown, because there is nothing to consent to',
+    !/id="consent"/.test(offHtml));
+
+  // The configured states, without restarting the server under the test.
+  const { execFileSync } = require('child_process');
+  const renderWith = (env) => execFileSync(process.execPath, ['-e', `
+    const { PAGES } = require('./src/marketing/content');
+    const { render } = require('./src/marketing/render');
+    const a = require('./src/marketing/analytics');
+    const html = render(PAGES[0]);
+    process.stdout.write(JSON.stringify({
+      state: a.describe().state,
+      warnings: a.describe().warnings.length,
+      tag: /googletagmanager\\.com\\/gtag\\/js\\?id=/.test(html),
+      denied: /ad_storage:'denied'/.test(html) && /analytics_storage:'denied'/.test(html),
+      bar: /id="consent"/.test(html),
+      google: /google-site-verification/.test(html),
+      bing: /msvalidate\\.01/.test(html),
+      inApp: /googletagmanager/.test(require('fs').readFileSync('../web/Profitna.dc.html', 'utf8'))
+    }));
+  `], { cwd: __dirname + '/..', env: Object.assign({}, process.env, env) }).toString();
+
+  const on = JSON.parse(renderWith({
+    GA4_MEASUREMENT_ID: 'G-TEST1234AB',
+    GOOGLE_SITE_VERIFICATION: 'google-token-for-the-test',
+    BING_SITE_VERIFICATION: 'bing-token-for-the-test'
+  }));
+  check('a measurement id turns it on', on.state === 'on' && on.tag, JSON.stringify(on));
+  check('every storage consent starts denied', on.denied);
+  check('and the visitor is asked', on.bar);
+  check('Search Console and Bing can both be claimed', on.google && on.bing);
+  check('the application itself is never measured', !on.inApp);
+
+  const typo = JSON.parse(renderWith({ GA4_MEASUREMENT_ID: 'GTM-ABC123' }));
+  check('a tag id in the wrong field is refused, not loaded',
+    typo.state === 'misconfigured' && !typo.tag, JSON.stringify(typo));
+  check('and the reason is reported', typo.warnings > 0);
+
   console.log('\nthe homepage leads with the product');
 
   const homeHtml = fetched['/'].body;

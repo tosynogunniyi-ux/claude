@@ -166,6 +166,19 @@ table.bars tbody tr+tr th,table.bars tbody tr+tr td{border-top:1px solid var(--l
   table.bars tbody tr+tr th{border-top:0}
   table.bars tbody tr+tr{border-top:1px solid var(--line-2)}
 }
+
+/* The consent bar. Present only when there is something to consent to. */
+#consent{position:fixed;left:16px;right:16px;bottom:16px;z-index:60;max-width:1024px;margin:0 auto;
+  background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 34px rgba(19,19,19,.12);
+  padding:16px 18px;display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+#consent[hidden]{display:none}
+#consent p{margin:0;flex:1 1 300px;font-size:13.5px;line-height:1.55;color:var(--muted)}
+.consent-buttons{display:flex;gap:10px;margin-left:auto}
+#consent button{font:inherit;font-size:13.5px;font-weight:600;border-radius:8px;padding:9px 17px;
+  cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+#consent button:hover{border-color:var(--gold)}
+#consent button.yes{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+#consent button.yes:hover{background:var(--gold-soft);color:#412402;border-color:var(--gold-soft)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 `.trim();
 
@@ -210,6 +223,168 @@ function footer() {
 </div></footer>`;
 }
 
+// --------------------------------------------------------- structured data
+//
+// The same facts as the page, in the form a machine reads them.
+//
+// This is where an AI assistant and a search engine get told, unambiguously,
+// what Profitna is, who operates it, what it costs and what it answers. The
+// rule is the rule for the rest of these pages: nothing here that is not on
+// the page and true. No ratings, because there are no reviews; no awards; no
+// counts of customers. A FAQ marked up with answers a visitor cannot see is
+// the thing Google removes a site's rich results for, so the questions come
+// from the same array the page renders.
+
+const pricing = require('../pricing');
+const analytics = require('./analytics');
+
+// Markup wants prose, not HTML.
+const textOf = (html) => String(html)
+  .replace(/<[^>]+>/g, '')
+  .replace(/&middot;/g, '·').replace(/&mdash;/g, '—').replace(/&ndash;/g, '–')
+  .replace(/&hellip;/g, '…').replace(/&#8358;/g, '₦').replace(/&nbsp;/g, ' ')
+  .replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+  .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
+  .replace(/\s+/g, ' ')
+  .trim();
+
+// The page's own short name, for a breadcrumb: the part of the title before
+// the separator.
+const shortName = (page) => page.name || String(page.title).split(/\s[—|]\s/)[0].trim();
+
+const PAGE_TYPE = { '/about': 'AboutPage', '/contact': 'ContactPage', '/resources': 'CollectionPage' };
+
+function jsonld(page) {
+  const o = origin();
+  const url = o + (page.path === '/' ? '/' : page.path);
+  const ORG = o + '/#organization';
+  const SITE = o + '/#website';
+  const APP = o + '/#software';
+
+  const graph = [];
+
+  graph.push({
+    '@type': 'Organization',
+    '@id': ORG,
+    name: PRODUCT,
+    legalName: COMPANY,
+    url: o + '/',
+    logo: { '@type': 'ImageObject', url: o + '/logo.png', width: 512, height: 512 },
+    image: o + '/og.png',
+    email: SUPPORT,
+    description: PRODUCT + ' is accounting and business finance software for Nigerian ' +
+      'businesses, churches and non-profits, operated by ' + COMPANY + '.',
+    areaServed: { '@type': 'Country', name: 'Nigeria' },
+    contactPoint: [{
+      '@type': 'ContactPoint',
+      contactType: 'customer support',
+      email: SUPPORT,
+      areaServed: 'NG',
+      availableLanguage: ['English']
+    }]
+  });
+
+  graph.push({
+    '@type': 'WebSite',
+    '@id': SITE,
+    url: o + '/',
+    name: PRODUCT,
+    description: 'Accounting, invoicing and Nigerian payroll software.',
+    publisher: { '@id': ORG },
+    inLanguage: 'en-NG'
+  });
+
+  graph.push(Object.assign({
+    '@type': PAGE_TYPE[page.path] || 'WebPage',
+    '@id': url + '#webpage',
+    url,
+    name: page.title,
+    description: page.description,
+    isPartOf: { '@id': SITE },
+    about: { '@id': ORG },
+    primaryImageOfPage: { '@type': 'ImageObject', url: o + '/og.png' },
+    inLanguage: 'en-NG'
+  }, page.path === '/' ? {} : { breadcrumb: { '@id': url + '#breadcrumb' } }));
+
+  if (page.path !== '/') {
+    graph.push({
+      '@type': 'BreadcrumbList',
+      '@id': url + '#breadcrumb',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: 'Home', item: o + '/' },
+        { '@type': 'ListItem', position: 2, name: shortName(page), item: url }
+      ]
+    });
+  }
+
+  // What the thing being sold is, and what it costs. The figures come from
+  // src/pricing.js, the same module the paywall charges from.
+  if (page.product) {
+    const offer = (price, unit, name) => ({
+      '@type': 'Offer',
+      name,
+      price: String(price),
+      priceCurrency: 'NGN',
+      url: o + '/pricing',
+      availability: 'https://schema.org/InStock',
+      priceSpecification: {
+        '@type': 'UnitPriceSpecification',
+        price: String(price),
+        priceCurrency: 'NGN',
+        unitText: unit,
+        referenceQuantity: { '@type': 'QuantitativeValue', value: 1, unitText: 'user' }
+      }
+    });
+    graph.push({
+      '@type': 'SoftwareApplication',
+      '@id': APP,
+      name: PRODUCT,
+      applicationCategory: 'BusinessApplication',
+      applicationSubCategory: 'Accounting software',
+      operatingSystem: 'Any browser',
+      url: o + '/',
+      publisher: { '@id': ORG },
+      inLanguage: 'en-NG',
+      description: 'Invoicing, double-entry bookkeeping, Nigerian PAYE payroll and financial ' +
+        'statements, for businesses, churches and non-profits in Nigeria. ' +
+        pricing.TRIAL_DAYS + '-day free trial with no card.',
+      featureList: [
+        'Invoices, receipts, part payments and credit notes',
+        'Recurring invoices raised on the day they are due',
+        'Double-entry ledger with a trial balance that balances',
+        'Profit and loss, balance sheet and general ledger',
+        'Nigerian PAYE payroll under the Nigeria Tax Act 2025',
+        'Pension and NHF, payslips and a bank payment schedule',
+        'Nigerian VAT at 7.5% and withholding tax',
+        'Bills, expenses, products and bank reconciliation',
+        'Admin, accountant and viewer roles',
+        'A separate church and non-profit ledger with funds and giving'
+      ],
+      offers: [
+        offer(pricing.PER_USER_MONTHLY, 'per user per month', 'Monthly'),
+        offer(pricing.PER_USER_ANNUAL, 'per user per year', 'Annual')
+      ]
+    });
+  }
+
+  if (page.faqs && page.faqs.length) {
+    graph.push({
+      '@type': 'FAQPage',
+      '@id': url + '#faq',
+      mainEntity: page.faqs.map(([q, a]) => ({
+        '@type': 'Question',
+        name: textOf(q),
+        acceptedAnswer: { '@type': 'Answer', text: textOf(a) }
+      }))
+    });
+  }
+
+  // `<` escaped so the payload cannot close its own script element.
+  return '<script type="application/ld+json">' +
+    JSON.stringify({ '@context': 'https://schema.org', '@graph': graph }).replace(/</g, '\\u003c') +
+    '</script>';
+}
+
 // --------------------------------------------------------------------- page
 
 // `page` is content; everything a crawler needs is assembled here so no page
@@ -250,6 +425,9 @@ function render(page) {
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>${CSS}</style>
+${jsonld(page)}
+${analytics.verification()}
+${analytics.head()}
 </head>
 <body>
 ${header(page.path)}
@@ -257,8 +435,9 @@ ${header(page.path)}
 ${page.body}
 </main>
 ${footer()}
+${analytics.banner()}
 </body>
 </html>`;
 }
 
-module.exports = { render, origin, esc, PRODUCT, COMPANY, SUPPORT, NAV, CSS };
+module.exports = { render, origin, esc, jsonld, textOf, PRODUCT, COMPANY, SUPPORT, NAV, CSS };
