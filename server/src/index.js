@@ -20,6 +20,7 @@ const invoicingRoutes = require('./routes/invoicing');
 const paymentRoutes = require('./routes/payments');
 const recurringRoutes = require('./routes/recurring');
 const payrollRoutes = require('./routes/payroll');
+const marketingRoutes = require('./routes/marketing');
 const emailRoutes = require('./routes/email');
 const payRoutes = require('./routes/pay');
 
@@ -209,7 +210,19 @@ app.use('/api/orgs/:orgId', requireAuth, orgScoped);
 // cookie needs no cross-site relaxation.
 // Only the files the app is actually made of are served.
 const WEB_ROOT = path.join(__dirname, '..', '..', 'web');
-app.get('/', (req, res) => res.sendFile(path.join(WEB_ROOT, 'Profitna.dc.html')));
+// The application itself. It used to live at `/`; it now has its own address
+// so that `/` can answer a search engine with something a search engine can
+// read. See src/routes/marketing.js for the whole of that decision.
+const serveApp = (req, res) => res.sendFile(path.join(WEB_ROOT, 'Profitna.dc.html'));
+app.get('/app', serveApp);
+
+// `/` serves the marketing page to a stranger and the application to anybody
+// signed in or arriving with a query string — which is what keeps every
+// /?invite=TOKEN link already sent working exactly as it did.
+app.get('/', marketingRoutes.home(serveApp));
+
+// The rest of the public site, robots.txt and sitemap.xml.
+app.use(marketingRoutes.router);
 
 // Nothing in the product links here, and the path can be moved somewhere
 // unguessable with ADMIN_PATH. That is obscurity, not security — the console
@@ -225,6 +238,13 @@ app.get(ADMIN_PATH.startsWith('/') ? ADMIN_PATH : '/' + ADMIN_PATH, gate, (req, 
 // "privacy", and a visitor should not have to know they are the same page.
 app.get(['/privacy', '/privacy.html', '/cookies'], (req, res) =>
   res.sendFile(path.join(WEB_ROOT, 'privacy.html'))
+);
+
+// The social sharing card the marketing pages point at. A long cache: it
+// changes about once a year and is fetched by every platform somebody
+// pastes a link into.
+app.get('/og.png', (req, res) =>
+  res.sendFile(path.join(WEB_ROOT, 'og.png'), { maxAge: '30d' })
 );
 
 app.get('/support.js', (req, res) => res.sendFile(path.join(WEB_ROOT, 'support.js')));
