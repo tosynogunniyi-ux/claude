@@ -160,12 +160,24 @@ async function insertContacts(client, orgId, table, rows) {
   return ids;
 }
 
+// Bank methods in the demo book land on the organisation's primary account,
+// the same rule the live ledger follows, so the seeded balance is a real
+// balance rather than just the opening figure.
+const BANK_METHODS = ['Bank transfer', 'Card', 'Cheque', 'POS', 'Transfer'];
+
 async function insertTx(client, orgId, t) {
   await client.query(
     `INSERT INTO transactions
-       (organization_id, type, date, amount, category, fund, party, description, method, source)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'manual')`,
-    [orgId, t.type, t.date, t.amount, t.category, t.fund || null, t.party, t.description, t.method]
+       (organization_id, type, date, amount, category, fund, party, description, method,
+        bank_account_id, source)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,
+             CASE WHEN $9 = ANY($10::text[])
+                  THEN (SELECT id FROM bank_accounts
+                         WHERE organization_id = $1 AND archived_at IS NULL
+                         ORDER BY is_primary DESC, sort_order LIMIT 1)
+                  END,
+             'manual')`,
+    [orgId, t.type, t.date, t.amount, t.category, t.fund || null, t.party, t.description, t.method, BANK_METHODS]
   );
 }
 

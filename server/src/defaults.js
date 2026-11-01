@@ -47,6 +47,12 @@ async function seedChartOfAccounts(client, orgId, bookType) {
       );
     }
   }
+
+  // And the double-entry accounts behind those categories. In the same
+  // transaction as the categories themselves, because an organisation without
+  // a chart of accounts cannot post anything: its first invoice would fail
+  // with "no receivable account", which is how this was found.
+  await require('./accounting/accounts').ensure(client, orgId);
 }
 
 module.exports = { SME_INCOME, SME_EXPENSE, CH_INCOME, CH_EXPENSE, FUNDS, seedChartOfAccounts };
