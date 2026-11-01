@@ -22,6 +22,10 @@
 //   these are in evidence anywhere, so none are claimed.
 
 const pricing = require('../pricing');
+// The frozen, dated tax rule sets the payroll engine calculates with. The
+// band figure on the homepage is drawn from these rather than typed again,
+// so the picture cannot drift away from the payslips.
+const statutory = require('../payroll/statutory');
 const { esc, SUPPORT, COMPANY } = require('./render');
 
 const naira = (n) => '₦' + n.toLocaleString('en-NG');
@@ -36,16 +40,19 @@ const ANNUAL_SAVING = MONTHLY * 12 - ANNUAL;   // 3000
 
 // ------------------------------------------------------------------ pieces
 
-const hero = ({ eyebrow, h1, lede, primary = 'Start your free trial', secondary }) => `
-<section class="hero"><div class="wrap">
-  ${eyebrow ? '<p class="eyebrow">' + esc(eyebrow) + '</p>' : ''}
-  <h1>${h1}</h1>
-  <p class="lede" style="margin-top:18px">${lede}</p>
-  <div class="cta">
-    <a class="btn primary" href="/app?start=1">${esc(primary)}</a>
-    ${secondary ? '<a class="btn ghost" href="' + secondary[1] + '">' + esc(secondary[0]) + '</a>' : ''}
-    <span class="note">${TRIAL} days free &middot; no card needed to start</span>
+const hero = ({ eyebrow, h1, lede, primary = 'Start your free trial', secondary, art }) => `
+<section class="hero${art ? ' split' : ''}"><div class="wrap">
+  <div class="copy">
+    ${eyebrow ? '<p class="eyebrow">' + esc(eyebrow) + '</p>' : ''}
+    <h1>${h1}</h1>
+    <p class="lede" style="margin-top:18px">${lede}</p>
+    <div class="cta">
+      <a class="btn primary" href="/app?start=1">${esc(primary)}</a>
+      ${secondary ? '<a class="btn ghost" href="' + secondary[1] + '">' + esc(secondary[0]) + '</a>' : ''}
+      <span class="note">${TRIAL} days free &middot; no card needed to start</span>
+    </div>
   </div>
+  ${art || ''}
 </div></section>`;
 
 const cards = (title, intro, items, band) => `
@@ -54,7 +61,9 @@ const cards = (title, intro, items, band) => `
   ${intro ? '<p class="lede" style="margin-bottom:28px">' + intro + '</p>' : ''}
   <div class="grid g3">
     ${items.map((it, i) => `<div class="card">
-      <span class="num">${String(i + 1).padStart(2, '0')}</span>
+      ${it[2]
+        ? '<span class="ico">' + icon(it[2]) + '</span>'
+        : '<span class="num">' + String(i + 1).padStart(2, '0') + '</span>'}
       <h3>${esc(it[0])}</h3><p>${it[1]}</p></div>`).join('')}
   </div>
 </div></section>`;
@@ -83,6 +92,178 @@ const closer = (line) => `
   </div>
 </div></section>`;
 
+// ----------------------------------------------------------------- figures
+//
+// Drawn, not photographed. Every picture on these pages is inline SVG or a
+// CSS bar: no image request, nothing that arrives after the text, and both
+// themes come out of the same tokens the rest of the page uses. A stock
+// photograph of somebody pointing at a laptop would cost 200 KB and say
+// nothing; these say what the product actually does.
+
+// 24px line icons. One path each, stroke in the gold token.
+const ICONS = {
+  invoice: '<path d="M6 3h9l3 3v15l-2.2-1.4L13.6 21l-2.3-1.4L9 21l-2.3-1.4L4 21V3z"/><path d="M8 8h7M8 12h7M8 16h4"/>',
+  ledger: '<path d="M12 5v15"/><path d="M4 8h7M13 8h7"/><path d="M7.5 8 4 15h7zM16.5 8 13 15h7z"/><path d="M8 20h8"/>',
+  payroll: '<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 5.5a3.2 3.2 0 0 1 0 6"/><path d="M18 20c0-2-.8-3.8-2-5"/>',
+  percent: '<circle cx="7.5" cy="7.5" r="2.8"/><circle cx="16.5" cy="16.5" r="2.8"/><path d="M19 5 5 19"/>',
+  roles: '<path d="M12 3l7 3v6c0 4.2-2.9 7.6-7 9-4.1-1.4-7-4.8-7-9V6z"/><circle cx="12" cy="11" r="2.2"/><path d="M8.4 17c.7-1.6 2-2.5 3.6-2.5s2.9.9 3.6 2.5"/>',
+  books: '<path d="M4 5.5C4 4.7 4.7 4 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5z"/><path d="M20 5.5c0-.8-.7-1.5-1.5-1.5H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5z"/>',
+  check: '<path d="M4 12.5 9 17.5 20 6.5"/>',
+  kobo: '<circle cx="12" cy="12" r="8.5"/><path d="M9 8v8M15 8v8M7.5 11h9M7.5 14h9"/>',
+  calendar: '<rect x="3.5" y="5.5" width="17" height="15" rx="2"/><path d="M8 3.5v4M16 3.5v4M3.5 10.5h17"/>',
+  export: '<path d="M12 3v11"/><path d="M8 7l4-4 4 4"/><path d="M4 15v4.5h16V15"/>'
+};
+
+const icon = (name, size) => '<svg width="' + (size || 24) + '" height="' + (size || 24) +
+  '" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.6" ' +
+  'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' +
+  ICONS[name] + '</svg>';
+
+// The hero picture: one invoice becoming a set of books. A vertical rail with
+// three stops, because that is the actual mechanism — the document, the
+// journal it posts, the statement that comes out — and a picture of the
+// mechanism is worth more than a screenshot of a dashboard.
+const heroArt = () => `
+<figure>
+<div class="art">
+<svg viewBox="0 0 400 344" role="img" width="400" height="344"
+     aria-label="An invoice for 1,250,000 naira posts a journal entry whose debits and credits are equal, and the journal feeds the monthly statements.">
+  <title>One invoice becomes a set of books</title>
+  <defs>
+    <style>
+      .pane{fill:var(--band);stroke:var(--line);stroke-width:1}
+      .lbl{font:600 11px 'IBM Plex Mono',ui-monospace,monospace;fill:var(--gold);letter-spacing:.1em}
+      .txt{font:500 13px 'Familjen Grotesk',system-ui,sans-serif;fill:var(--ink)}
+      .dim{font:400 11.5px 'Familjen Grotesk',system-ui,sans-serif;fill:var(--muted)}
+      .rule{stroke:var(--line);stroke-width:1}
+      .ghost{fill:var(--line-2)}
+    </style>
+  </defs>
+
+  <!-- the rail -->
+  <path d="M24 56V282" stroke="var(--line)" stroke-width="2"/>
+  <circle cx="24" cy="56" r="6.5" fill="var(--gold)"/>
+  <circle cx="24" cy="170" r="6.5" fill="var(--gold)"/>
+  <circle cx="24" cy="282" r="6.5" fill="var(--gold)"/>
+
+  <!-- 1. the invoice -->
+  <g transform="translate(48 14)">
+    <rect class="pane" x="0" y="0" width="340" height="92" rx="10"/>
+    <text class="lbl" x="18" y="26">INVOICE</text>
+    <rect class="ghost" x="18" y="38" width="150" height="7" rx="3.5"/>
+    <rect class="ghost" x="18" y="53" width="112" height="7" rx="3.5"/>
+    <rect class="ghost" x="18" y="68" width="134" height="7" rx="3.5"/>
+    <rect x="206" y="34" width="116" height="44" rx="8" fill="var(--card)" stroke="var(--line)"/>
+    <text class="dim" x="218" y="51">Total due</text>
+    <text class="txt" x="218" y="69" font-weight="600">&#8358;1,250,000</text>
+  </g>
+
+  <!-- 2. the journal it posts -->
+  <g transform="translate(48 118)">
+    <rect class="pane" x="0" y="0" width="340" height="104" rx="10"/>
+    <text class="lbl" x="18" y="26">JOURNAL</text>
+    <text class="dim" x="188" y="26">Dr</text>
+    <text class="dim" x="268" y="26">Cr</text>
+    <path d="M18 34H322" class="rule"/>
+    <text class="dim" x="18" y="54">Receivables</text>
+    <text class="txt" x="188" y="54">1,250,000</text>
+    <text class="dim" x="18" y="74">Sales &#183; VAT</text>
+    <text class="txt" x="268" y="74">1,250,000</text>
+    <path d="M188 82H322" class="rule"/>
+    <g transform="translate(234 86)">
+      <rect x="0" y="0" width="88" height="22" rx="11" fill="color-mix(in srgb,var(--gold) 16%,var(--card))"/>
+      <path d="M12 11.5 15.5 15 21 8" fill="none" stroke="var(--gold)" stroke-width="1.8"
+            stroke-linecap="round" stroke-linejoin="round"/>
+      <text class="dim" x="29" y="15">balanced</text>
+    </g>
+  </g>
+
+  <!-- 3. what comes out: one series, labelled, no invented axis -->
+  <g transform="translate(48 240)">
+    <rect class="pane" x="0" y="0" width="340" height="84" rx="10"/>
+    <text class="lbl" x="18" y="24">STATEMENTS</text>
+    <g>
+      <rect x="156" y="42" width="15" height="18" rx="3" fill="var(--c1)"/>
+      <rect x="179" y="34" width="15" height="26" rx="3" fill="var(--c2)"/>
+      <rect x="202" y="27" width="15" height="33" rx="3" fill="var(--c3)"/>
+      <rect x="225" y="37" width="15" height="23" rx="3" fill="var(--c4)"/>
+      <rect x="248" y="21" width="15" height="39" rx="3" fill="var(--c5)"/>
+      <rect x="271" y="31" width="15" height="29" rx="3" fill="var(--c4)"/>
+      <rect x="294" y="16" width="15" height="44" rx="3" fill="var(--c5)"/>
+      <path d="M150 62H318" class="rule"/>
+    </g>
+    <text class="dim" x="18" y="50">Trial balance</text>
+    <text class="dim" x="18" y="68">P&amp;L &#183; Balance sheet</text>
+  </g>
+</svg>
+</div>
+<figcaption>One invoice, the entry it posts, and the statements that come out of it. Illustration &mdash; your own figures, your own logo.</figcaption>
+</figure>`;
+
+// A strip of plain facts, each one a thing in the repository rather than a
+// claim about the market.
+const chips = (items) => `
+<section style="padding:30px 0"><div class="wrap">
+  <div class="chips">
+    ${items.map(([ic, text]) => '<span class="chip">' + icon(ic, 18) + esc(text) + '</span>').join('')}
+  </div>
+</div></section>`;
+
+// The PAYE bands, drawn from the frozen 2026 rule set the payroll engine
+// actually calculates with, so this picture cannot drift away from the
+// payslips. A table with the bars drawn inside it: the figures stay readable
+// as figures, and there is no second version of the data to disagree with.
+const paye = (title, intro, note, band) => {
+  const rules = statutory.rulesFor(new Date().toISOString().slice(0, 10));
+  // "2026-01-01" is a date a lawyer writes; "1 January 2026" is one a reader
+  // reads.
+  const longDate = (iso) => {
+    const [y, m, d] = String(iso).split('-').map(Number);
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
+      'August', 'September', 'October', 'November', 'December'];
+    return d + ' ' + months[m - 1] + ' ' + y;
+  };
+  const money = (kobo) => {
+    const n = kobo / 100;
+    if (n >= 1000000) {
+      const m = n / 1000000;
+      return '&#8358;' + (m % 1 === 0 ? m : m.toFixed(1)) + 'm';
+    }
+    return '&#8358;' + n.toLocaleString('en-NG');
+  };
+  const top = Math.max(...rules.bands.map((b) => b.rateBp)) / 100;   // 25
+  const rows = rules.bands.map((band, i) => {
+    const rate = band.rateBp / 100;
+    const label = band.width === Infinity
+      ? 'Everything above ' + money(rules.bands.slice(0, i).reduce((a, b) => a + b.width, 0))
+      : (i === 0 ? 'First ' : 'The next ') + money(band.width);
+    const hue = 'var(--c' + Math.min(5, Math.max(1, i)) + ')';
+    const w = rate === 0 ? 0 : Math.round((rate / top) * 1000) / 10;
+    const bar = rate === 0
+      ? 'width:0;min-width:0'
+      : 'width:' + w + '%;background:' + hue;
+    return `<tr>
+      <th scope="row">${label}</th>
+      <td><span class="track"><span class="bar" style="${bar}"
+        title="${rate}% on ${label.toLowerCase()}"></span></span><span class="rate">${rate}%</span></td>
+    </tr>`;
+  }).join('');
+
+  return `
+<section${band ? ' class="band"' : ''}><div class="wrap">
+  <h2>${esc(title)}</h2>
+  <p class="lede" style="margin-bottom:28px">${intro}</p>
+  <figure class="fig">
+    <table class="bars">
+      <caption>${esc(rules.label)} &middot; in force from ${esc(longDate(rules.effectiveFrom))}. Annual taxable income after reliefs, and the rate each slice of it is taxed at.</caption>
+      <thead><tr><th scope="col">Slice of taxable income</th><th scope="col">Rate</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </figure>
+  <p class="note" style="margin-top:16px">${note}</p>
+</div></section>`;
+};
+
 // ------------------------------------------------------------------- pages
 
 const PAGES = [];
@@ -105,38 +286,60 @@ add({
       lede: 'Profitna keeps a real set of books — double entry, naira to the kobo — while you ' +
         'get on with trading. Raise invoices, chase what you are owed, run payroll under the ' +
         'Nigeria Tax Act 2025, and hand your accountant statements that balance.',
-      secondary: ['See what it does', '/features']
+      secondary: ['See what it does', '/features'],
+      art: heroArt()
     }) +
+    chips([
+      ['ledger', 'Double entry, or nothing posts'],
+      ['kobo', 'Figures in integer kobo'],
+      ['calendar', 'Nigeria Tax Act 2025 PAYE'],
+      ['export', 'Export your books any time']
+    ]) +
     cards('What it actually does', null, [
       ['Invoices that chase themselves',
         'Raise an invoice, set it to repeat monthly, and Profitna issues it on the day it is due. ' +
-        'Receipts, part payments, credit notes and an ageing list of who owes you what.'],
+        'Receipts, part payments, credit notes and an ageing list of who owes you what.',
+        'invoice'],
       ['Books that balance',
         'Every invoice, bill and payment posts to a double-entry ledger. Trial balance, profit ' +
-        'and loss, balance sheet and the general ledger behind every figure.'],
+        'and loss, balance sheet and the general ledger behind every figure.',
+        'ledger'],
       ['Nigerian payroll',
         'PAYE under the Nigeria Tax Act 2025, pension on basic, housing and transport, and NHF. ' +
-        'Branded payslips and a bank payment schedule your bank will accept.'],
+        'Branded payslips and a bank payment schedule your bank will accept.',
+        'payroll'],
       ['VAT and withholding tax',
         'Nigerian VAT at 7.5% and withholding tax on an invoice line, calculated in integer kobo ' +
-        'so the figures never drift by a naira.'],
+        'so the figures never drift by a naira.',
+        'percent'],
       ['Your team, with limits',
         'Admin, accountant and viewer. A viewer cannot change a figure; an accountant can keep ' +
-        'the books but not approve a payroll.'],
+        'the books but not approve a payroll.',
+        'roles'],
       ['Two kinds of books',
         'A business ledger, or a church and non-profit ledger with funds, giving and no VAT. ' +
-        'Chosen when you sign up.']
+        'Chosen when you sign up.',
+        'books']
     ], true) +
+    paye('The 2026 PAYE bands, the way Profitna applies them',
+      'The Nigeria Tax Act 2025 abolished the Consolidated Relief Allowance and rewrote every ' +
+      'band from 1 January 2026. This is the table Profitna calculates from — read straight out ' +
+      'of the payroll engine, not typed onto a marketing page.',
+      'Bands apply to annual chargeable income and are spread across the year, so a bonus is ' +
+      'taxed in the month it is paid and a mid-year joiner still gets the whole nil band. ' +
+      'Rent relief is 20% of rent actually paid, capped at ' + naira(500000) + ' and only where ' +
+      'the employee declares it. A salary at or below ' + naira(70000) + ' a month is exempt. ' +
+      '<a href="/features">How payroll works</a>.') +
     prose('Built for how Nigerian businesses actually trade', [
       'Most accounting software is written somewhere else and translated. Profitna was not. ' +
       'Money is held in integer kobo rather than decimals, because an invoice that disagrees ' +
       'with itself by a kobo is an invoice a customer will not pay.',
-      'PAYE follows the Nigeria Tax Act 2025, which replaced the Consolidated Relief Allowance ' +
-      'from 1 January 2026 and changed every band. The tax rules are stored by the date they ' +
-      'took effect, so re-opening March next year still calculates March under March’s law.',
+      'The tax rules are stored by the date they took effect, so re-opening March next year ' +
+      'still calculates March under March’s law — and a 2025 correction still gets 2025’s ' +
+      'answer, Consolidated Relief Allowance and all.',
       'Payslips, invoices and statements carry your logo and print on A4. The naira sign renders ' +
       'properly, which sounds like a small thing until you have been sent a PDF where it does not.'
-    ]) +
+    ], true) +
     faq([
       ['What does it cost?',
         naira(MONTHLY) + ' per user per month, or ' + naira(ANNUAL) + ' per user per year. ' +
@@ -150,7 +353,7 @@ add({
       ['Is it for churches too?',
         'Yes, with a different ledger: funds and giving rather than sales and VAT. ' +
         '<a href="/solutions/churches">More</a>.']
-    ], true) +
+    ]) +
     closer('Start keeping books you can trust')
 });
 

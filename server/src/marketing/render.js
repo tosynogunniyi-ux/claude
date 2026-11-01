@@ -40,18 +40,21 @@ const CSS = `
   --paper:#F4F3EE; --card:#FFFFFF; --ink:#1a1a1a; --muted:#5C5850; --faint:#8A8578;
   --line:#E5E1D8; --line-2:#EFEDE7; --gold:#B8863A; --gold-soft:#FAC775; --link:#412402;
   --band:#FBFAF7;
+  --c1:#D9A94F; --c2:#C68F35; --c3:#AE7726; --c4:#96601B; --c5:#7A4C12;
 }
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
     --paper:#14130F; --card:#1C1B17; --ink:#EDEAE2; --muted:#A9A49A; --faint:#6E6A61;
     --line:#2C2A24; --line-2:#24231E; --gold:#D2A45C; --gold-soft:#8A6A2A; --link:#E0B877;
     --band:#1A1915;
+    --c1:#8A6A2A; --c2:#A5803A; --c3:#BE9449; --c4:#D2A45C; --c5:#E3BC7D;
   }
 }
 :root[data-theme="dark"]{
   --paper:#14130F; --card:#1C1B17; --ink:#EDEAE2; --muted:#A9A49A; --faint:#6E6A61;
   --line:#2C2A24; --line-2:#24231E; --gold:#D2A45C; --gold-soft:#8A6A2A; --link:#E0B877;
   --band:#1A1915;
+  --c1:#8A6A2A; --c2:#A5803A; --c3:#BE9449; --c4:#D2A45C; --c5:#E3BC7D;
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
@@ -120,17 +123,61 @@ footer.site .fine{border-top:1px solid var(--line);padding-top:20px;line-height:
   nav.main{display:none}
   header.site .bar{gap:10px}
 }
+/* ---------------------------------------------------- homepage figures */
+/* Everything here draws with CSS and inline SVG. No images, no second
+   request, nothing that has to load before the page makes sense. */
+.hero.split .wrap{display:grid;grid-template-columns:1.06fr .94fr;gap:48px;align-items:center}
+.hero.split .copy{min-width:0}
+figure{margin:0;min-width:0}
+figcaption{font-size:12.5px;color:var(--faint);margin-top:11px;line-height:1.5}
+.art,.fig{background:var(--card);border:1px solid var(--line);border-radius:14px}
+.art{padding:16px}
+.fig{padding:26px 24px}
+.art svg{display:block;width:100%;height:auto}
+
+.chips{display:flex;flex-wrap:wrap;gap:10px}
+.chip{display:inline-flex;align-items:center;gap:9px;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:9px 15px 9px 13px;font-size:13.5px;font-weight:500;color:var(--ink)}
+.chip svg{flex:0 0 auto;display:block}
+.card .ico,.step .ico{width:40px;height:40px;border-radius:11px;background:color-mix(in srgb,var(--gold) 14%,var(--card));display:flex;align-items:center;justify-content:center;margin-bottom:14px}
+.card .ico svg,.step .ico svg{display:block}
+
+/* The band chart is a real table with the bars drawn in it, so the figures
+   are readable by a crawler, by a screen reader and by somebody who just
+   wants the number — and there is no second, prettier version of the data
+   that could disagree with it. */
+table.bars{width:100%;border-collapse:collapse}
+table.bars caption{caption-side:top;text-align:left;color:var(--faint);font-size:13px;line-height:1.5;margin-bottom:16px}
+table.bars thead th{font-size:11.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--faint);font-weight:600;text-align:left;padding:0 16px 10px 0;border-bottom:1px solid var(--line)}
+table.bars tbody th{text-align:left;font-weight:500;font-size:14.5px;color:var(--ink);white-space:nowrap;padding:10px 16px 10px 0}
+table.bars tbody td{padding:10px 0;width:100%}
+table.bars tbody tr+tr th,table.bars tbody tr+tr td{border-top:1px solid var(--line-2)}
+.track{display:inline-block;vertical-align:middle;width:calc(100% - 50px);height:14px;background:var(--line-2);border-radius:3px}
+.bar{display:block;height:14px;border-radius:3px 4px 4px 3px;min-width:3px}
+.rate{display:inline-block;width:46px;text-align:right;vertical-align:middle;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums;font-size:14.5px}
+
+@media (max-width:860px){
+  .hero.split .wrap{grid-template-columns:1fr;gap:34px}
+}
+@media (max-width:620px){
+  table.bars thead{display:none}
+  table.bars tbody tr{display:block;padding:12px 0}
+  table.bars tbody th,table.bars tbody td{display:block;width:100%;padding:0;white-space:normal}
+  table.bars tbody th{padding-bottom:7px}
+  table.bars tbody tr+tr th{border-top:0}
+  table.bars tbody tr+tr{border-top:1px solid var(--line-2)}
+}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 `.trim();
 
 // ------------------------------------------------------------------- chrome
 
+// Four links. Security and About are real pages and stay linked from the
+// footer and the sitemap, but they are not what somebody landing here needs
+// to decide anything, so they are not in the top bar.
 const NAV = [
   ['/features', 'Features'],
   ['/pricing', 'Pricing'],
-  ['/security', 'Security'],
-  ['/resources', 'Resources'],
-  ['/about', 'About']
+  ['/resources', 'Resources']
 ];
 
 function header(path) {

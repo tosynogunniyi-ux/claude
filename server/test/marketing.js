@@ -146,6 +146,45 @@ const between = (html, re) => (html.match(re) || [])[1] || '';
       'status ' + res.status);
   }
 
+  console.log('\nthe homepage leads with the product');
+
+  const homeHtml = fetched['/'].body;
+  const nav = between(homeHtml, /<nav class="main"[^>]*>([\s\S]*?)<\/nav>/);
+  const foot = between(homeHtml, /<footer class="site">([\s\S]*?)<\/footer>/);
+
+  check('Security is not in the top navigation', !/href="\/security"/.test(nav), nav);
+  check('About is not in the top navigation', !/href="\/about"/.test(nav), nav);
+  // Off the top bar is not the same as gone: a page nothing links to is a page
+  // a crawler eventually drops.
+  check('Security is still linked from the footer', /href="\/security"/.test(foot));
+  check('About is still linked from the footer', /href="\/about"/.test(foot));
+  check('and both are still in the sitemap',
+    locs.includes('https://profitna.com/security') && locs.includes('https://profitna.com/about'));
+
+  console.log('\nand its pictures are drawn, not fetched');
+
+  // Every figure on these pages is inline SVG or a CSS bar. One <img> would
+  // be a second request on a connection that may not have one to spare.
+  check('the homepage asks for no images', !/<img\b/i.test(homeHtml));
+  check('it carries inline figures', (homeHtml.match(/<svg\b/g) || []).length >= 5,
+    String((homeHtml.match(/<svg\b/g) || []).length));
+  check('every figure says what it is',
+    !/<svg\b(?![^>]*(aria-hidden|aria-label|role="img"))/i.test(homeHtml));
+  check('and the page is still a page, not a payload',
+    Buffer.byteLength(homeHtml) < 40000, Buffer.byteLength(homeHtml) + ' bytes');
+
+  // The tax picture is drawn from the payroll engine's own frozen rules. If
+  // somebody edits a band, this fails until the picture agrees again.
+  const statutory = require('../src/payroll/statutory');
+  const inForce = statutory.rulesFor(new Date().toISOString().slice(0, 10));
+  check('the band figure names the rules it is drawn from',
+    homeHtml.includes(inForce.label), inForce.label);
+  for (const band of inForce.bands) {
+    const rate = band.rateBp / 100;
+    check('  the ' + rate + '% band is shown',
+      homeHtml.includes('>' + rate + '%<'));
+  }
+
   console.log('\nthe application is still where its users left it');
 
   const app = await get('/app');
