@@ -30,7 +30,8 @@ const { esc, SUPPORT, COMPANY } = require('./render');
 // The words live here; the pictures live next door.
 const {
   icon, heroArt, chips, paye, steps, split, seatCalculator,
-  invoiceArt, payslipArt, ledgerArt, ageingArt, fundsArt, dataArt, markArt, guides, priceArt
+  invoiceArt, payslipArt, ledgerArt, ageingArt, fundsArt, dataArt, markArt, guides, priceArt,
+  heroMedia
 } = require('./figures');
 
 const naira = (n) => '₦' + n.toLocaleString('en-NG');
@@ -46,7 +47,7 @@ const ANNUAL_SAVING = MONTHLY * 12 - ANNUAL;   // 3000
 // ------------------------------------------------------------------ pieces
 
 const hero = ({ eyebrow, h1, lede, primary = 'Start your free trial', secondary, art }) => `
-<section class="hero${art ? ' split' : ''}"><div class="wrap">
+<section class="hero${art ? ' has-art' : ''}"><div class="wrap">
   <div class="copy">
     ${eyebrow ? '<p class="eyebrow">' + esc(eyebrow) + '</p>' : ''}
     <h1>${h1}</h1>
@@ -160,7 +161,7 @@ add({
         'get on with trading. Raise invoices, chase what you are owed, run payroll under the ' +
         'Nigeria Tax Act 2025, and hand your accountant statements that balance.',
       secondary: ['See what it does', '/features'],
-      art: heroArt()
+      art: heroMedia()
     }) +
     chips([
       ['ledger', 'Double entry, or nothing posts'],
@@ -275,7 +276,8 @@ add({
       h1: 'What Profitna does',
       lede: 'Everything on this page is in the product today. Anything still being built is not ' +
         'listed here, and anything that needs setting up says so.',
-      secondary: ['Pricing', '/pricing']
+      secondary: ['Pricing', '/pricing'],
+      art: heroArt()
     }) +
     split({
       eyebrow: 'What a customer receives',

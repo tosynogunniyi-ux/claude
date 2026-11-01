@@ -272,9 +272,26 @@ const between = (html, re) => (html.match(re) || [])[1] || '';
 
   console.log('\nand its pictures are drawn, not fetched');
 
-  // Every figure on these pages is inline SVG or a CSS bar. One <img> would
-  // be a second request on a connection that may not have one to spare.
-  check('the homepage asks for no images', !/<img\b/i.test(homeHtml));
+  // The rule is not "no images" — the hero carries one photograph, because a
+  // page about a person's working day should show one. The rule is that a
+  // picture behaves: it declares its size so nothing jumps when it lands, it
+  // says what it shows, and it is small enough to arrive on a phone.
+  const imgs = [...homeHtml.matchAll(/<img\b[^>]*>/gi)].map((m) => m[0]);
+  check('the homepage carries at most one photograph', imgs.length <= 1,
+    String(imgs.length));
+  for (const tag of imgs) {
+    check('  it declares its width and height', /width="\d+"/.test(tag) && /height="\d+"/.test(tag), tag.slice(0, 80));
+    check('  it says what it shows', /alt="[^"]{20,}"/.test(tag), tag.slice(0, 80));
+    check('  and it is asked for early, not lazily', /fetchpriority="high"/.test(tag));
+  }
+  const photo = await get('/img/hero.webp');
+  check('the photograph is served', photo.status === 200 &&
+    /image\/webp/.test(photo.headers['content-type'] || ''), 'status ' + photo.status);
+  check('  and is small enough for a phone',
+    Number(photo.headers['content-length'] || 0) < 120000,
+    photo.headers['content-length'] + ' bytes');
+  check('  and is cached for a long time',
+    /max-age=\d{6,}/.test(photo.headers['cache-control'] || ''), photo.headers['cache-control']);
   check('it carries inline figures', (homeHtml.match(/<svg\b/g) || []).length >= 8,
     String((homeHtml.match(/<svg\b/g) || []).length));
   // Every page should have something to look at, not just the home page.
@@ -282,8 +299,12 @@ const between = (html, re) => (html.match(re) || [])[1] || '';
     const svgs = (fetched[page.path].body.match(/<svg\b/g) || []).length;
     check('  ' + page.path + ' has something drawn on it', svgs >= 2, String(svgs));
   }
-  check('and none of them is a stock photograph',
-    PAGES.every((p) => !/<img\b/i.test(fetched[p.path].body)));
+  // Everything else stays drawn. One photograph on the whole site, on the one
+  // page where it earns the request.
+  const withPhotos = PAGES.filter((p) => /<img\b/i.test(fetched[p.path].body)).map((p) => p.path);
+  check('and the rest of the site is drawn, not photographed',
+    withPhotos.length <= 1 && (withPhotos.length === 0 || withPhotos[0] === '/'),
+    withPhotos.join(', '));
   check('every figure says what it is',
     !/<svg\b(?![^>]*(aria-hidden|aria-label|role="img"))/i.test(homeHtml));
   // What a visitor on a Nigerian mobile connection actually waits for is the

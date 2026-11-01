@@ -181,6 +181,9 @@ const paye = (title, intro, note, band) => {
 </div></section>`;
 };
 
+const fs = require('fs');
+const path = require('path');
+
 const BRAND_INK = '#171612';
 const BRAND_CREAM = '#EDEAE2';
 const BRAND_GOLD = '#FAC775';
@@ -606,8 +609,58 @@ const priceArt = () => {
   });
 };
 
+// --------------------------------------------------------- the photograph
+//
+// The one picture on these pages that is not drawn. A hero is the one place
+// where a person belongs: somebody recognisably doing the work the software
+// is for. The drawn card sits over it, because the photograph says who this
+// is for and the card says what it does, and neither says it alone.
+//
+// It is a real file, so it obeys the rules a real file has to: fixed width
+// and height so nothing moves when it lands, high fetch priority because it
+// is the largest thing on the first screen, and WebP at a size that is
+// bearable on a Nigerian mobile connection.
+const PHOTO = path.join(__dirname, '..', '..', '..', 'web', 'img', 'hero.webp');
+const havePhoto = () => {
+  try { return fs.existsSync(PHOTO); } catch (e) { return false; }
+};
+
+const heroPhoto = () => `
+<figure class="hero-media">
+  <img src="/img/hero.webp" width="760" height="950" fetchpriority="high" decoding="async"
+       alt="A desk in warm afternoon light: hands at a laptop, a stack of printed documents, a calculator and a cup of tea.">
+  <div class="hero-card" role="img"
+       aria-label="A card over the photograph: an invoice for 1,250,000 naira, and the journal entry it posts, with debits and credits equal.">
+    <svg viewBox="0 0 260 128" width="260" height="128" aria-hidden="true" focusable="false">
+      <style>
+        .hc-k{font:600 8.5px 'IBM Plex Mono',ui-monospace,monospace;fill:var(--gold);letter-spacing:.12em}
+        .hc-d{font:400 10px 'Familjen Grotesk',system-ui,sans-serif;fill:var(--muted)}
+        .hc-n{font:600 11px 'IBM Plex Mono',ui-monospace,monospace;fill:var(--ink)}
+      </style>
+      <text x="16" y="24" class="hc-k">INVOICE &#183; INV-2026-0184</text>
+      <text x="16" y="46" class="hc-d">Total due</text>
+      <text x="244" y="46" class="hc-n" text-anchor="end">&#8358;1,343,750</text>
+      <path d="M16 58H244" stroke="var(--line-2)"/>
+      <text x="16" y="78" class="hc-d">Receivables</text><text x="244" y="78" class="hc-n" text-anchor="end">Dr 1,343,750</text>
+      <text x="16" y="96" class="hc-d">Sales &#183; VAT</text><text x="244" y="96" class="hc-n" text-anchor="end">Cr 1,343,750</text>
+      <g transform="translate(16 106)">
+        <rect x="0" y="0" width="92" height="20" rx="10" fill="color-mix(in srgb,var(--gold) 18%,var(--card))"/>
+        <path d="M12 10.5 15.5 14 21 7" fill="none" stroke="var(--gold)" stroke-width="1.8"
+              stroke-linecap="round" stroke-linejoin="round" class="draw" style="--len:22"/>
+        <text x="29" y="14" class="hc-d">it balances</text>
+      </g>
+    </svg>
+  </div>
+</figure>`;
+
+// What the hero shows: the photograph when one has been put in web/img, the
+// drawn panel when it has not. Neither state is broken, which is what lets
+// the picture be added or taken away without touching the page.
+const heroMedia = () => (havePhoto() ? heroPhoto() : heroArt());
+
 module.exports = {
   icon, ICONS, heroArt, chips, paye, figure,
   invoiceArt, payslipArt, ledgerArt, ageingArt, fundsArt, dataArt,
-  steps, split, seatCalculator, markArt, guides, THUMBS, priceArt
+  steps, split, seatCalculator, markArt, guides, THUMBS, priceArt,
+  heroPhoto, heroMedia, havePhoto
 };

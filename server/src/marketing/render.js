@@ -126,8 +126,13 @@ footer.site .fine{border-top:1px solid var(--line);padding-top:20px;line-height:
 /* ---------------------------------------------------- homepage figures */
 /* Everything here draws with CSS and inline SVG. No images, no second
    request, nothing that has to load before the page makes sense. */
-.hero.split .wrap{display:grid;grid-template-columns:1.06fr .94fr;gap:48px;align-items:center}
-.hero.split .copy{min-width:0}
+/* The hero's own two-column layout. Named has-art, not split, because
+   .split is the figure-beside-words section further down: a section carrying
+   both class names was being laid out by both rules, which put the entire
+   hero in the left half of the page. (No backticks in here: this stylesheet
+   is a template literal.) */
+.hero.has-art .wrap{display:grid;grid-template-columns:1.06fr .94fr;gap:48px;align-items:center}
+.hero.has-art .copy{min-width:0}
 figure{margin:0;min-width:0}
 figcaption{font-size:12.5px;color:var(--faint);margin-top:11px;line-height:1.5}
 .art,.fig{background:var(--card);border:1px solid var(--line);border-radius:14px}
@@ -156,7 +161,7 @@ table.bars tbody tr+tr th,table.bars tbody tr+tr td{border-top:1px solid var(--l
 .rate{display:inline-block;width:46px;text-align:right;vertical-align:middle;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums;font-size:14.5px}
 
 @media (max-width:860px){
-  .hero.split .wrap{grid-template-columns:1fr;gap:34px}
+  .hero.has-art .wrap{grid-template-columns:1fr;gap:34px}
 }
 @media (max-width:620px){
   table.bars thead{display:none}
@@ -288,6 +293,21 @@ ol.steps{list-style:none;margin:0;padding:0;display:grid;
 .card.guide .thumb svg{display:block;width:100%;height:auto;max-width:170px}
 .card.guide h3{margin:18px 24px 6px}
 .card.guide p{margin:0 24px 22px}
+
+/* A photograph, with the product laid over its corner. */
+.hero-media{position:relative;margin:0}
+.hero-media img{display:block;width:100%;height:auto;aspect-ratio:4/5;object-fit:cover;
+  border-radius:16px;background:var(--band);box-shadow:0 18px 50px rgba(19,19,19,.14)}
+.hero-card{position:absolute;left:-28px;bottom:26px;width:min(280px,78%);
+  background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 6px;
+  box-shadow:0 14px 34px rgba(19,19,19,.16)}
+.hero-card svg{display:block;width:100%;height:auto}
+@media (max-width:860px){
+  /* A square keeps the desk in the frame; 3:2 cropped it down to a keyboard.
+     The card moves inside the picture and gets out of the way of it. */
+  .hero-media img{aspect-ratio:1/1;object-position:50% 38%}
+  .hero-card{left:12px;bottom:12px;width:min(248px,68%)}
+}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 `.trim();
 

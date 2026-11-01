@@ -274,6 +274,10 @@ app.get('/logo.png', (req, res) =>
   res.sendFile(path.join(WEB_ROOT, 'logo.png'), { maxAge: '30d' })
 );
 
+// Photographs. One file today, cached for a year: a picture that changes is
+// a picture with a new name.
+app.use('/img', express.static(path.join(WEB_ROOT, 'img'), { maxAge: '1y', index: false }));
+
 app.get('/support.js', (req, res) => res.sendFile(path.join(WEB_ROOT, 'support.js')));
 app.use('/vendor', express.static(path.join(WEB_ROOT, 'vendor'), { maxAge: '1y', index: false }));
 
