@@ -746,6 +746,47 @@ async function signup(call, email, book, org) {
       'not covered by any COPY in the Dockerfile');
   }
 
+  // ----------------------------------------- and nothing known-broken ships
+  //
+  // `npm audit` needs the network and a registry that is up, so it cannot be
+  // a test. What can be a test is the lockfile, which is exactly what
+  // `npm ci --omit=dev` installs into the image: every copy of these four
+  // must be at or above the release that fixed its advisory.
+  //
+  // The one that needs explaining is qs. express 4 pins ~6.15.1 and only
+  // express 5 moves off it, so package.json carries an override. Delete the
+  // override and this fails rather than the deployment quietly going back to
+  // a parser that can be made to hang.
+  console.log('\nand no dependency with a published advisory is in the lockfile');
+
+  const PATCHED_AT = [
+    ['qs', '6.16.1', 'GHSA-4mjr-xmp4-gh2g, a parse denial of service'],
+    ['body-parser', '1.20.9', 'GHSA-27r3-jxmh-p828, trailing bytes after a compressed body'],
+    ['proxy-addr', '2.0.8', 'GHSA-jqcg-44mw-7w3h, IP spoofing through an IPv4-mapped IPv6 address'],
+    ['nodemailer', '10.2.0', 'GHSA-8c8m-p3m8-cjg8 and two more, addresses parsed into the wrong recipient']
+  ];
+
+  const lock = JSON.parse(fs.readFileSync(pathMod.join(__dirname, '..', 'package-lock.json'), 'utf8'));
+  const atLeast = (have, want) => {
+    const a = String(have).split('.').map(Number);
+    const b = String(want).split('.').map(Number);
+    for (let i = 0; i < 3; i++) {
+      if ((a[i] || 0) > (b[i] || 0)) return true;
+      if ((a[i] || 0) < (b[i] || 0)) return false;
+    }
+    return true;
+  };
+
+  for (const [name, fixed, why] of PATCHED_AT) {
+    const copies = Object.entries(lock.packages || {})
+      .filter(([where]) => where.endsWith('node_modules/' + name))
+      .map(([where, meta]) => ({ where, version: meta.version }));
+    check('  ' + name + ' is in the lockfile at all', copies.length > 0);
+    const stale = copies.filter((c) => !atLeast(c.version, fixed));
+    check('  every copy of ' + name + ' is ' + fixed + ' or newer', stale.length === 0,
+      stale.map((c) => c.version + ' at ' + c.where).join(', ') + ' — ' + why);
+  }
+
   console.log('\n' + passed + ' passed, ' + failures.length + ' failed');
   if (failures.length) {
     failures.forEach((f) => console.log('  - ' + f));

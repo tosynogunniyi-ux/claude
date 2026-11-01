@@ -29,6 +29,17 @@
     "test:payroll": "node test/payroll.js",
     "test:marketing": "node test/marketing.js"
   },
+  "//overrides": [
+    "express 4.22.2 still pins qs ~6.15.1 for req.query, and every qs below",
+    "6.16.1 carries a parse denial-of-service (GHSA-4mjr-xmp4-gh2g). Express 5",
+    "is the only release that moves off it on its own, and that is a breaking",
+    "change this product has no other reason to take. body-parser already asks",
+    "for ~6.16.0, so the whole tree reads one patched copy instead of two.",
+    "Remove this the day express 4 ships a newer qs."
+  ],
+  "overrides": {
+    "qs": "^6.16.2"
+  },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.0",
     "@react-pdf/renderer": "^4.9.0",
