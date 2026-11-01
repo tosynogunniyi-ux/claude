@@ -377,6 +377,44 @@ function inspect(page) {
 
     // ------------------------------------------------------------------
     // ------------------------------------------------------------------
+    console.log('\nand decoration never hides a word of the public pages');
+
+    // The public pages animate: figures lift in, bars grow, the hero rises.
+    // Every one of those is decoration, and decoration that leaves content at
+    // opacity 0 when a timeline does not advance — a short page, a printer, a
+    // crawler that renders without scrolling — has eaten the page. This
+    // opens each one in a real browser and insists that every heading,
+    // paragraph, figure and list item is actually on screen.
+    for (const path of ['/', '/features', '/pricing', '/resources', '/about']) {
+      await page.goto(BASE + path, { waitUntil: 'load' });
+      await page.waitForTimeout(1000);
+      const invisible = await page.evaluate(() => {
+        const out = [];
+        for (const el of document.querySelectorAll('main h1, main h2, main h3, main p, main li, main figure, main table')) {
+          // An element the page has deliberately switched off — the price
+          // table once the slider replaces it — is not a casualty.
+          if (el.closest('[hidden]')) continue;
+          if (!(el.textContent || '').trim() && el.tagName !== 'FIGURE') continue;
+          const cs = getComputedStyle(el);
+          const box = el.getBoundingClientRect();
+          // 0.25, not 0.9: the stylesheet deliberately sets a lede to 86% so
+          // it sits below the heading, and that is a typographic choice, not
+          // a disappearance. What this is looking for is content that is not
+          // there at all.
+          if (parseFloat(cs.opacity) < 0.25 || cs.visibility === 'hidden' || cs.display === 'none' ||
+              (box.width < 1 && box.height < 1)) {
+            out.push(el.tagName + ' "' + (el.textContent || '').trim().slice(0, 44) + '"');
+          }
+        }
+        return out;
+      });
+      check('  ' + path + ' shows every word it carries', invisible.length === 0,
+        invisible.slice(0, 3).join(' | '));
+    }
+    sinceLast();
+    containedSince();
+
+    // ------------------------------------------------------------------
     console.log('\nand the spreadsheet reader stays off the boot path');
 
     // xlsx is 860 KB — larger than everything else the application loads put

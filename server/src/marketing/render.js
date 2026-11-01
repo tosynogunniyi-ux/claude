@@ -179,6 +179,115 @@ table.bars tbody tr+tr th,table.bars tbody tr+tr td{border-top:1px solid var(--l
 #consent button:hover{border-color:var(--gold)}
 #consent button.yes{background:var(--ink);color:var(--paper);border-color:var(--ink)}
 #consent button.yes:hover{background:var(--gold-soft);color:#412402;border-color:var(--gold-soft)}
+
+/* ------------------------------------------------------------- figures */
+.fig-art{margin:0}
+.fig-art .art{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;
+  box-shadow:0 1px 2px rgba(19,19,19,.04)}
+.fig-art svg{display:block;width:100%;height:auto}
+.fig-art figcaption{font-size:12.5px;color:var(--faint);margin-top:11px;line-height:1.5}
+
+/* A figure beside its words, alternating sides down a page. */
+.split{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center}
+.split .words{min-width:0}
+.split .words h2{margin-bottom:14px}
+.split .words p:last-child{margin-bottom:0}
+.split.flip .words{order:2}
+@media (max-width:860px){
+  .split{grid-template-columns:1fr;gap:30px}
+  .split.flip .words{order:0}
+}
+
+/* Numbered steps, with the rail that joins them. */
+ol.steps{list-style:none;margin:0;padding:0;display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:18px}
+.steps .step{position:relative;background:var(--card);border:1px solid var(--line);
+  border-radius:12px;padding:24px}
+.steps .step::after{content:"";position:absolute;top:44px;right:-18px;width:18px;height:1px;background:var(--line)}
+.steps .step:last-child::after{display:none}
+@media (max-width:860px){.steps .step::after{display:none}}
+.step .ord{position:absolute;top:24px;right:22px;font-family:'IBM Plex Mono',ui-monospace,monospace;
+  font-size:11.5px;color:var(--gold)}
+
+/* What a seat costs. */
+.calc{display:grid;gap:14px}
+.calc-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.calc-head output{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:14px;color:var(--ink);font-weight:500}
+.calc[hidden]{display:none}
+.calc label{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);font-weight:600}
+.calc input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:5px;border-radius:3px;
+  background:linear-gradient(to right,var(--gold) 0,var(--gold) 50%,var(--line) 50%,var(--line) 100%);
+  background:var(--line-2);outline:none;accent-color:var(--gold)}
+.calc output{font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:13px;color:var(--muted)}
+.calc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:18px;margin-top:4px}
+.calc-grid .amt{font-size:32px;font-weight:700;letter-spacing:-0.02em;margin:2px 0 4px;color:var(--ink)}
+.calc-grid .eyebrow{margin-bottom:2px}
+.calc-grid .note{margin:0}
+.calc-table[hidden]{display:none}
+.calc-table td{width:auto;white-space:nowrap;font-variant-numeric:tabular-nums;font-size:14.5px;color:var(--ink);padding:10px 0 10px 18px}
+.calc-table td .per{color:var(--faint);font-size:12.5px}
+
+/* The mark: the wordmark and the line that finishes it. */
+/* No gap: PROFIT and NA are two flex items and must read as one word. The
+   line that finishes the mark is the only thing set apart from it. */
+.brand{display:inline-flex;align-items:center}
+.brand svg{display:block;flex:0 0 auto;margin-left:9px}
+
+/* A card that answers the pointer, by one pixel and a shadow. */
+.card,.steps .step{transition:transform .18s cubic-bezier(.2,.6,.3,1),box-shadow .18s,border-color .18s}
+@media (hover:hover){
+  .card:hover,.steps .step:hover{transform:translateY(-2px);border-color:var(--gold);
+    box-shadow:0 10px 26px rgba(19,19,19,.07)}
+}
+
+/* ------------------------------------------------------------- motion */
+/* Everything below is decoration. It runs once, it moves nothing a reader is
+   reading, and the rule at the foot of this stylesheet turns all of it off
+   for anybody who has asked for less motion. Nothing is hidden waiting for a
+   script: without the scroll timeline, or without JavaScript at all, every
+   one of these elements is simply there. */
+@media (prefers-reduced-motion:no-preference){
+  .draw{stroke-dasharray:var(--len);stroke-dashoffset:var(--len);
+    animation:draw .9s .2s cubic-bezier(.4,.1,.2,1) forwards}
+  @keyframes draw{to{stroke-dashoffset:0}}
+
+  .grow{transform-box:fill-box;transform-origin:bottom;
+    animation:grow .66s cubic-bezier(.2,.7,.3,1) backwards}
+  @keyframes grow{from{transform:scaleY(.04);opacity:.35}}
+
+  .grow-x{transform-box:fill-box;transform-origin:left;
+    animation:growx .6s cubic-bezier(.2,.7,.3,1) backwards}
+  @keyframes growx{from{transform:scaleX(.02);opacity:.35}}
+
+  .flow{stroke-dasharray:5 5;animation:flow 1.1s linear infinite}
+  @keyframes flow{to{stroke-dashoffset:-20}}
+
+  section.hero .copy>*{animation:rise .6s cubic-bezier(.2,.6,.3,1) backwards}
+  section.hero .copy>*:nth-child(2){animation-delay:60ms}
+  section.hero .copy>*:nth-child(3){animation-delay:120ms}
+  section.hero .copy>*:nth-child(4){animation-delay:180ms}
+  section.hero figure,section.hero .art{animation:rise .7s 120ms cubic-bezier(.2,.6,.3,1) backwards}
+  @keyframes rise{from{opacity:0;transform:translateY(12px)}}
+
+  /* Scroll-linked, where the browser can do it without a script.
+     Deliberately transform only. A scroll timeline that never advances —
+     a short page, a printer, a crawler rendering without scrolling, an
+     element inside a scroller the spec treats differently — would leave
+     anything faded-in at opacity 0, which is content lost to decoration.
+     Moving something fourteen pixels and stopping is harmless. */
+  @supports (animation-timeline:view()){
+    .reveal,.fig-art{animation:lift .8s linear both;
+      animation-timeline:view();animation-range:entry 0% entry 46%}
+    @keyframes lift{from{transform:translateY(14px)}}
+  }
+}
+
+/* A guide, with the shape of what it explains at the top. */
+.card.guide{padding:0;overflow:hidden;display:flex;flex-direction:column}
+.card.guide .thumb{background:var(--band);border-bottom:1px solid var(--line);padding:16px 20px}
+.card.guide .thumb svg{display:block;width:100%;height:auto;max-width:170px}
+.card.guide h3{margin:18px 24px 6px}
+.card.guide p{margin:0 24px 22px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 `.trim();
 
@@ -198,7 +307,7 @@ function header(path) {
     '<a href="' + href + '"' + (href === path ? ' aria-current="page"' : '') + '>' + label + '</a>'
   ).join('');
   return `<header class="site"><div class="wrap bar">
-  <a class="brand" href="/">PROFIT<b>NA</b></a>
+  <a class="brand" href="/" aria-label="Profitna, home">PROFIT<b>NA</b><svg width="26" height="16" viewBox="0 0 26 16" fill="none" aria-hidden="true" focusable="false"><path d="M2 14 L9 6.5 L13.5 11 L24 2" stroke="var(--gold)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
   <nav class="main" aria-label="Main">${links}</nav>
   <a class="btn ghost sm" href="/app">Sign in</a>
   <a class="btn primary sm" href="/app?start=1">Start free</a>

@@ -27,6 +27,11 @@ const pricing = require('../pricing');
 // so the picture cannot drift away from the payslips.
 const statutory = require('../payroll/statutory');
 const { esc, SUPPORT, COMPANY } = require('./render');
+// The words live here; the pictures live next door.
+const {
+  icon, heroArt, chips, paye, steps, split, seatCalculator,
+  invoiceArt, payslipArt, ledgerArt, ageingArt, fundsArt, dataArt, markArt, guides, priceArt
+} = require('./figures');
 
 const naira = (n) => '₦' + n.toLocaleString('en-NG');
 
@@ -91,178 +96,6 @@ const closer = (line) => `
     <a class="btn ghost" href="/pricing">See pricing</a>
   </div>
 </div></section>`;
-
-// ----------------------------------------------------------------- figures
-//
-// Drawn, not photographed. Every picture on these pages is inline SVG or a
-// CSS bar: no image request, nothing that arrives after the text, and both
-// themes come out of the same tokens the rest of the page uses. A stock
-// photograph of somebody pointing at a laptop would cost 200 KB and say
-// nothing; these say what the product actually does.
-
-// 24px line icons. One path each, stroke in the gold token.
-const ICONS = {
-  invoice: '<path d="M6 3h9l3 3v15l-2.2-1.4L13.6 21l-2.3-1.4L9 21l-2.3-1.4L4 21V3z"/><path d="M8 8h7M8 12h7M8 16h4"/>',
-  ledger: '<path d="M12 5v15"/><path d="M4 8h7M13 8h7"/><path d="M7.5 8 4 15h7zM16.5 8 13 15h7z"/><path d="M8 20h8"/>',
-  payroll: '<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 5.5a3.2 3.2 0 0 1 0 6"/><path d="M18 20c0-2-.8-3.8-2-5"/>',
-  percent: '<circle cx="7.5" cy="7.5" r="2.8"/><circle cx="16.5" cy="16.5" r="2.8"/><path d="M19 5 5 19"/>',
-  roles: '<path d="M12 3l7 3v6c0 4.2-2.9 7.6-7 9-4.1-1.4-7-4.8-7-9V6z"/><circle cx="12" cy="11" r="2.2"/><path d="M8.4 17c.7-1.6 2-2.5 3.6-2.5s2.9.9 3.6 2.5"/>',
-  books: '<path d="M4 5.5C4 4.7 4.7 4 5.5 4H11v16H5.5A1.5 1.5 0 0 1 4 18.5z"/><path d="M20 5.5c0-.8-.7-1.5-1.5-1.5H13v16h5.5a1.5 1.5 0 0 0 1.5-1.5z"/>',
-  check: '<path d="M4 12.5 9 17.5 20 6.5"/>',
-  kobo: '<circle cx="12" cy="12" r="8.5"/><path d="M9 8v8M15 8v8M7.5 11h9M7.5 14h9"/>',
-  calendar: '<rect x="3.5" y="5.5" width="17" height="15" rx="2"/><path d="M8 3.5v4M16 3.5v4M3.5 10.5h17"/>',
-  export: '<path d="M12 3v11"/><path d="M8 7l4-4 4 4"/><path d="M4 15v4.5h16V15"/>'
-};
-
-const icon = (name, size) => '<svg width="' + (size || 24) + '" height="' + (size || 24) +
-  '" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.6" ' +
-  'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' +
-  ICONS[name] + '</svg>';
-
-// The hero picture: one invoice becoming a set of books. A vertical rail with
-// three stops, because that is the actual mechanism — the document, the
-// journal it posts, the statement that comes out — and a picture of the
-// mechanism is worth more than a screenshot of a dashboard.
-const heroArt = () => `
-<figure>
-<div class="art">
-<svg viewBox="0 0 400 344" role="img" width="400" height="344"
-     aria-label="An invoice for 1,250,000 naira posts a journal entry whose debits and credits are equal, and the journal feeds the monthly statements.">
-  <title>One invoice becomes a set of books</title>
-  <defs>
-    <style>
-      .pane{fill:var(--band);stroke:var(--line);stroke-width:1}
-      .lbl{font:600 11px 'IBM Plex Mono',ui-monospace,monospace;fill:var(--gold);letter-spacing:.1em}
-      .txt{font:500 13px 'Familjen Grotesk',system-ui,sans-serif;fill:var(--ink)}
-      .dim{font:400 11.5px 'Familjen Grotesk',system-ui,sans-serif;fill:var(--muted)}
-      .rule{stroke:var(--line);stroke-width:1}
-      .ghost{fill:var(--line-2)}
-    </style>
-  </defs>
-
-  <!-- the rail -->
-  <path d="M24 56V282" stroke="var(--line)" stroke-width="2"/>
-  <circle cx="24" cy="56" r="6.5" fill="var(--gold)"/>
-  <circle cx="24" cy="170" r="6.5" fill="var(--gold)"/>
-  <circle cx="24" cy="282" r="6.5" fill="var(--gold)"/>
-
-  <!-- 1. the invoice -->
-  <g transform="translate(48 14)">
-    <rect class="pane" x="0" y="0" width="340" height="92" rx="10"/>
-    <text class="lbl" x="18" y="26">INVOICE</text>
-    <rect class="ghost" x="18" y="38" width="150" height="7" rx="3.5"/>
-    <rect class="ghost" x="18" y="53" width="112" height="7" rx="3.5"/>
-    <rect class="ghost" x="18" y="68" width="134" height="7" rx="3.5"/>
-    <rect x="206" y="34" width="116" height="44" rx="8" fill="var(--card)" stroke="var(--line)"/>
-    <text class="dim" x="218" y="51">Total due</text>
-    <text class="txt" x="218" y="69" font-weight="600">&#8358;1,250,000</text>
-  </g>
-
-  <!-- 2. the journal it posts -->
-  <g transform="translate(48 118)">
-    <rect class="pane" x="0" y="0" width="340" height="104" rx="10"/>
-    <text class="lbl" x="18" y="26">JOURNAL</text>
-    <text class="dim" x="188" y="26">Dr</text>
-    <text class="dim" x="268" y="26">Cr</text>
-    <path d="M18 34H322" class="rule"/>
-    <text class="dim" x="18" y="54">Receivables</text>
-    <text class="txt" x="188" y="54">1,250,000</text>
-    <text class="dim" x="18" y="74">Sales &#183; VAT</text>
-    <text class="txt" x="268" y="74">1,250,000</text>
-    <path d="M188 82H322" class="rule"/>
-    <g transform="translate(234 86)">
-      <rect x="0" y="0" width="88" height="22" rx="11" fill="color-mix(in srgb,var(--gold) 16%,var(--card))"/>
-      <path d="M12 11.5 15.5 15 21 8" fill="none" stroke="var(--gold)" stroke-width="1.8"
-            stroke-linecap="round" stroke-linejoin="round"/>
-      <text class="dim" x="29" y="15">balanced</text>
-    </g>
-  </g>
-
-  <!-- 3. what comes out: one series, labelled, no invented axis -->
-  <g transform="translate(48 240)">
-    <rect class="pane" x="0" y="0" width="340" height="84" rx="10"/>
-    <text class="lbl" x="18" y="24">STATEMENTS</text>
-    <g>
-      <rect x="156" y="42" width="15" height="18" rx="3" fill="var(--c1)"/>
-      <rect x="179" y="34" width="15" height="26" rx="3" fill="var(--c2)"/>
-      <rect x="202" y="27" width="15" height="33" rx="3" fill="var(--c3)"/>
-      <rect x="225" y="37" width="15" height="23" rx="3" fill="var(--c4)"/>
-      <rect x="248" y="21" width="15" height="39" rx="3" fill="var(--c5)"/>
-      <rect x="271" y="31" width="15" height="29" rx="3" fill="var(--c4)"/>
-      <rect x="294" y="16" width="15" height="44" rx="3" fill="var(--c5)"/>
-      <path d="M150 62H318" class="rule"/>
-    </g>
-    <text class="dim" x="18" y="50">Trial balance</text>
-    <text class="dim" x="18" y="68">P&amp;L &#183; Balance sheet</text>
-  </g>
-</svg>
-</div>
-<figcaption>One invoice, the entry it posts, and the statements that come out of it. Illustration &mdash; your own figures, your own logo.</figcaption>
-</figure>`;
-
-// A strip of plain facts, each one a thing in the repository rather than a
-// claim about the market.
-const chips = (items) => `
-<section style="padding:30px 0"><div class="wrap">
-  <div class="chips">
-    ${items.map(([ic, text]) => '<span class="chip">' + icon(ic, 18) + esc(text) + '</span>').join('')}
-  </div>
-</div></section>`;
-
-// The PAYE bands, drawn from the frozen 2026 rule set the payroll engine
-// actually calculates with, so this picture cannot drift away from the
-// payslips. A table with the bars drawn inside it: the figures stay readable
-// as figures, and there is no second version of the data to disagree with.
-const paye = (title, intro, note, band) => {
-  const rules = statutory.rulesFor(new Date().toISOString().slice(0, 10));
-  // "2026-01-01" is a date a lawyer writes; "1 January 2026" is one a reader
-  // reads.
-  const longDate = (iso) => {
-    const [y, m, d] = String(iso).split('-').map(Number);
-    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
-      'August', 'September', 'October', 'November', 'December'];
-    return d + ' ' + months[m - 1] + ' ' + y;
-  };
-  const money = (kobo) => {
-    const n = kobo / 100;
-    if (n >= 1000000) {
-      const m = n / 1000000;
-      return '&#8358;' + (m % 1 === 0 ? m : m.toFixed(1)) + 'm';
-    }
-    return '&#8358;' + n.toLocaleString('en-NG');
-  };
-  const top = Math.max(...rules.bands.map((b) => b.rateBp)) / 100;   // 25
-  const rows = rules.bands.map((band, i) => {
-    const rate = band.rateBp / 100;
-    const label = band.width === Infinity
-      ? 'Everything above ' + money(rules.bands.slice(0, i).reduce((a, b) => a + b.width, 0))
-      : (i === 0 ? 'First ' : 'The next ') + money(band.width);
-    const hue = 'var(--c' + Math.min(5, Math.max(1, i)) + ')';
-    const w = rate === 0 ? 0 : Math.round((rate / top) * 1000) / 10;
-    const bar = rate === 0
-      ? 'width:0;min-width:0'
-      : 'width:' + w + '%;background:' + hue;
-    return `<tr>
-      <th scope="row">${label}</th>
-      <td><span class="track"><span class="bar" style="${bar}"
-        title="${rate}% on ${label.toLowerCase()}"></span></span><span class="rate">${rate}%</span></td>
-    </tr>`;
-  }).join('');
-
-  return `
-<section${band ? ' class="band"' : ''}><div class="wrap">
-  <h2>${esc(title)}</h2>
-  <p class="lede" style="margin-bottom:28px">${intro}</p>
-  <figure class="fig">
-    <table class="bars">
-      <caption>${esc(rules.label)} &middot; in force from ${esc(longDate(rules.effectiveFrom))}. Annual taxable income after reliefs, and the rate each slice of it is taxed at.</caption>
-      <thead><tr><th scope="col">Slice of taxable income</th><th scope="col">Rate</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-  </figure>
-  <p class="note" style="margin-top:16px">${note}</p>
-</div></section>`;
-};
 
 // The questions, declared once.
 //
@@ -361,6 +194,46 @@ add({
         'Chosen when you sign up.',
         'books']
     ], true) +
+    steps('From a sale to a set of books', 'Three things happen. You do the first one.', [
+      ['You raise the invoice',
+        'Pick the customer, the items and the date. Set it to repeat if it repeats. Send it, ' +
+        'or hand it over printed on A4 with your logo on it.',
+        'invoice'],
+      ['Profitna posts the entry',
+        'Receivables debited, sales and VAT credited, in integer kobo. Nobody types a journal, ' +
+        'and nothing posts unless both sides agree.',
+        'ledger'],
+      ['The statements follow',
+        'Trial balance, profit and loss, balance sheet and the general ledger behind every ' +
+        'figure — built from the entries, not kept alongside them.',
+        'books']
+    ], true) +
+    split({
+      eyebrow: 'Getting paid',
+      title: 'See what you are owed, and how long you have been owed it',
+      paras: [
+        'Every unpaid invoice has an age, and the older it gets the less likely it is to be ' +
+        'paid at all. Profitna keeps the ageing list in front of you rather than inside a ' +
+        'report nobody opens.',
+        'A customer paying half is half paid. The balance stays visible until the last kobo ' +
+        'of it is cleared, and the receipt says which invoices it went against.'
+      ],
+      art: ageingArt()
+    }) +
+    split({
+      eyebrow: 'Payroll',
+      title: 'Payslips your staff will understand, figures your auditor will accept',
+      paras: [
+        'PAYE under the Nigeria Tax Act 2025, pension on basic, housing and transport rather ' +
+        'than on gross, and NHF on basic. Approve the run and it posts to the ledger; correct ' +
+        'it and the correction is a reversal, not a quiet edit.',
+        'The bank schedule comes out as CSV, Excel or a signed PDF, in the shape a Nigerian ' +
+        'bank expects to be given.'
+      ],
+      art: payslipArt(),
+      flip: true,
+      band: true
+    }) +
     paye('The 2026 PAYE bands, the way Profitna applies them',
       'The Nigeria Tax Act 2025 abolished the Consolidated Relief Allowance and rewrote every ' +
       'band from 1 January 2026. This is the table Profitna calculates from — read straight out ' +
@@ -404,6 +277,17 @@ add({
         'listed here, and anything that needs setting up says so.',
       secondary: ['Pricing', '/pricing']
     }) +
+    split({
+      eyebrow: 'What a customer receives',
+      title: 'An invoice that looks like a company sent it',
+      paras: [
+        'Five A4 designs, your logo and your details, numbering that restarts cleanly each ' +
+        'year and cannot collide. VAT and withholding tax sit on their own lines, in integer ' +
+        'kobo, because they are somebody else\u2019s money passing through your hands.',
+        'Set one to repeat and it raises itself on the day it is due, until you stop it.'
+      ],
+      art: invoiceArt()
+    }) +
     cards('Invoicing and getting paid', null, [
       ['Invoices', 'Five A4 designs, your logo, your details. Numbering that restarts cleanly each year and cannot collide.'],
       ['Recurring invoices', 'A schedule raises the invoice on the day it is due — monthly, weekly, or every N months — and stops when you tell it to.'],
@@ -412,6 +296,19 @@ add({
       ['Receivables ageing', 'Who owes you, how long it has been, and the total you are carrying.'],
       ['VAT and withholding tax', 'Nigerian VAT at 7.5% and WHT per line, in integer kobo.']
     ], true) +
+    split({
+      eyebrow: 'Underneath',
+      title: 'A real ledger, not a spreadsheet in a browser',
+      paras: [
+        'That invoice posted two sides of an entry the moment it was issued. Debits equal ' +
+        'credits or the entry is refused — there is no state in which the books are a little ' +
+        'bit out and somebody will look at it later.',
+        'Corrections are reversals. Close a month and nothing can post into it afterwards.'
+      ],
+      art: ledgerArt(),
+      flip: true,
+      band: true
+    }) +
     cards('The books underneath', 'Nothing is a spreadsheet pretending to be a ledger. Every document posts a balanced journal entry.', [
       ['Double-entry ledger', 'Debits equal credits or the entry is refused. Entries are reversed, never edited.'],
       ['Trial balance', 'Every account with its balance, from the journals themselves.'],
@@ -420,6 +317,18 @@ add({
       ['General ledger', 'Every posting to any account, with the document that caused it.'],
       ['Period lock', 'Close a month and nothing can post into it afterwards.']
     ]) +
+    split({
+      eyebrow: 'Payroll',
+      title: 'One run, three places it has to be right',
+      paras: [
+        'The payslip the employee reads, the schedule the bank is given, and the entry the ' +
+        'ledger keeps. Profitna produces all three from the same approved run, so they cannot ' +
+        'disagree with each other.',
+        'PAYE is worked annually and spread across the year, which is why a bonus is taxed in ' +
+        'the month it is paid and a mid-year joiner still gets the whole nil band.'
+      ],
+      art: payslipArt()
+    }) +
     cards('Payroll', 'Nigerian payroll under the Nigeria Tax Act 2025, in force since 1 January 2026.', [
       ['PAYE, correctly', 'Annual bands applied annually and spread across the year, so a bonus is taxed in the month it is paid and a mid-year joiner gets the whole nil band.'],
       ['Pension and NHF', 'Employee and employer pension on basic, housing and transport — not on gross, which is the commonest error — and NHF on basic.'],
@@ -485,6 +394,18 @@ add({
         <li>Your own branding on invoices and payslips</li>
       </ul>
     </div></div></section>` +
+    split({
+      eyebrow: 'Monthly or yearly',
+      title: 'Pay as you go, or keep a month',
+      paras: [
+        'The yearly price is twelve months with one taken off, per person. Nothing else ' +
+        'changes: the same features, the same ' + MAX_SEATS + '-person ceiling, the same books.',
+        'Start on whichever you like. Moving from monthly to yearly later does not cost you ' +
+        'the time you have already paid for.'
+      ],
+      art: priceArt()
+    }) +
+    seatCalculator(MAX_SEATS) +
     faq(PRICING_QUESTIONS, true) +
     closer('Try it for ' + TRIAL + ' days')
 });
@@ -514,6 +435,18 @@ add({
       ['VAT', 'Nigerian VAT at 7.5%, on the line, in kobo.'],
       ['Your margin', 'Profit and loss over any window, broken down the way your own categories are.']
     ], true) +
+    split({
+      eyebrow: 'The money you cannot see',
+      title: 'Half your cash is on a shelf, the other half is on somebody else\u2019s desk',
+      paras: [
+        'Stock you have paid for and invoices nobody has settled are both your money, and ' +
+        'neither is in your bank account. Profitna shows you what each is worth today.',
+        'The ageing list is the one to watch: an invoice past ninety days is a different ' +
+        'kind of problem from one raised last week.'
+      ],
+      art: ageingArt(),
+      band: true
+    }) +
     prose('Why the ledger matters to a trader', [
       'Plenty of shops run on a notebook and a bank app, and it works until somebody asks a ' +
       'question the notebook cannot answer — a bank wanting statements, a partner wanting to ' +
@@ -550,6 +483,20 @@ add({
       ['Every figure traces back', 'From the trial balance to the ledger to the invoice that caused it.'],
       ['Roles that hold', 'A viewer cannot post. An accountant can keep the books but cannot approve payroll or change the subscription.']
     ], true) +
+    split({
+      eyebrow: 'What your client sees',
+      title: 'A ledger you can hand over without handing over control',
+      paras: [
+        'Invite the client as an admin on their own books and yourself as the accountant. ' +
+        'They raise their invoices; you keep the ledger. Neither of you can quietly undo the ' +
+        'other, because a correction is a reversal and it is signed.',
+        'Debits equal credits or the entry is refused, so the trial balance you are handed at ' +
+        'year end is a trial balance rather than a starting point.'
+      ],
+      art: ledgerArt(),
+      flip: true,
+      band: true
+    }) +
     prose('Working with your client', [
       'Each business is its own set of books, with its own users. You are invited to the ones you ' +
       'keep, with the accountant role, and your client keeps admin of their own account — so ' +
@@ -586,6 +533,19 @@ add({
       ['Pastoral payroll', 'The same Nigerian PAYE and pension, for staff on the payroll.'],
       ['Statements for a board', 'Income and expenditure that a trustee or an auditor can follow.']
     ], true) +
+    split({
+      eyebrow: 'Funds',
+      title: 'Designated giving that stays designated',
+      paras: [
+        'A building fund is not general income with a label on it. Profitna keeps each fund ' +
+        'as its own balance, so a gift given for one thing cannot quietly pay for another, ' +
+        'and the trustees can see at a glance what is left in each.',
+        'The ledger underneath is the same double-entry ledger a business gets, without VAT ' +
+        'and sales where giving and funds belong.'
+      ],
+      art: fundsArt(),
+      band: true
+    }) +
     prose('Accountability without a finance department', [
       'Most churches and non-profits are run by people who did not come to do bookkeeping, and ' +
       'who are nonetheless accountable for other people’s money.',
@@ -624,6 +584,18 @@ add({
       'around how Nigerian businesses actually trade, at a price a Nigerian small business can ' +
       'pay, that an accountant will still take seriously.'
     ]) +
+    split({
+      eyebrow: 'The name',
+      title: 'Know your numbers, grow your business',
+      paras: [
+        'It is not a slogan we arrived at afterwards. The whole product is the first half of ' +
+        'that sentence: a business that can see its own figures makes different decisions ' +
+        'from one that cannot.',
+        'Profitna is operated by <strong>' + COMPANY + '</strong>, registered in Nigeria, and ' +
+        'runs at profitna.com.'
+      ],
+      art: markArt()
+    }) +
     prose('How it is built', [
       'Money is integer kobo throughout. Nothing multiplies a decimal by a hundred and hopes.',
       'Tax rules are stored by the date they took effect, so a payroll re-opened next year is ' +
@@ -677,6 +649,21 @@ add({
       'the controller of it. We process it to run the service for you, and for nothing else — ' +
       'not to advertise, not to train anything, not to build a profile of anyone.'
     ]) +
+    split({
+      eyebrow: 'Where it is',
+      title: 'Your books sit in one place, and you can see which',
+      paras: [
+        'The service runs on servers in the United Kingdom. Nothing about your books is ' +
+        'stored in the browser beyond the session that signs you in, and everything between ' +
+        'you and the server travels over HTTPS.',
+        'A backup is taken every night and fourteen are kept, so a bad day is a restore ' +
+        'rather than a closure. <a href="/privacy">The privacy notice</a> names every company ' +
+        'that touches any of it, and what they get.'
+      ],
+      art: dataArt(),
+      flip: true,
+      band: true
+    }) +
     prose('Being straight about limits', [
       'No system is perfect, and a security page that claims otherwise is telling you something ' +
       'about the people who wrote it.',
@@ -704,27 +691,34 @@ add({
       lede: 'Short, practical explanations of the rules a Nigerian business has to follow, ' +
         'written so that somebody who did not study accounting can act on them.'
     }) +
-    cards('Starting points', 'Each of these is a question we have been asked more than once.', [
+    guides('Starting points', 'Each of these is a question we have been asked more than once.', [
       ['What changed in PAYE for 2026',
         'The Nigeria Tax Act 2025 took effect on 1 January 2026. The Consolidated Relief ' +
         'Allowance is gone, there are new bands, and the first ₦800,000 of chargeable ' +
-        'income is taxed at nothing.'],
+        'income is taxed at nothing.', 'bands'],
       ['Why pension is not 8% of gross',
         'Pension is contributed on basic, housing and transport — not on gross pay. Getting ' +
-        'this wrong is the commonest payroll error in Nigeria, and it goes unnoticed for years.'],
+        'this wrong is the commonest payroll error in Nigeria, and it goes unnoticed for years.', 'split'],
       ['VAT and withholding tax, together',
         'They are different taxes doing different jobs, and an invoice often carries both. What ' +
-        'each one is, who holds the money, and who remits it.'],
+        'each one is, who holds the money, and who remits it.', 'twotax'],
       ['What a trial balance is for',
         'Not an accounting ritual. It is the check that says your books add up, and the first ' +
-        'thing anyone lending you money will ask to see.'],
+        'thing anyone lending you money will ask to see.', 'balance'],
       ['Invoice numbering that will not embarrass you',
         'Why numbers must not repeat, must not have gaps you cannot explain, and what happens ' +
-        'at the turn of the year.'],
+        'at the turn of the year.', 'numbers'],
       ['When a sale becomes revenue',
         'Money arriving and revenue being earned are two different events, often in different ' +
-        'months, and treating them as one is how a profitable month turns out not to be.']
+        'months, and treating them as one is how a profitable month turns out not to be.', 'timing']
     ], true) +
+    paye('PAYE in 2026, at a glance',
+      'The table the first of those guides is about. It is read out of the payroll engine, so ' +
+      'it is the same table your payslips are calculated from.',
+      'Rent relief is 20% of rent actually paid, capped at ' + naira(500000) + ', and only ' +
+      'where the employee declares it. A salary at or below ' + naira(70000) + ' a month is ' +
+      'exempt. <a href="/features">What payroll does</a>.',
+      true) +
     prose('More coming', [
       'This section is being written. If there is something you want explained, say so at ' +
       '<a href="mailto:' + SUPPORT + '">' + SUPPORT + '</a> and it will go near the front of the ' +
@@ -750,20 +744,37 @@ add({
       primary: 'Start your free trial',
       secondary: ['Email ' + SUPPORT, 'mailto:' + SUPPORT]
     }) +
-    `<section class="band"><div class="wrap"><div class="grid g3">
-      <div class="card"><h3>Support</h3><p>Something wrong, something confusing, or a figure you cannot explain.<br><a href="mailto:${SUPPORT}">${SUPPORT}</a></p></div>
-      <div class="card"><h3>Billing and accounts</h3><p>Plans, seats, invoices and anything about what you are paying.<br><a href="mailto:${SUPPORT}">${SUPPORT}</a></p></div>
-      <div class="card"><h3>Data protection</h3><p>A copy of your data, a correction, or a deletion. See the <a href="/privacy">privacy notice</a>.<br><a href="mailto:${SUPPORT}">${SUPPORT}</a></p></div>
-    </div></div></section>` +
+    cards('What to write about', null, [
+      ['Support',
+        'Something wrong, something confusing, or a figure you cannot explain.<br>' +
+        '<a href="mailto:' + SUPPORT + '">' + SUPPORT + '</a>',
+        'mail'],
+      ['Billing and accounts',
+        'Plans, seats, invoices and anything about what you are paying.<br>' +
+        '<a href="mailto:' + SUPPORT + '">' + SUPPORT + '</a>',
+        'invoice'],
+      ['Data protection',
+        'A copy of your data, a correction, or a deletion. See the ' +
+        '<a href="/privacy">privacy notice</a>.<br>' +
+        '<a href="mailto:' + SUPPORT + '">' + SUPPORT + '</a>',
+        'shield']
+    ], true) +
     prose('If you are already a customer', [
       'Sign in and open <strong>Settings → Help and support</strong>. The message it starts ' +
       'already carries your account reference, which saves the two emails it otherwise takes to ' +
       'work out which books you mean.'
     ]) +
-    prose('Who you are writing to', [
-      'Profitna is operated by <strong>' + COMPANY + '</strong>, registered in Nigeria. ' +
-      '<a href="/about">More about the company</a>.'
-    ], true)
+    split({
+      eyebrow: 'Who you are writing to',
+      title: 'A company, with a name and a country',
+      paras: [
+        'Profitna is operated by <strong>' + COMPANY + '</strong>, registered in Nigeria. ' +
+        'The service runs on servers in the United Kingdom, and the ' +
+        '<a href="/privacy">privacy notice</a> names everyone else who touches any of it.',
+        '<a href="/about">More about the company</a>.'
+      ],
+      art: markArt()
+    })
 });
 
 const BY_PATH = new Map(PAGES.map((p) => [p.path, p]));

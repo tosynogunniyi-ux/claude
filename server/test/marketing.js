@@ -275,12 +275,28 @@ const between = (html, re) => (html.match(re) || [])[1] || '';
   // Every figure on these pages is inline SVG or a CSS bar. One <img> would
   // be a second request on a connection that may not have one to spare.
   check('the homepage asks for no images', !/<img\b/i.test(homeHtml));
-  check('it carries inline figures', (homeHtml.match(/<svg\b/g) || []).length >= 5,
+  check('it carries inline figures', (homeHtml.match(/<svg\b/g) || []).length >= 8,
     String((homeHtml.match(/<svg\b/g) || []).length));
+  // Every page should have something to look at, not just the home page.
+  for (const page of PAGES) {
+    const svgs = (fetched[page.path].body.match(/<svg\b/g) || []).length;
+    check('  ' + page.path + ' has something drawn on it', svgs >= 2, String(svgs));
+  }
+  check('and none of them is a stock photograph',
+    PAGES.every((p) => !/<img\b/i.test(fetched[p.path].body)));
   check('every figure says what it is',
     !/<svg\b(?![^>]*(aria-hidden|aria-label|role="img"))/i.test(homeHtml));
-  check('and the page is still a page, not a payload',
-    Buffer.byteLength(homeHtml) < 40000, Buffer.byteLength(homeHtml) + ' bytes');
+  // What a visitor on a Nigerian mobile connection actually waits for is the
+  // compressed page, so that is what is measured. The uncompressed ceiling is
+  // there too, because a page that needs gzip to be sane is a page with a
+  // problem gzip is hiding.
+  const zlib = require('zlib');
+  for (const page of PAGES) {
+    const raw = Buffer.byteLength(fetched[page.path].body);
+    const sent = zlib.gzipSync(fetched[page.path].body).length;
+    check('  ' + page.path + ' stays small on the wire', sent < 20000, sent + ' bytes gzipped');
+    check('  ' + page.path + ' stays reasonable uncompressed', raw < 60000, raw + ' bytes');
+  }
 
   // The tax picture is drawn from the payroll engine's own frozen rules. If
   // somebody edits a band, this fails until the picture agrees again.
